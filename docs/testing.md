@@ -2,62 +2,29 @@
 
 ## Container-Based Testing Strategy
 
-### Test Infrastructure Setup
+### Running Integration Tests
 
-```yaml
-# docker-compose.test.yml
-version: '3.8'
+Integration tests run against real services using Docker containers. We do not use docker-compose files - instead, run containers directly:
 
-services:
-  seq:
-    image: datalust/seq:latest
-    environment:
-      ACCEPT_EULA: Y
-    ports:
-      - "5341:5341"
-      - "8080:80"
-    volumes:
-      - seq-data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5341/api/events/signal"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+```bash
+# Run integration tests with Seq
+docker run -d --name seq-test -e ACCEPT_EULA=Y -e SEQ_FIRSTRUN_NOAUTHENTICATION=true -p 8080:80 -p 5342:5341 datalust/seq
+go test -tags=integration ./...
+docker stop seq-test && docker rm seq-test
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+# Run integration tests with Elasticsearch
+docker run -d --name es-test -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+# Wait for Elasticsearch to be ready
+sleep 30
+go test -tags=integration ./...
+docker stop es-test && docker rm es-test
 
-  test-runner:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    depends_on:
-      seq:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    environment:
-      SEQ_URL: http://seq:5341
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-    volumes:
-      - .:/app
-      - go-cache:/go/pkg/mod
-    command: go test -v ./...
-
-volumes:
-  seq-data:
-  go-cache:
+# Run integration tests with Splunk
+docker run -d --name splunk-test -p 8000:8000 -p 8088:8088 -e SPLUNK_START_ARGS="--accept-license" -e SPLUNK_PASSWORD="changeme" -e SPLUNK_HEC_TOKEN="00000000-0000-0000-0000-000000000000" splunk/splunk:latest
+# Wait for Splunk to be ready
+sleep 60
+go test -tags=integration ./...
+docker stop splunk-test && docker rm splunk-test
 ```
 
 ### Real Integration Tests (No Mocks!)
