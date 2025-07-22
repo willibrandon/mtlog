@@ -248,6 +248,13 @@ docker run -d --name seq-test -e ACCEPT_EULA=Y -e SEQ_FIRSTRUN_NOAUTHENTICATION=
 go test -tags=integration ./...
 docker stop seq-test && docker rm seq-test
 
+# Run integration tests with Elasticsearch
+docker run -d --name es-test -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+# Wait for Elasticsearch to be ready
+sleep 30
+go test -tags=integration ./...
+docker stop es-test && docker rm es-test
+
 # Run benchmarks
 go test -bench=. -benchmem ./...
 ```

@@ -121,6 +121,17 @@ Configure output destinations:
 - `flushInterval`: Flush interval (e.g., "100ms")
 - `writeTo`: Nested sink configuration
 
+**Elasticsearch**
+- `url`: Elasticsearch URL (required)
+- `index`: Index name prefix (default: "logs")
+- `apiKey`: API key for authentication
+- `username`: Username for basic auth
+- `password`: Password for basic auth
+- `batchSize`: Number of events per batch
+- `batchTimeout`: Batch flush timeout (e.g., "5s")
+- `dataStreams`: Use data streams instead of indices (true/false)
+- `pipeline`: Ingest pipeline name
+
 ### Enrichers
 
 Add contextual properties to all events:

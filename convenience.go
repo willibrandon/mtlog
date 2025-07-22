@@ -204,3 +204,50 @@ func Warning() Option {
 func Error() Option {
 	return WithMinimumLevel(core.ErrorLevel)
 }
+
+// WithElasticsearch adds an Elasticsearch sink with default configuration.
+func WithElasticsearch(url string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewElasticsearchSink(url)
+		if err != nil {
+			// In production, you might want to handle this error differently
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithElasticsearchBasicAuth adds an Elasticsearch sink with basic authentication.
+func WithElasticsearchBasicAuth(url, username, password string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewElasticsearchSink(url, 
+			sinks.WithElasticsearchBasicAuth(username, password))
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithElasticsearchAPIKey adds an Elasticsearch sink with API key authentication.
+func WithElasticsearchAPIKey(url, apiKey string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewElasticsearchSink(url, 
+			sinks.WithElasticsearchAPIKey(apiKey))
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithElasticsearchAdvanced adds an Elasticsearch sink with advanced options.
+func WithElasticsearchAdvanced(url string, opts ...sinks.ElasticsearchOption) Option {
+	return func(c *config) {
+		sink, err := sinks.NewElasticsearchSink(url, opts...)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}

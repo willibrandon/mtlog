@@ -42,6 +42,7 @@ func NewLoggerBuilder() *LoggerBuilder {
 	lb.RegisterSink("File", createFileSink)
 	lb.RegisterSink("RollingFile", createRollingFileSink)
 	lb.RegisterSink("Seq", createSeqSink)
+	lb.RegisterSink("Elasticsearch", createElasticsearchSink)
 	lb.RegisterSink("Async", createAsyncSink)
 	
 	// Register default enrichers
@@ -338,6 +339,50 @@ func createAsyncSink(args map[string]interface{}) (core.LogEventSink, error) {
 	}
 	
 	return sinks.NewAsyncSink(wrapped, options), nil
+}
+
+func createElasticsearchSink(args map[string]interface{}) (core.LogEventSink, error) {
+	url := GetString(args, "url", "")
+	if url == "" {
+		return nil, fmt.Errorf("Elasticsearch sink requires 'url' argument")
+	}
+	
+	var options []sinks.ElasticsearchOption
+	
+	// Set index name if provided
+	if index := GetString(args, "index", ""); index != "" {
+		options = append(options, sinks.WithElasticsearchIndex(index))
+	}
+	
+	// Authentication
+	apiKey := GetString(args, "apiKey", "")
+	username := GetString(args, "username", "")
+	password := GetString(args, "password", "")
+	
+	if apiKey != "" {
+		options = append(options, sinks.WithElasticsearchAPIKey(apiKey))
+	} else if username != "" && password != "" {
+		options = append(options, sinks.WithElasticsearchBasicAuth(username, password))
+	}
+	
+	// Batching options
+	batchSize := GetInt(args, "batchSize", 100)
+	options = append(options, sinks.WithElasticsearchBatchSize(batchSize))
+	
+	batchTimeout := parseDuration(GetString(args, "batchTimeout", "5s"), 5*time.Second)
+	options = append(options, sinks.WithElasticsearchBatchTimeout(batchTimeout))
+	
+	// Data streams
+	if GetBool(args, "dataStreams", false) {
+		options = append(options, sinks.WithElasticsearchDataStreams())
+	}
+	
+	// Pipeline
+	if pipeline := GetString(args, "pipeline", ""); pipeline != "" {
+		options = append(options, sinks.WithElasticsearchPipeline(pipeline))
+	}
+	
+	return sinks.NewElasticsearchSink(url, options...)
 }
 
 // Helper to parse duration strings
