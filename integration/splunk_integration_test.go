@@ -28,7 +28,7 @@ func TestSplunkIntegration(t *testing.T) {
 
 	splunkToken := os.Getenv("SPLUNK_TOKEN")
 	if splunkToken == "" {
-		splunkToken = "eb6baeef-eeb3-4a35-ab73-e17a12523b10" // Default token for test container
+		t.Fatal("SPLUNK_TOKEN environment variable must be set")
 	}
 
 	// Check if Splunk is available
