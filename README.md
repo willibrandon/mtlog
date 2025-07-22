@@ -462,7 +462,6 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 - **[Configuration](./docs/configuration.md)** - JSON-based configuration
 - **[Performance](./docs/performance.md)** - Benchmarks and optimization
 - **[Testing](./docs/testing.md)** - Container-based integration testing
-- **[Design](./docs/design.md)** - Architecture and design decisions
 
 ## Testing
 
