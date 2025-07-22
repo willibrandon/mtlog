@@ -40,8 +40,7 @@ func TestAllocationBreakdown(t *testing.T) {
 	
 	// Test 4: Full logging flow
 	t.Run("FullLoggingFlow", func(t *testing.T) {
-		logger := New()
-		logger.AddSink(&discardSink{})
+		logger := New(WithSink(&discardSink{}))
 		
 		allocs := testing.AllocsPerRun(100, func() {
 			logger.Information("This is a simple log message")

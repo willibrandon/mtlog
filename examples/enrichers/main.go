@@ -5,34 +5,19 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog"
-	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/enrichers"
-	"github.com/willibrandon/mtlog/sinks"
 )
 
 func main() {
-	// Create a new logger
-	log := mtlog.New()
-	
-	// Add console sink
-	log.AddSink(sinks.NewConsoleSink())
-	
-	// Add file sink
+	// Create a new logger with console, file output, enrichers, and debug level
 	logPath := filepath.Join("logs", "app.log")
-	fileSink, err := sinks.NewFileSink(logPath)
-	if err != nil {
-		panic(err)
-	}
-	log.AddSink(fileSink)
-	defer fileSink.Close()
-	
-	// Add enrichers
-	log.AddEnricher(enrichers.NewTimestampEnricher())
-	log.AddEnricher(enrichers.NewMachineNameEnricher())
-	log.AddEnricher(enrichers.NewProcessEnricher())
-	
-	// Set minimum level
-	log.SetMinimumLevel(core.DebugLevel)
+	log := mtlog.New(
+		mtlog.WithConsole(),
+		mtlog.WithFile(logPath),
+		mtlog.WithTimestamp(),
+		mtlog.WithMachineName(),
+		mtlog.WithProcess(),
+		mtlog.Debug(),
+	)
 	
 	// Log some messages
 	log.Information("Application started with enrichers")

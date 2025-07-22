@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 	
@@ -13,14 +15,23 @@ import (
 
 // ConsoleSink writes log events to the console.
 type ConsoleSink struct {
-	output io.Writer
-	mu     sync.Mutex
+	output         io.Writer
+	mu             sync.Mutex
+	showProperties bool
 }
 
 // NewConsoleSink creates a new console sink that writes to stdout.
 func NewConsoleSink() *ConsoleSink {
 	return &ConsoleSink{
 		output: os.Stdout,
+	}
+}
+
+// NewConsoleSinkWithProperties creates a new console sink that displays properties.
+func NewConsoleSinkWithProperties() *ConsoleSink {
+	return &ConsoleSink{
+		output:         os.Stdout,
+		showProperties: true,
 	}
 }
 
@@ -68,7 +79,35 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 	levelStr := formatLevel(event.Level)
 	timestamp := event.Timestamp.Format("2006-01-02 15:04:05.000")
 	
-	return fmt.Sprintf("[%s] [%s] %s", timestamp, levelStr, message)
+	result := fmt.Sprintf("[%s] [%s] %s", timestamp, levelStr, message)
+	
+	// Add properties if enabled and there are any
+	if cs.showProperties && len(event.Properties) > 0 {
+		// Get properties that weren't used in the message template
+		usedProps := make(map[string]bool)
+		for _, token := range tmpl.Tokens {
+			if prop, ok := token.(*parser.PropertyToken); ok {
+				usedProps[prop.PropertyName] = true
+			}
+		}
+		
+		// Collect extra properties
+		var extras []string
+		for k, v := range event.Properties {
+			if !usedProps[k] {
+				extras = append(extras, fmt.Sprintf("%s=%v", k, v))
+			}
+		}
+		
+		// Sort for consistent output
+		sort.Strings(extras)
+		
+		if len(extras) > 0 {
+			result += fmt.Sprintf(" {%s}", strings.Join(extras, ", "))
+		}
+	}
+	
+	return result
 }
 
 // EmitSimple writes a simple log message without allocations.

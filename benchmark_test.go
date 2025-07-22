@@ -18,8 +18,7 @@ func (d *discardSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, 
 
 // Benchmark simple logging without properties
 func BenchmarkSimpleLog(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -31,8 +30,7 @@ func BenchmarkSimpleLog(b *testing.B) {
 
 // Benchmark logging with properties
 func BenchmarkLogWithProperties(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -44,8 +42,7 @@ func BenchmarkLogWithProperties(b *testing.B) {
 
 // Benchmark logging with multiple properties
 func BenchmarkLogWithManyProperties(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -58,8 +55,7 @@ func BenchmarkLogWithManyProperties(b *testing.B) {
 
 // Benchmark logging with context
 func BenchmarkLogWithContext(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	ctxLogger := logger.ForContext("Environment", "Production").
 		ForContext("Version", "1.0.0").
@@ -75,9 +71,10 @@ func BenchmarkLogWithContext(b *testing.B) {
 
 // Benchmark logging below minimum level (should be very fast)
 func BenchmarkLogBelowMinimumLevel(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
-	logger.SetMinimumLevel(core.InformationLevel)
+	logger := New(
+		WithSink(&discardSink{}),
+		WithMinimumLevel(core.InformationLevel),
+	)
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -89,13 +86,13 @@ func BenchmarkLogBelowMinimumLevel(b *testing.B) {
 
 // Benchmark with enrichers
 func BenchmarkLogWithEnrichers(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
-	
-	// Add test enrichers
-	logger.AddEnricher(&benchEnricher{name: "Prop1", value: "Value1"})
-	logger.AddEnricher(&benchEnricher{name: "Prop2", value: "Value2"})
-	logger.AddEnricher(&benchEnricher{name: "Prop3", value: "Value3"})
+	logger := New(
+		WithSink(&discardSink{}),
+		// Add test enrichers
+		WithEnricher(&benchEnricher{name: "Prop1", value: "Value1"}),
+		WithEnricher(&benchEnricher{name: "Prop2", value: "Value2"}),
+		WithEnricher(&benchEnricher{name: "Prop3", value: "Value3"}),
+	)
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -107,8 +104,7 @@ func BenchmarkLogWithEnrichers(b *testing.B) {
 
 // Benchmark console sink
 func BenchmarkConsoleSink(b *testing.B) {
-	logger := New()
-	logger.AddSink(sinks.NewConsoleSinkWithWriter(io.Discard))
+	logger := New(WithSink(sinks.NewConsoleSinkWithWriter(io.Discard)))
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -120,8 +116,7 @@ func BenchmarkConsoleSink(b *testing.B) {
 
 // Benchmark parallel logging
 func BenchmarkParallelLogging(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -135,8 +130,7 @@ func BenchmarkParallelLogging(b *testing.B) {
 
 // Benchmark template parsing (cached vs uncached)
 func BenchmarkTemplateParsing(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	// Use different templates to avoid caching
 	templates := []string{
@@ -158,8 +152,7 @@ func BenchmarkTemplateParsing(b *testing.B) {
 
 // Benchmark structured object logging
 func BenchmarkStructuredObject(b *testing.B) {
-	logger := New()
-	logger.AddSink(&discardSink{})
+	logger := New(WithSink(&discardSink{}))
 	
 	user := struct {
 		ID    int

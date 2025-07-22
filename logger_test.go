@@ -34,11 +34,10 @@ func (ms *memorySink) GetEvents() []core.LogEvent {
 
 func TestLoggerLevels(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
-	
-	// Set minimum level to Information
-	logger.SetMinimumLevel(core.InformationLevel)
+	logger := New(
+		WithMinimumLevel(core.InformationLevel),
+		WithSink(sink),
+	)
 	
 	// Log at different levels
 	logger.Verbose("Verbose message")
@@ -72,8 +71,7 @@ func TestLoggerLevels(t *testing.T) {
 
 func TestLoggerPropertyExtraction(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
+	logger := New(WithSink(sink))
 	
 	// Log with properties
 	logger.Information("User {UserId} logged in from {IpAddress}", 123, "192.168.1.1")
@@ -97,8 +95,7 @@ func TestLoggerPropertyExtraction(t *testing.T) {
 
 func TestLoggerForContext(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
+	logger := New(WithSink(sink))
 	
 	// Create context logger
 	ctxLogger := logger.ForContext("Environment", "Production")
@@ -119,8 +116,7 @@ func TestLoggerForContext(t *testing.T) {
 
 func TestLoggerMultipleContexts(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
+	logger := New(WithSink(sink))
 	
 	// Create nested context loggers
 	ctx1 := logger.ForContext("Environment", "Production")
@@ -146,12 +142,11 @@ func TestLoggerMultipleContexts(t *testing.T) {
 
 func TestLoggerEnrichers(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
-	
-	// Add a test enricher
 	testEnricher := &testEnricher{property: "TestProp", value: "TestValue"}
-	logger.AddEnricher(testEnricher)
+	logger := New(
+		WithSink(sink),
+		WithEnricher(testEnricher),
+	)
 	
 	logger.Information("Test message")
 	
@@ -170,12 +165,12 @@ func TestLoggerEnrichers(t *testing.T) {
 
 func TestLoggerFilters(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
-	
 	// Add a filter that blocks messages containing "secret"
 	filter := &containsFilter{substring: "secret"}
-	logger.AddFilter(filter)
+	logger := New(
+		WithSink(sink),
+		WithFilter(filter),
+	)
 	
 	logger.Information("Public message")
 	logger.Information("This contains secret information")
@@ -196,8 +191,7 @@ func TestLoggerFilters(t *testing.T) {
 
 func TestLoggerConcurrency(t *testing.T) {
 	sink := &memorySink{}
-	logger := New()
-	logger.AddSink(sink)
+	logger := New(WithSink(sink))
 	
 	// Test concurrent logging
 	var wg sync.WaitGroup

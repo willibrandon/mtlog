@@ -6,27 +6,41 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/enrichers"
 	"github.com/willibrandon/mtlog/parser"
 )
 
 // logger is the default implementation of core.Logger.
 type logger struct {
 	minimumLevel core.LogEventLevel
-	enrichers    []core.LogEventEnricher
-	filters      []core.LogEventFilter
-	sinks        []core.LogEventSink
+	pipeline     *pipeline
 	properties   map[string]interface{}
 	mu           sync.RWMutex
 }
 
-// New creates a new logger with default configuration.
-func New() *logger {
-	return &logger{
+// New creates a new logger with the specified options.
+func New(opts ...Option) *logger {
+	// Apply default configuration
+	cfg := &config{
 		minimumLevel: core.InformationLevel,
 		enrichers:    []core.LogEventEnricher{},
 		filters:      []core.LogEventFilter{},
 		sinks:        []core.LogEventSink{},
 		properties:   make(map[string]interface{}),
+	}
+	
+	// Apply options
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	
+	// Create the pipeline
+	p := newPipeline(cfg.enrichers, cfg.filters, cfg.destructurer, cfg.sinks)
+	
+	return &logger{
+		minimumLevel: cfg.minimumLevel,
+		pipeline:     p,
+		properties:   cfg.properties,
 	}
 }
 
@@ -68,22 +82,9 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 	}
 	
 	// Fast path for simple messages (no args, no properties, no enrichers, no filters)
-	if len(args) == 0 && len(l.enrichers) == 0 && len(l.properties) == 0 && len(l.filters) == 0 && !hasPropertyTokens(messageTemplate) {
-		timestamp := time.Now()
-		for _, sink := range l.sinks {
-			if simpleSink, ok := sink.(core.SimpleSink); ok {
-				simpleSink.EmitSimple(timestamp, level, messageTemplate)
-			} else {
-				// Fall back to regular emit with a minimal event
-				event := &core.LogEvent{
-					Timestamp:       timestamp,
-					Level:           level,
-					MessageTemplate: messageTemplate,
-					Properties:      make(map[string]interface{}),
-				}
-				sink.Emit(event)
-			}
-		}
+	if len(args) == 0 && len(l.properties) == 0 && !hasPropertyTokens(messageTemplate) && 
+		len(l.pipeline.enrichers) == 0 && len(l.pipeline.filters) == 0 {
+		l.pipeline.processSimple(time.Now(), level, messageTemplate)
 		return
 	}
 	
@@ -117,32 +118,16 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 	}
 	l.mu.RUnlock()
 	
-	// Apply enrichers
+	// Process through pipeline
 	factory := &propertyFactory{}
-	for _, enricher := range l.enrichers {
-		enricher.Enrich(event, factory)
-	}
-	
-	// Apply filters
-	for _, filter := range l.filters {
-		if !filter.IsEnabled(event) {
-			return
-		}
-	}
-	
-	// Emit to sinks
-	for _, sink := range l.sinks {
-		sink.Emit(event)
-	}
+	l.pipeline.process(event, factory)
 }
 
 // ForContext creates a logger that enriches events with the specified property.
 func (l *logger) ForContext(propertyName string, value interface{}) core.Logger {
 	newLogger := &logger{
 		minimumLevel: l.minimumLevel,
-		enrichers:    l.enrichers,
-		filters:      l.filters,
-		sinks:        l.sinks,
+		pipeline:     l.pipeline, // Share the same immutable pipeline
 		properties:   make(map[string]interface{}),
 	}
 	
@@ -161,8 +146,37 @@ func (l *logger) ForContext(propertyName string, value interface{}) core.Logger 
 
 // WithContext creates a logger that enriches events with context values.
 func (l *logger) WithContext(ctx context.Context) core.Logger {
-	// TODO: Extract values from context
-	return l
+	// Create a new logger with the same configuration but additional context enricher
+	newConfig := &config{
+		minimumLevel: l.minimumLevel,
+		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+1),
+		filters:      l.pipeline.filters,
+		destructurer: l.pipeline.destructurer,
+		sinks:        l.pipeline.sinks,
+		properties:   make(map[string]interface{}),
+	}
+	
+	// Copy existing enrichers
+	copy(newConfig.enrichers, l.pipeline.enrichers)
+	
+	// Add context enricher
+	newConfig.enrichers[len(l.pipeline.enrichers)] = enrichers.NewContextEnricher(ctx)
+	
+	// Copy existing properties
+	l.mu.RLock()
+	for k, v := range l.properties {
+		newConfig.properties[k] = v
+	}
+	l.mu.RUnlock()
+	
+	// Create new pipeline
+	p := newPipeline(newConfig.enrichers, newConfig.filters, newConfig.destructurer, newConfig.sinks)
+	
+	return &logger{
+		minimumLevel: l.minimumLevel,
+		pipeline:     p,
+		properties:   newConfig.properties,
+	}
 }
 
 // extractPropertiesInto extracts properties from the template and arguments into an existing map.
@@ -190,33 +204,8 @@ func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []interfac
 	return properties
 }
 
-// AddSink adds a sink to the logger.
-func (l *logger) AddSink(sink core.LogEventSink) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.sinks = append(l.sinks, sink)
-}
-
-// AddEnricher adds an enricher to the logger.
-func (l *logger) AddEnricher(enricher core.LogEventEnricher) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.enrichers = append(l.enrichers, enricher)
-}
-
-// AddFilter adds a filter to the logger.
-func (l *logger) AddFilter(filter core.LogEventFilter) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.filters = append(l.filters, filter)
-}
-
-// SetMinimumLevel sets the minimum log level.
-func (l *logger) SetMinimumLevel(level core.LogEventLevel) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.minimumLevel = level
-}
+// Note: The logger is immutable once created. To modify configuration,
+// create a new logger with the desired options.
 
 // propertyFactory is a simple implementation of LogEventPropertyFactory.
 type propertyFactory struct{}

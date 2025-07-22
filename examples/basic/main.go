@@ -2,19 +2,14 @@ package main
 
 import (
 	"github.com/willibrandon/mtlog"
-	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/sinks"
 )
 
 func main() {
-	// Create a new logger
-	log := mtlog.New()
-	
-	// Add console sink
-	log.AddSink(sinks.NewConsoleSink())
-	
-	// Set minimum level to Debug
-	log.SetMinimumLevel(core.DebugLevel)
+	// Create a new logger with console output and debug level
+	log := mtlog.New(
+		mtlog.WithConsole(),
+		mtlog.Debug(),
+	)
 	
 	// Log some messages
 	log.Information("Application started")
@@ -54,9 +49,12 @@ func main() {
 	// Test verbose level (should not appear with current minimum level)
 	log.Verbose("This verbose message should not appear")
 	
-	// Lower the minimum level and try again
-	log.SetMinimumLevel(core.VerboseLevel)
-	log.Verbose("Now this verbose message should appear")
+	// Create a new logger with verbose level to see verbose messages
+	verboseLog := mtlog.New(
+		mtlog.WithConsole(),
+		mtlog.Verbose(),
+	)
+	verboseLog.Verbose("Now this verbose message should appear")
 	
 	log.Information("Application finished")
 }
