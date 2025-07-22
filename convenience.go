@@ -3,6 +3,7 @@ package mtlog
 import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/enrichers"
+	"github.com/willibrandon/mtlog/filters"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -71,6 +72,38 @@ func WithCallers(skip int) Option {
 // WithCorrelationId adds a fixed correlation ID to all log events.
 func WithCorrelationId(correlationId string) Option {
 	return WithEnricher(enrichers.NewCorrelationIdEnricher(correlationId))
+}
+
+// Filter convenience options
+
+// WithLevelFilter adds a minimum level filter.
+func WithLevelFilter(minimumLevel core.LogEventLevel) Option {
+	return WithFilter(filters.NewLevelFilter(minimumLevel))
+}
+
+// WithPropertyFilter adds a filter that matches a specific property value.
+func WithPropertyFilter(propertyName string, expectedValue interface{}) Option {
+	return WithFilter(filters.MatchProperty(propertyName, expectedValue))
+}
+
+// WithExcludeFilter adds a filter that excludes events matching the predicate.
+func WithExcludeFilter(predicate func(*core.LogEvent) bool) Option {
+	return WithFilter(filters.ByExcluding(predicate))
+}
+
+// WithSampling adds a sampling filter.
+func WithSampling(rate float32) Option {
+	return WithFilter(filters.NewSamplingFilter(rate))
+}
+
+// WithHashSampling adds a hash-based sampling filter.
+func WithHashSampling(propertyName string, rate float32) Option {
+	return WithFilter(filters.NewHashSamplingFilter(propertyName, rate))
+}
+
+// WithRateLimit adds a rate limiting filter.
+func WithRateLimit(maxEvents int, windowNanos int64) Option {
+	return WithFilter(filters.NewRateLimitFilter(maxEvents, windowNanos))
 }
 
 // Level convenience options
