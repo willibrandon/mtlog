@@ -109,9 +109,9 @@ func WithRateLimit(maxEvents int, windowNanos int64) Option {
 
 // Destructuring options
 
-// WithDestructuring adds the default destructurer.
+// WithDestructuring adds the cached destructurer for better performance.
 func WithDestructuring() Option {
-	return WithDestructurer(destructure.NewDefaultDestructurer())
+	return WithDestructurer(destructure.NewCachedDestructurer())
 }
 
 // WithCustomDestructuring adds a destructurer with custom limits.

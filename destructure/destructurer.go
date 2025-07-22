@@ -59,10 +59,13 @@ func (d *DefaultDestructurer) TryDestructure(value interface{}, propertyFactory 
 		return propertyFactory.CreateProperty("", nil), true
 	}
 	
-	// Check if the value implements a custom interface (will be added later)
-	// if lv, ok := value.(LogValue); ok {
-	//     return propertyFactory.CreateProperty("", lv.LogValue()), true
-	// }
+	// Check if the value implements LogValue interface
+	if lv, ok := value.(core.LogValue); ok {
+		// Recursively destructure the LogValue result
+		logValue := lv.LogValue()
+		destructured := d.destructure(logValue, 0)
+		return propertyFactory.CreateProperty("", destructured), true
+	}
 	
 	destructured := d.destructure(value, 0)
 	return propertyFactory.CreateProperty("", destructured), true
@@ -149,7 +152,14 @@ func (d *DefaultDestructurer) destructureSlice(v reflect.Value, depth int) inter
 	
 	result := make([]interface{}, length)
 	for i := 0; i < length; i++ {
-		result[i] = d.destructure(v.Index(i).Interface(), depth+1)
+		elem := v.Index(i).Interface()
+		
+		// Check if element implements LogValue
+		if lv, ok := elem.(core.LogValue); ok {
+			result[i] = d.destructure(lv.LogValue(), depth+1)
+		} else {
+			result[i] = d.destructure(elem, depth+1)
+		}
 	}
 	
 	// Add indicator if truncated
