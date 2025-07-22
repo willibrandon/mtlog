@@ -237,6 +237,21 @@ destructurer := destructure.NewDefaultDestructurer()
 destructurer.RegisterScalarType(reflect.TypeOf(uuid.UUID{}))
 ```
 
+## Testing
+
+```bash
+# Run unit tests
+go test ./...
+
+# Run integration tests with Seq
+docker run -d --name seq-test -e ACCEPT_EULA=Y -e SEQ_FIRSTRUN_NOAUTHENTICATION=true -p 8080:80 -p 5342:5341 datalust/seq
+go test -tags=integration ./...
+docker stop seq-test && docker rm seq-test
+
+# Run benchmarks
+go test -bench=. -benchmem ./...
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

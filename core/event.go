@@ -19,3 +19,15 @@ type LogEvent struct {
 	// Exception associated with the event, if any.
 	Exception error
 }
+
+// AddPropertyIfAbsent adds a property to the event if it doesn't already exist.
+func (e *LogEvent) AddPropertyIfAbsent(property *LogEventProperty) {
+	if _, exists := e.Properties[property.Name]; !exists {
+		e.Properties[property.Name] = property.Value
+	}
+}
+
+// AddProperty adds or overwrites a property in the event.
+func (e *LogEvent) AddProperty(name string, value interface{}) {
+	e.Properties[name] = value
+}

@@ -31,6 +31,39 @@ func WithFile(path string) Option {
 	}
 }
 
+// WithSeq adds a Seq sink with default configuration.
+func WithSeq(serverURL string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewSeqSink(serverURL)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithSeqAPIKey adds a Seq sink with API key authentication.
+func WithSeqAPIKey(serverURL, apiKey string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewSeqSink(serverURL, sinks.WithSeqAPIKey(apiKey))
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithSeqAdvanced adds a Seq sink with advanced options.
+func WithSeqAdvanced(serverURL string, opts ...sinks.SeqOption) Option {
+	return func(c *config) {
+		sink, err := sinks.NewSeqSink(serverURL, opts...)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
 // WithMachineName adds machine name enrichment.
 func WithMachineName() Option {
 	return WithEnricher(enrichers.NewMachineNameEnricher())
@@ -46,9 +79,23 @@ func WithProcess() Option {
 	return WithEnricher(enrichers.NewProcessEnricher())
 }
 
+// WithProcessInfo is an alias for WithProcess.
+func WithProcessInfo() Option {
+	return WithProcess()
+}
+
 // WithEnvironment adds environment variable enrichment.
 func WithEnvironment(variableName, propertyName string) Option {
 	return WithEnricher(enrichers.NewEnvironmentEnricherCached(variableName, propertyName))
+}
+
+// WithEnvironmentVariables adds enrichers for multiple environment variables.
+func WithEnvironmentVariables(variables ...string) Option {
+	return func(c *config) {
+		for _, v := range variables {
+			c.enrichers = append(c.enrichers, enrichers.NewEnvironmentEnricherCached(v, v))
+		}
+	}
 }
 
 // WithCommonEnvironment adds enrichers for common environment variables.
@@ -68,6 +115,11 @@ func WithThreadId() Option {
 // WithCallers adds caller information enrichment.
 func WithCallers(skip int) Option {
 	return WithEnricher(enrichers.NewCallersEnricher(skip))
+}
+
+// WithCallersInfo adds caller information enrichment with default skip.
+func WithCallersInfo() Option {
+	return WithEnricher(enrichers.NewCallersEnricher(3))
 }
 
 // WithCorrelationId adds a fixed correlation ID to all log events.
@@ -112,6 +164,13 @@ func WithRateLimit(maxEvents int, windowNanos int64) Option {
 // WithDestructuring adds the cached destructurer for better performance.
 func WithDestructuring() Option {
 	return WithDestructurer(destructure.NewCachedDestructurer())
+}
+
+// WithDestructuringDepth adds destructuring with a specific max depth.
+func WithDestructuringDepth(maxDepth int) Option {
+	d := destructure.NewCachedDestructurer()
+	d.DefaultDestructurer = destructure.NewDestructurer(maxDepth, 1000, 100)
+	return WithDestructurer(d)
 }
 
 // WithCustomDestructuring adds a destructurer with custom limits.

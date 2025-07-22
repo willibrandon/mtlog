@@ -66,3 +66,18 @@ func (p *pipeline) processSimple(timestamp time.Time, level core.LogEventLevel, 
 		}
 	}
 }
+
+// Close closes all sinks that implement io.Closer.
+func (p *pipeline) Close() error {
+	var firstErr error
+	
+	for _, sink := range p.sinks {
+		if closer, ok := sink.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	
+	return firstErr
+}

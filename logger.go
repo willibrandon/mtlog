@@ -253,3 +253,8 @@ func hasPropertyTokens(template string) bool {
 	}
 	return false
 }
+
+// Close closes all closeable sinks in the pipeline.
+func (l *logger) Close() error {
+	return l.pipeline.Close()
+}
