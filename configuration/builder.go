@@ -43,6 +43,7 @@ func NewLoggerBuilder() *LoggerBuilder {
 	lb.RegisterSink("RollingFile", createRollingFileSink)
 	lb.RegisterSink("Seq", createSeqSink)
 	lb.RegisterSink("Elasticsearch", createElasticsearchSink)
+	lb.RegisterSink("Splunk", createSplunkSink)
 	lb.RegisterSink("Async", createAsyncSink)
 	
 	// Register default enrichers
@@ -383,6 +384,46 @@ func createElasticsearchSink(args map[string]interface{}) (core.LogEventSink, er
 	}
 	
 	return sinks.NewElasticsearchSink(url, options...)
+}
+
+func createSplunkSink(args map[string]interface{}) (core.LogEventSink, error) {
+	url := GetString(args, "url", "")
+	if url == "" {
+		return nil, fmt.Errorf("Splunk sink requires 'url' argument")
+	}
+	
+	token := GetString(args, "token", "")
+	if token == "" {
+		return nil, fmt.Errorf("Splunk sink requires 'token' argument")
+	}
+	
+	var options []sinks.SplunkOption
+	
+	// Set metadata fields if provided
+	if index := GetString(args, "index", ""); index != "" {
+		options = append(options, sinks.WithSplunkIndex(index))
+	}
+	if source := GetString(args, "source", ""); source != "" {
+		options = append(options, sinks.WithSplunkSource(source))
+	}
+	if sourceType := GetString(args, "sourceType", ""); sourceType != "" {
+		options = append(options, sinks.WithSplunkSourceType(sourceType))
+	}
+	if host := GetString(args, "host", ""); host != "" {
+		options = append(options, sinks.WithSplunkHost(host))
+	}
+	
+	// Batching options
+	batchSize := GetInt(args, "batchSize", 100)
+	options = append(options, sinks.WithSplunkBatchSize(batchSize))
+	
+	if batchTimeout := GetString(args, "batchTimeout", ""); batchTimeout != "" {
+		if d, err := time.ParseDuration(batchTimeout); err == nil {
+			options = append(options, sinks.WithSplunkBatchTimeout(d))
+		}
+	}
+	
+	return sinks.NewSplunkSink(url, token, options...)
 }
 
 // Helper to parse duration strings

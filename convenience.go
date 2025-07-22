@@ -251,3 +251,25 @@ func WithElasticsearchAdvanced(url string, opts ...sinks.ElasticsearchOption) Op
 		c.sinks = append(c.sinks, sink)
 	}
 }
+
+// WithSplunk adds a Splunk sink to the logger.
+func WithSplunk(url, token string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewSplunkSink(url, token)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithSplunkAdvanced adds a Splunk sink with advanced options.
+func WithSplunkAdvanced(url, token string, opts ...sinks.SplunkOption) Option {
+	return func(c *config) {
+		sink, err := sinks.NewSplunkSink(url, token, opts...)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
