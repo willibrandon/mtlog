@@ -184,10 +184,30 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []inte
 	// Extract property names from already parsed template
 	propNames := parser.ExtractPropertyNamesFromTemplate(tmpl)
 	
+	// Also check which properties need destructuring
+	destructureProps := make(map[string]bool)
+	for _, token := range tmpl.Tokens {
+		if prop, ok := token.(*parser.PropertyToken); ok {
+			if prop.Destructuring == parser.Destructure {
+				destructureProps[prop.PropertyName] = true
+			}
+		}
+	}
+	
 	// Match arguments to properties positionally
 	for i, name := range propNames {
 		if i < len(args) {
-			properties[name] = args[i]
+			value := args[i]
+			
+			// Apply destructuring if needed and destructurer is available
+			if destructureProps[name] && l.pipeline.destructurer != nil {
+				factory := &propertyFactory{}
+				if prop, ok := l.pipeline.destructurer.TryDestructure(value, factory); ok {
+					value = prop.Value
+				}
+			}
+			
+			properties[name] = value
 		}
 	}
 	

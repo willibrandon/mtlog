@@ -39,14 +39,8 @@ func (p *pipeline) process(event *core.LogEvent, factory core.LogEventPropertyFa
 		}
 	}
 	
-	// Stage 3: Destructuring - convert complex types
-	if p.destructurer != nil {
-		for key, value := range event.Properties {
-			if prop, ok := p.destructurer.TryDestructure(value, factory); ok {
-				event.Properties[key] = prop.Value
-			}
-		}
-	}
+	// Stage 3: Destructuring - handled during property extraction for @ hints
+	// The destructurer is made available to the logger but not applied here
 	
 	// Stage 4: Output - send to sinks
 	for _, sink := range p.sinks {

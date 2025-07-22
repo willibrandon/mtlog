@@ -2,6 +2,7 @@ package mtlog
 
 import (
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/destructure"
 	"github.com/willibrandon/mtlog/enrichers"
 	"github.com/willibrandon/mtlog/filters"
 	"github.com/willibrandon/mtlog/sinks"
@@ -104,6 +105,18 @@ func WithHashSampling(propertyName string, rate float32) Option {
 // WithRateLimit adds a rate limiting filter.
 func WithRateLimit(maxEvents int, windowNanos int64) Option {
 	return WithFilter(filters.NewRateLimitFilter(maxEvents, windowNanos))
+}
+
+// Destructuring options
+
+// WithDestructuring adds the default destructurer.
+func WithDestructuring() Option {
+	return WithDestructurer(destructure.NewDefaultDestructurer())
+}
+
+// WithCustomDestructuring adds a destructurer with custom limits.
+func WithCustomDestructuring(maxDepth, maxStringLength, maxCollectionCount int) Option {
+	return WithDestructurer(destructure.NewDestructurer(maxDepth, maxStringLength, maxCollectionCount))
 }
 
 // Level convenience options
