@@ -18,13 +18,18 @@ type ConsoleSink struct {
 	output         io.Writer
 	mu             sync.Mutex
 	showProperties bool
+	theme          *ConsoleTheme
+	useColor       bool
 }
 
 // NewConsoleSink creates a new console sink that writes to stdout.
 func NewConsoleSink() *ConsoleSink {
-	return &ConsoleSink{
-		output: os.Stdout,
+	sink := &ConsoleSink{
+		output:   os.Stdout,
+		theme:    DefaultTheme(),
+		useColor: shouldUseColor(os.Stdout),
 	}
+	return sink
 }
 
 // NewConsoleSinkWithProperties creates a new console sink that displays properties.
@@ -32,14 +37,48 @@ func NewConsoleSinkWithProperties() *ConsoleSink {
 	return &ConsoleSink{
 		output:         os.Stdout,
 		showProperties: true,
+		theme:          DefaultTheme(),
+		useColor:       shouldUseColor(os.Stdout),
 	}
 }
 
 // NewConsoleSinkWithWriter creates a new console sink with a custom writer.
 func NewConsoleSinkWithWriter(w io.Writer) *ConsoleSink {
 	return &ConsoleSink{
-		output: w,
+		output:   w,
+		theme:    DefaultTheme(),
+		useColor: shouldUseColor(w),
 	}
+}
+
+// NewConsoleSinkWithTheme creates a new console sink with a custom theme.
+func NewConsoleSinkWithTheme(theme *ConsoleTheme) *ConsoleSink {
+	return &ConsoleSink{
+		output:   os.Stdout,
+		theme:    theme,
+		useColor: shouldUseColor(os.Stdout),
+	}
+}
+
+// SetTheme updates the console theme.
+func (cs *ConsoleSink) SetTheme(theme *ConsoleTheme) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.theme = theme
+}
+
+// SetUseColor enables or disables color output.
+func (cs *ConsoleSink) SetUseColor(useColor bool) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.useColor = useColor
+}
+
+// ShowProperties enables or disables property display.
+func (cs *ConsoleSink) ShowProperties(show bool) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.showProperties = show
 }
 
 // Emit writes the log event to the console.
@@ -75,11 +114,26 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 	// Render the message
 	message := tmpl.Render(event.Properties)
 	
-	// Format: [TIMESTAMP] [LEVEL] MESSAGE
+	// Format components with theme
 	levelStr := formatLevel(event.Level)
-	timestamp := event.Timestamp.Format("2006-01-02 15:04:05.000")
+	levelColor := cs.theme.GetLevelColor(event.Level)
+	timestamp := event.Timestamp.Format(cs.theme.TimestampFormat)
 	
-	result := fmt.Sprintf("[%s] [%s] %s", timestamp, levelStr, message)
+	// Build the formatted output
+	var result string
+	
+	// Timestamp
+	timestampPart := fmt.Sprintf("[%s]", timestamp)
+	timestampPart = colorize(timestampPart, cs.theme.TimestampColor, cs.useColor)
+	
+	// Level
+	levelPart := fmt.Sprintf(cs.theme.LevelFormat, levelStr)
+	levelPart = colorize(levelPart, levelColor, cs.useColor)
+	
+	// Message
+	messagePart := colorize(message, cs.theme.MessageColor, cs.useColor)
+	
+	result = fmt.Sprintf("%s %s %s", timestampPart, levelPart, messagePart)
 	
 	// Add properties if enabled and there are any
 	if cs.showProperties && len(event.Properties) > 0 {
@@ -95,7 +149,10 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 		var extras []string
 		for k, v := range event.Properties {
 			if !usedProps[k] {
-				extras = append(extras, fmt.Sprintf("%s=%v", k, v))
+				// Format property with theme colors
+				key := colorize(k, cs.theme.PropertyKeyColor, cs.useColor)
+				val := colorize(fmt.Sprintf("%v", v), cs.theme.PropertyValColor, cs.useColor)
+				extras = append(extras, fmt.Sprintf(cs.theme.PropertyFormat, key, val))
 			}
 		}
 		
