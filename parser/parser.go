@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -100,9 +101,45 @@ func parsePropertyToken(content string) *PropertyToken {
 		}
 	}
 	
-	// TODO: Parse format string and alignment
-	// For now, just extract the property name
-	propertyName = strings.TrimSpace(propertyName)
+	// Parse format string and alignment
+	// Format can be: {Name}, {Name:format}, {Name,alignment}, {Name,alignment:format}
+	
+	// Look for comma first (alignment)
+	commaIdx := strings.IndexByte(propertyName, ',')
+	colonIdx := strings.IndexByte(propertyName, ':')
+	
+	// Handle the case where we have both alignment and format
+	if commaIdx != -1 && (colonIdx == -1 || commaIdx < colonIdx) {
+		// We have alignment
+		name := strings.TrimSpace(propertyName[:commaIdx])
+		rest := propertyName[commaIdx+1:]
+		
+		// Check if there's also a format after the alignment
+		colonInRest := strings.IndexByte(rest, ':')
+		if colonInRest != -1 {
+			// Parse alignment
+			alignStr := strings.TrimSpace(rest[:colonInRest])
+			if align, err := parseAlignment(alignStr); err == nil {
+				alignment = align
+			}
+			// Parse format
+			format = strings.TrimSpace(rest[colonInRest+1:])
+		} else {
+			// Just alignment
+			if align, err := parseAlignment(strings.TrimSpace(rest)); err == nil {
+				alignment = align
+			}
+		}
+		propertyName = name
+	} else if colonIdx != -1 {
+		// Just format, no alignment
+		name := strings.TrimSpace(propertyName[:colonIdx])
+		format = strings.TrimSpace(propertyName[colonIdx+1:])
+		propertyName = name
+	} else {
+		// No format or alignment
+		propertyName = strings.TrimSpace(propertyName)
+	}
 	
 	// Validate property name
 	if !isValidPropertyName(propertyName) {
@@ -119,6 +156,35 @@ func parsePropertyToken(content string) *PropertyToken {
 		Format:        format,
 		Alignment:     alignment,
 	}
+}
+
+// parseAlignment parses an alignment specification.
+// Positive numbers mean right-align, negative mean left-align.
+func parseAlignment(s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+	
+	// Handle negative numbers (left alignment)
+	negative := false
+	if s[0] == '-' {
+		negative = true
+		s = s[1:]
+	}
+	
+	// Parse the number
+	width := 0
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("invalid alignment: %s", s)
+		}
+		width = width*10 + int(ch-'0')
+	}
+	
+	if negative {
+		width = -width
+	}
+	return width, nil
 }
 
 // isValidPropertyName checks if a string is a valid property name.
