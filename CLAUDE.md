@@ -34,11 +34,26 @@ Since this is a new Go project without implementation yet, here are the expected
 # Initialize Go module
 go mod init github.com/[username]/mtlog
 
-# Run tests
+# Run all tests
 go test ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Run only integration tests
+go test -tags=integration ./...
 
 # Run benchmarks
 go test -bench=. -benchmem ./...
+
+# Run with race detector
+go test -race ./...
+
+# Run specific test
+go test -run TestSeqIntegration ./...
+
+# Run tests in container (once docker-compose.test.yml is created)
+docker-compose -f docker-compose.test.yml up --abort-on-container-exit
 
 # Build the library
 go build ./...
@@ -71,6 +86,26 @@ Based on the design document, the expected structure will be:
 3. **Serilog Compatibility** - API should feel familiar to Serilog users
 4. **Go Idiomatic** - Follow Go conventions and patterns
 
+## Testing Strategy
+
+### Container-Based Testing
+The project uses real infrastructure for integration tests via Docker Compose:
+- **Seq** - Real Seq instance for testing log ingestion and querying
+- **Elasticsearch** - Real Elasticsearch for testing the ES sink
+- **No Mocks** - Integration tests use actual services, not mocks
+
+### Test Types
+1. **Unit Tests** - Use in-memory sinks (MemorySink) for fast feedback
+2. **Integration Tests** - Test against real Seq/Elasticsearch in containers
+3. **Benchmarks** - Track performance and allocations from day one
+4. **Table-Driven Tests** - Go-style tests for comprehensive coverage
+
+### Testing Philosophy
+- Real dependencies over mocks
+- Integration-first approach
+- Continuous performance tracking
+- Container-based infrastructure
+
 ## Implementation Status
 
 According to the design document's roadmap:
@@ -82,3 +117,20 @@ According to the design document's roadmap:
 - Phase 6: Community Release
 
 Currently, only the design document exists - no implementation has begun.
+
+## Week-by-Week Development Plan
+
+### Week 1: Core + Learning Go
+- Days 1-2: Message template parser (string manipulation)
+- Days 3-4: Basic logger and sinks (interfaces and methods)
+- Days 5-7: File operations and basic enrichers (io package)
+
+### Week 2: Pipeline + Seq
+- Days 1-2: Pipeline architecture (composition patterns)
+- Days 3-4: Seq sink with batching (goroutines and channels)
+- Days 5-7: Container-based testing setup
+
+### Week 3: Polish + Performance
+- Days 1-2: Performance optimization (profiling)
+- Days 3-4: Elasticsearch sink
+- Days 5-7: Documentation and examples
