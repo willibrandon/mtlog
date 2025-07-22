@@ -45,6 +45,7 @@ func NewLoggerBuilder() *LoggerBuilder {
 	lb.RegisterSink("Elasticsearch", createElasticsearchSink)
 	lb.RegisterSink("Splunk", createSplunkSink)
 	lb.RegisterSink("Async", createAsyncSink)
+	lb.RegisterSink("Durable", createDurableSink)
 	
 	// Register default enrichers
 	lb.RegisterEnricher("WithMachineName", func(args map[string]interface{}) (core.LogEventEnricher, error) {
@@ -424,6 +425,51 @@ func createSplunkSink(args map[string]interface{}) (core.LogEventSink, error) {
 	}
 	
 	return sinks.NewSplunkSink(url, token, options...)
+}
+
+func createDurableSink(args map[string]interface{}) (core.LogEventSink, error) {
+	bufferPath := GetString(args, "bufferPath", "")
+	if bufferPath == "" {
+		return nil, fmt.Errorf("durable sink requires 'bufferPath' argument")
+	}
+	
+	// Get the wrapped sink configuration
+	wrappedConfig, ok := args["writeTo"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("durable sink requires 'writeTo' configuration")
+	}
+	
+	// Create wrapped sink
+	sinkName, ok := wrappedConfig["Name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("wrapped sink must have 'Name'")
+	}
+	
+	// Get wrapped sink args
+	wrappedArgs, _ := wrappedConfig["Args"].(map[string]interface{})
+	
+	// Use a temporary builder to create the wrapped sink
+	tempBuilder := NewLoggerBuilder()
+	wrapped, err := tempBuilder.createSink(SinkConfiguration{
+		Name: sinkName,
+		Args: wrappedArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wrapped sink: %w", err)
+	}
+	
+	// Create durable options
+	options := sinks.DurableOptions{
+		BufferPath:      bufferPath,
+		MaxBufferSize:   GetInt64(args, "maxBufferSize", 0),
+		MaxBufferFiles:  GetInt(args, "maxBufferFiles", 0),
+		BatchSize:       GetInt(args, "batchSize", 0),
+		RetryInterval:   parseDuration(GetString(args, "retryInterval", ""), 0),
+		FlushInterval:   parseDuration(GetString(args, "flushInterval", ""), 0),
+		ShutdownTimeout: parseDuration(GetString(args, "shutdownTimeout", ""), 0),
+	}
+	
+	return sinks.NewDurableSink(wrapped, options)
 }
 
 // Helper to parse duration strings

@@ -273,3 +273,84 @@ func WithSplunkAdvanced(url, token string, opts ...sinks.SplunkOption) Option {
 		c.sinks = append(c.sinks, sink)
 	}
 }
+
+// WithDurableBuffer adds durable buffering to a sink for reliability.
+func WithDurableBuffer(wrapped core.LogEventSink, bufferPath string) Option {
+	return func(c *config) {
+		sink, err := sinks.NewDurableSink(wrapped, sinks.DurableOptions{
+			BufferPath: bufferPath,
+		})
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithDurableBufferAdvanced adds durable buffering with advanced options.
+func WithDurableBufferAdvanced(wrapped core.LogEventSink, options sinks.DurableOptions) Option {
+	return func(c *config) {
+		sink, err := sinks.NewDurableSink(wrapped, options)
+		if err != nil {
+			panic(err)
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithDurableSeq adds a Seq sink with durable buffering.
+func WithDurableSeq(serverURL, bufferPath string) Option {
+	return func(c *config) {
+		seqSink, err := sinks.NewSeqSink(serverURL)
+		if err != nil {
+			panic(err)
+		}
+		
+		durableSink, err := sinks.NewDurableSink(seqSink, sinks.DurableOptions{
+			BufferPath: bufferPath,
+		})
+		if err != nil {
+			panic(err)
+		}
+		
+		c.sinks = append(c.sinks, durableSink)
+	}
+}
+
+// WithDurableElasticsearch adds an Elasticsearch sink with durable buffering.
+func WithDurableElasticsearch(url, bufferPath string) Option {
+	return func(c *config) {
+		esSink, err := sinks.NewElasticsearchSink(url)
+		if err != nil {
+			panic(err)
+		}
+		
+		durableSink, err := sinks.NewDurableSink(esSink, sinks.DurableOptions{
+			BufferPath: bufferPath,
+		})
+		if err != nil {
+			panic(err)
+		}
+		
+		c.sinks = append(c.sinks, durableSink)
+	}
+}
+
+// WithDurableSplunk adds a Splunk sink with durable buffering.
+func WithDurableSplunk(url, token, bufferPath string) Option {
+	return func(c *config) {
+		splunkSink, err := sinks.NewSplunkSink(url, token)
+		if err != nil {
+			panic(err)
+		}
+		
+		durableSink, err := sinks.NewDurableSink(splunkSink, sinks.DurableOptions{
+			BufferPath: bufferPath,
+		})
+		if err != nil {
+			panic(err)
+		}
+		
+		c.sinks = append(c.sinks, durableSink)
+	}
+}
