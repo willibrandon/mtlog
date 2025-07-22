@@ -348,6 +348,7 @@ Example `logging.json`:
     ],
     "enrichers": ["Timestamp", "MachineName", "ProcessInfo"]
 }
+```
 
 ## Safe Logging with LogValue
 
