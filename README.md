@@ -8,14 +8,29 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 
 ## Features
 
-- **Zero-allocation logging** for simple messages (16.82 ns/op)
-- **Message templates** with positional property extraction
+### Core Features
+- **Zero-allocation logging** for simple messages (13.6 ns/op)
+- **Message templates** with positional property extraction and format specifiers
 - **Pipeline architecture** for clean separation of concerns
+- **Type-safe generics** for better compile-time safety
+- **LogValue interface** for safe logging of sensitive data
+- **8.7x faster** than zap for simple string logging
+
+### Sinks & Output
+- **Console sink** with customizable themes (dark, light, ANSI colors)
+- **File sink** with rolling policies (size, time-based)
+- **Seq integration** with CLEF format and dynamic level control
+- **Elasticsearch sink** for centralized log storage and search
+- **Splunk sink** with HEC (HTTP Event Collector) support
+- **Async sink wrapper** for high-throughput scenarios
+- **Durable buffering** with persistent storage for reliability
+
+### Pipeline Components
 - **Rich enrichment** with built-in and custom enrichers
 - **Advanced filtering** including rate limiting and sampling
 - **Type-safe destructuring** with caching for performance
-- **LogValue interface** for safe logging of sensitive data
-- **8.7x faster** than zap for simple string logging
+- **Dynamic level control** with runtime adjustments
+- **Configuration from JSON** for flexible deployment
 
 ## Installation
 
@@ -67,6 +82,10 @@ log.Information("Order {@Order} created", order)
 
 // $ - force scalar rendering (stringify)
 log.Information("Error occurred: {$Error}", err)
+
+// Format specifiers (new feature)
+log.Information("Price: {Amount:C} for {Quantity:N0} items", 99.95, 1000)
+log.Information("Processing time: {Duration:F2}ms", 123.456)
 ```
 
 ## Pipeline Architecture
@@ -82,8 +101,9 @@ Message Template Parser → Enrichment → Filtering → Destructuring → Outpu
 ```go
 log := mtlog.New(
     // Output configuration
-    mtlog.WithConsoleProperties(),      // Console with properties
-    mtlog.WithFileSink("app.log"),      // File output
+    mtlog.WithConsoleTheme("dark"),     // Console with dark theme
+    mtlog.WithRollingFile("app.log", 10*1024*1024), // Rolling file (10MB)
+    mtlog.WithSeq("http://localhost:5341", "api-key"), // Seq integration
     
     // Enrichment
     mtlog.WithTimestamp(),              // Add timestamp
@@ -91,8 +111,9 @@ log := mtlog.New(
     mtlog.WithProcessInfo(),            // Add process ID/name
     mtlog.WithCallersInfo(),            // Add file/line info
     
-    // Filtering
+    // Filtering & Level Control
     mtlog.WithMinimumLevel(core.DebugLevel),
+    mtlog.WithDynamicLevel(levelSwitch), // Runtime level control
     mtlog.WithFilter(customFilter),
     
     // Destructuring
@@ -145,6 +166,190 @@ mtlog.WithFilter(filters.NewSamplingFilter(0.1)) // 10% of events
 mtlog.WithFilter(filters.NewExpressionFilter("UserId", 123))
 ```
 
+## Sinks
+
+mtlog supports multiple output destinations with advanced features:
+
+### Console Sink with Themes
+
+```go
+// Dark theme (default)
+mtlog.WithConsoleTheme("dark")
+
+// Light theme
+mtlog.WithConsoleTheme("light") 
+
+// ANSI colors
+mtlog.WithConsoleTheme("ansi")
+
+// Plain text (no colors)
+mtlog.WithConsole()
+```
+
+### File Sinks
+
+```go
+// Simple file output
+mtlog.WithFileSink("app.log")
+
+// Rolling file by size
+mtlog.WithRollingFile("app.log", 10*1024*1024) // 10MB
+
+// Rolling file by time
+mtlog.WithRollingFileTime("app.log", time.Hour) // Every hour
+```
+
+### Seq Integration
+
+```go
+// Basic Seq integration
+mtlog.WithSeq("http://localhost:5341")
+
+// With API key
+mtlog.WithSeq("http://localhost:5341", "your-api-key")
+
+// Advanced configuration
+mtlog.WithSeqAdvanced("http://localhost:5341",
+    sinks.WithSeqBatchSize(100),
+    sinks.WithSeqBatchTimeout(5*time.Second),
+    sinks.WithSeqCompression(true),
+)
+
+// Dynamic level control via Seq
+levelOption, levelSwitch, controller := mtlog.WithSeqLevelControl(
+    "http://localhost:5341",
+    mtlog.SeqLevelControllerOptions{
+        CheckInterval: 30*time.Second,
+        InitialCheck: true,
+    },
+)
+```
+
+### Elasticsearch Integration
+
+```go
+// Basic Elasticsearch
+mtlog.WithElasticsearch("http://localhost:9200", "logs")
+
+// With authentication
+mtlog.WithElasticsearchAdvanced(
+    []string{"http://localhost:9200"},
+    elasticsearch.WithIndex("myapp-logs"),
+    elasticsearch.WithAPIKey("api-key"),
+    elasticsearch.WithBatchSize(100),
+)
+```
+
+### Splunk Integration
+
+```go
+// Splunk HEC integration
+mtlog.WithSplunk("http://localhost:8088", "your-hec-token")
+
+// Advanced Splunk configuration
+mtlog.WithSplunkAdvanced("http://localhost:8088",
+    sinks.WithSplunkToken("hec-token"),
+    sinks.WithSplunkIndex("main"),
+    sinks.WithSplunkSource("myapp"),
+)
+```
+
+### Async and Durable Sinks
+
+```go
+// Wrap any sink for async processing
+mtlog.WithAsync(mtlog.WithFileSink("app.log"))
+
+// Durable buffering (survives crashes)
+mtlog.WithDurable(
+    mtlog.WithSeq("http://localhost:5341"),
+    sinks.WithDurableDirectory("./logs/buffer"),
+    sinks.WithDurableMaxSize(100*1024*1024), // 100MB buffer
+)
+```
+
+## Dynamic Level Control
+
+Control logging levels at runtime without restarting your application:
+
+### Manual Level Control
+
+```go
+// Create a level switch
+levelSwitch := mtlog.NewLoggingLevelSwitch(core.InformationLevel)
+
+logger := mtlog.New(
+    mtlog.WithLevelSwitch(levelSwitch),
+    mtlog.WithConsole(),
+)
+
+// Change level at runtime
+levelSwitch.SetLevel(core.DebugLevel)
+
+// Fluent interface
+levelSwitch.Debug().Information().Warning()
+
+// Check if level is enabled
+if levelSwitch.IsEnabled(core.VerboseLevel) {
+    // Expensive logging operation
+}
+```
+
+### Centralized Level Control with Seq
+
+```go
+// Automatic level synchronization with Seq server
+options := mtlog.SeqLevelControllerOptions{
+    CheckInterval: 30 * time.Second,
+    InitialCheck:  true,
+}
+
+loggerOption, levelSwitch, controller := mtlog.WithSeqLevelControl(
+    "http://localhost:5341", options)
+defer controller.Close()
+
+logger := mtlog.New(loggerOption)
+
+// Level changes in Seq UI automatically update your application
+```
+
+## Configuration from JSON
+
+Configure loggers using JSON for flexible deployments:
+
+```go
+// Load from JSON file
+config, err := configuration.LoadFromFile("logging.json")
+if err != nil {
+    log.Fatal(err)
+}
+
+logger := config.CreateLogger()
+```
+
+Example `logging.json`:
+```json
+{
+    "minimumLevel": "Information",
+    "sinks": [
+        {
+            "type": "Console",
+            "theme": "dark"
+        },
+        {
+            "type": "RollingFile",
+            "path": "logs/app.log",
+            "maxSize": "10MB"
+        },
+        {
+            "type": "Seq",
+            "serverUrl": "http://localhost:5341",
+            "apiKey": "${SEQ_API_KEY}"
+        }
+    ],
+    "enrichers": ["Timestamp", "MachineName", "ProcessInfo"]
+}
+
 ## Safe Logging with LogValue
 
 Protect sensitive data with the LogValue interface:
@@ -190,6 +395,16 @@ See the [examples](./examples) directory for complete examples:
 - [Advanced filtering](./examples/filtering/main.go)
 - [Destructuring](./examples/destructuring/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
+- [Console themes](./examples/themes/main.go)
+- [Rolling files](./examples/rolling/main.go)
+- [Seq integration](./examples/seq/main.go)
+- [Elasticsearch](./examples/elasticsearch/main.go)
+- [Splunk integration](./examples/splunk/main.go)
+- [Async logging](./examples/async/main.go)
+- [Durable buffering](./examples/durable/main.go)
+- [Dynamic levels](./examples/dynamic-levels/main.go)
+- [Configuration](./examples/configuration/main.go)
+- [Generics usage](./examples/generics/main.go)
 
 ## Advanced Usage
 
@@ -237,11 +452,30 @@ destructurer := destructure.NewDefaultDestructurer()
 destructurer.RegisterScalarType(reflect.TypeOf(uuid.UUID{}))
 ```
 
+## Documentation
+
+For comprehensive guides and examples, see the [docs](./docs) directory:
+
+- **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
+- **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
+- **[Dynamic Level Control](./docs/dynamic-levels.md)** - Runtime level management
+- **[Type-Safe Generics](./docs/generics.md)** - Compile-time safe logging methods
+- **[Configuration](./docs/configuration.md)** - JSON-based configuration
+- **[Performance](./docs/performance.md)** - Benchmarks and optimization
+- **[Testing](./docs/testing.md)** - Container-based integration testing
+- **[Design](./docs/design.md)** - Architecture and design decisions
+
 ## Testing
 
 ```bash
 # Run unit tests
 go test ./...
+
+# Run integration tests (requires Docker)
+go test -tags=integration ./...
+
+# Run benchmarks
+go test -bench=. -benchmem ./...
 
 # Run integration tests with Seq
 docker run -d --name seq-test -e ACCEPT_EULA=Y -e SEQ_FIRSTRUN_NOAUTHENTICATION=true -p 8080:80 -p 5342:5341 datalust/seq
@@ -261,10 +495,9 @@ docker run -d --name splunk-test -p 8000:8000 -p 8088:8088 -e SPLUNK_START_ARGS=
 sleep 60
 go test -tags=integration ./...
 docker stop splunk-test && docker rm splunk-test
-
-# Run benchmarks
-go test -bench=. -benchmem ./...
 ```
+
+See [testing.md](./docs/testing.md) for detailed integration test setup with Docker containers.
 
 ## Contributing
 
