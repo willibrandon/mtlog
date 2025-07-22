@@ -1,7 +1,6 @@
 # mtlog - Message Template Logging for Go
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/willibrandon/mtlog.svg)](https://pkg.go.dev/github.com/willibrandon/mtlog)
-[![Go Report Card](https://goreportcard.com/badge/github.com/willibrandon/mtlog)](https://goreportcard.com/report/github.com/willibrandon/mtlog)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 mtlog is a high-performance structured logging library for Go, inspired by [Serilog](https://serilog.net/). It brings message templates and pipeline architecture to the Go ecosystem, achieving zero allocations for simple logging operations while providing powerful features for complex scenarios.
@@ -506,8 +505,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by [Serilog](https://serilog.net/) for .NET
-- Performance insights from [zap](https://github.com/uber-go/zap) and [zerolog](https://github.com/rs/zerolog)
