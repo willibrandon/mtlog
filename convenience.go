@@ -205,6 +205,19 @@ func Error() Option {
 	return WithMinimumLevel(core.ErrorLevel)
 }
 
+// WithControlledLevel creates a level switch and applies it to the logger.
+// Returns both the option and the level switch for external control.
+func WithControlledLevel(initialLevel core.LogEventLevel) (Option, *LoggingLevelSwitch) {
+	levelSwitch := NewLoggingLevelSwitch(initialLevel)
+	return WithLevelSwitch(levelSwitch), levelSwitch
+}
+
+// WithDynamicLevel enables dynamic level control using a level switch.
+// This is an alias for WithLevelSwitch for better readability.
+func WithDynamicLevel(levelSwitch *LoggingLevelSwitch) Option {
+	return WithLevelSwitch(levelSwitch)
+}
+
 // WithElasticsearch adds an Elasticsearch sink with default configuration.
 func WithElasticsearch(url string) Option {
 	return func(c *config) {

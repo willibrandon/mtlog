@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -281,32 +282,34 @@ func (s *SeqSink) SeqHealthCheck() error {
 	return nil
 }
 
-// GetMinimumLevel queries Seq for the current minimum level
+// GetMinimumLevel queries Seq for the current minimum level by sending a test event
+// and reading the MinimumLevelAccepted from the response
 func (s *SeqSink) GetMinimumLevel() (core.LogEventLevel, error) {
-	url := s.serverURL + "/api/events/signal"
+	// Send a minimal test event to get the MinimumLevelAccepted response
+	testEvent := `{"@t":"` + time.Now().Format(time.RFC3339Nano) + `","@mt":"Level probe","@l":"Information"}`
+	
+	url := s.serverURL + "/api/events/raw"
 	if s.apiKey != "" {
 		url += "?apiKey=" + s.apiKey
 	}
 
-	resp, err := s.client.Get(url)
+	resp, err := s.client.Post(url, "application/vnd.serilog.clef", strings.NewReader(testEvent))
 	if err != nil {
 		return core.InformationLevel, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return core.InformationLevel, fmt.Errorf("failed to get minimum level: status %d", resp.StatusCode)
 	}
 
-	var signal struct {
-		MinimumLevel string `json:"minimumLevel"`
+	// Check for MinimumLevelAccepted header
+	if minLevel := resp.Header.Get("X-Seq-MinimumLevelAccepted"); minLevel != "" {
+		return parseSeqLevel(minLevel), nil
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&signal); err != nil {
-		return core.InformationLevel, err
-	}
-
-	return parseSeqLevel(signal.MinimumLevel), nil
+	// If no minimum level header, return default
+	return core.InformationLevel, nil
 }
 
 // parseSeqLevel converts Seq level string to LogEventLevel

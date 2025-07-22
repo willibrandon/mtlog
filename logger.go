@@ -13,6 +13,7 @@ import (
 // logger is the default implementation of core.Logger.
 type logger struct {
 	minimumLevel core.LogEventLevel
+	levelSwitch  *LoggingLevelSwitch
 	pipeline     *pipeline
 	properties   map[string]interface{}
 	mu           sync.RWMutex
@@ -39,6 +40,7 @@ func New(opts ...Option) *logger {
 	
 	return &logger{
 		minimumLevel: cfg.minimumLevel,
+		levelSwitch:  cfg.levelSwitch,
 		pipeline:     p,
 		properties:   cfg.properties,
 	}
@@ -76,8 +78,15 @@ func (l *logger) Fatal(messageTemplate string, args ...interface{}) {
 
 // Write writes a log event at the specified level.
 func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ...interface{}) {
-	// Check minimum level
-	if level < l.minimumLevel {
+	// Check minimum level (dynamic level switch takes precedence)
+	var minimumLevel core.LogEventLevel
+	if l.levelSwitch != nil {
+		minimumLevel = l.levelSwitch.Level()
+	} else {
+		minimumLevel = l.minimumLevel
+	}
+	
+	if level < minimumLevel {
 		return
 	}
 	
@@ -127,6 +136,7 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 func (l *logger) ForContext(propertyName string, value interface{}) core.Logger {
 	newLogger := &logger{
 		minimumLevel: l.minimumLevel,
+		levelSwitch:  l.levelSwitch,
 		pipeline:     l.pipeline, // Share the same immutable pipeline
 		properties:   make(map[string]interface{}),
 	}
@@ -149,6 +159,7 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	// Create a new logger with the same configuration but additional context enricher
 	newConfig := &config{
 		minimumLevel: l.minimumLevel,
+		levelSwitch:  l.levelSwitch,
 		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+1),
 		filters:      l.pipeline.filters,
 		destructurer: l.pipeline.destructurer,
@@ -174,6 +185,7 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	
 	return &logger{
 		minimumLevel: l.minimumLevel,
+		levelSwitch:  l.levelSwitch,
 		pipeline:     p,
 		properties:   newConfig.properties,
 	}
@@ -257,4 +269,24 @@ func hasPropertyTokens(template string) bool {
 // Close closes all closeable sinks in the pipeline.
 func (l *logger) Close() error {
 	return l.pipeline.Close()
+}
+
+// GetMinimumLevel returns the current effective minimum level.
+// If a level switch is configured, it returns the switch's current level.
+// Otherwise, it returns the static minimum level.
+func (l *logger) GetMinimumLevel() core.LogEventLevel {
+	if l.levelSwitch != nil {
+		return l.levelSwitch.Level()
+	}
+	return l.minimumLevel
+}
+
+// GetLevelSwitch returns the level switch if one is configured, otherwise nil.
+func (l *logger) GetLevelSwitch() *LoggingLevelSwitch {
+	return l.levelSwitch
+}
+
+// IsEnabled returns true if events at the specified level would be processed.
+func (l *logger) IsEnabled(level core.LogEventLevel) bool {
+	return level >= l.GetMinimumLevel()
 }

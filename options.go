@@ -7,6 +7,7 @@ import (
 // config holds the configuration for building a logger.
 type config struct {
 	minimumLevel core.LogEventLevel
+	levelSwitch  *LoggingLevelSwitch
 	enrichers    []core.LogEventEnricher
 	filters      []core.LogEventFilter
 	destructurer core.Destructurer
@@ -21,6 +22,14 @@ type Option func(*config)
 func WithMinimumLevel(level core.LogEventLevel) Option {
 	return func(c *config) {
 		c.minimumLevel = level
+	}
+}
+
+// WithLevelSwitch enables dynamic level control using the specified level switch.
+// When a level switch is provided, it takes precedence over the static minimum level.
+func WithLevelSwitch(levelSwitch *LoggingLevelSwitch) Option {
+	return func(c *config) {
+		c.levelSwitch = levelSwitch
 	}
 }
 
