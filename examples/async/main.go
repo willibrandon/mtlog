@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Async Sink Examples ===\n")
+	fmt.Println("=== Async Sink Examples ===")
 
 	// Example 1: Basic async logging
 	fmt.Println("1. Basic Async Logging")
