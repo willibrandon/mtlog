@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 	
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/parser"
@@ -68,6 +69,16 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 	timestamp := event.Timestamp.Format("2006-01-02 15:04:05.000")
 	
 	return fmt.Sprintf("[%s] [%s] %s", timestamp, levelStr, message)
+}
+
+// EmitSimple writes a simple log message without allocations.
+func (cs *ConsoleSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, message string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	
+	// Use zero-allocation formatter
+	levelStr := formatLevel(level)
+	_ = writeSimple(cs.output, timestamp, levelStr, message)
 }
 
 // formatLevel converts a log level to its string representation.

@@ -67,8 +67,28 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 		return
 	}
 	
-	// Parse the template
-	tmpl, err := parser.Parse(messageTemplate)
+	// Fast path for simple messages (no args, no properties, no enrichers, no filters)
+	if len(args) == 0 && len(l.enrichers) == 0 && len(l.properties) == 0 && len(l.filters) == 0 && !hasPropertyTokens(messageTemplate) {
+		timestamp := time.Now()
+		for _, sink := range l.sinks {
+			if simpleSink, ok := sink.(core.SimpleSink); ok {
+				simpleSink.EmitSimple(timestamp, level, messageTemplate)
+			} else {
+				// Fall back to regular emit with a minimal event
+				event := &core.LogEvent{
+					Timestamp:       timestamp,
+					Level:           level,
+					MessageTemplate: messageTemplate,
+					Properties:      make(map[string]interface{}),
+				}
+				sink.Emit(event)
+			}
+		}
+		return
+	}
+	
+	// Parse the template with caching
+	tmpl, err := parser.ParseCached(messageTemplate)
 	if err != nil {
 		// Log parsing error and continue with raw template
 		tmpl = &parser.MessageTemplate{
@@ -77,25 +97,25 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 		}
 	}
 	
-	// Extract properties from template and arguments
-	properties := l.extractProperties(tmpl, args)
-	
-	// Add context properties
-	l.mu.RLock()
-	for k, v := range l.properties {
-		if _, exists := properties[k]; !exists {
-			properties[k] = v
-		}
-	}
-	l.mu.RUnlock()
-	
-	// Create log event
+	// Create log event - we can't pool these because sinks may retain references
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
 		Level:           level,
 		MessageTemplate: messageTemplate,
-		Properties:      properties,
+		Properties:      getPropertyMap(),
 	}
+	
+	// Extract properties directly into event
+	l.extractPropertiesInto(tmpl, args, event.Properties)
+	
+	// Add context properties
+	l.mu.RLock()
+	for k, v := range l.properties {
+		if _, exists := event.Properties[k]; !exists {
+			event.Properties[k] = v
+		}
+	}
+	l.mu.RUnlock()
 	
 	// Apply enrichers
 	factory := &propertyFactory{}
@@ -145,12 +165,10 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	return l
 }
 
-// extractProperties extracts properties from the template and arguments.
-func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []interface{}) map[string]interface{} {
-	properties := make(map[string]interface{})
-	
-	// Extract property names from template
-	propNames := parser.ExtractPropertyNames(tmpl.Raw)
+// extractPropertiesInto extracts properties from the template and arguments into an existing map.
+func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []interface{}, properties map[string]interface{}) {
+	// Extract property names from already parsed template
+	propNames := parser.ExtractPropertyNamesFromTemplate(tmpl)
 	
 	// Match arguments to properties positionally
 	for i, name := range propNames {
@@ -163,7 +181,12 @@ func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []interfac
 	for i := len(propNames); i < len(args); i++ {
 		properties[string(rune('0'+i))] = args[i]
 	}
-	
+}
+
+// extractProperties extracts properties from the template and arguments.
+func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []interface{}) map[string]interface{} {
+	properties := make(map[string]interface{})
+	l.extractPropertiesInto(tmpl, args, properties)
 	return properties
 }
 
@@ -204,4 +227,20 @@ func (pf *propertyFactory) CreateProperty(name string, value interface{}) *core.
 		Name:  name,
 		Value: value,
 	}
+}
+
+// hasPropertyTokens quickly checks if a template contains property tokens.
+func hasPropertyTokens(template string) bool {
+	for i := 0; i < len(template); i++ {
+		if template[i] == '{' {
+			// Check if it's an escaped brace
+			if i+1 < len(template) && template[i+1] == '{' {
+				i++ // Skip the escaped brace
+				continue
+			}
+			// Found a potential property token
+			return true
+		}
+	}
+	return false
 }

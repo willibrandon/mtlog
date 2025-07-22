@@ -81,10 +81,19 @@ Based on the design document, the expected structure will be:
 
 ## Important Design Goals
 
-1. **Zero Allocations** - Simple log operations should have zero allocations
-2. **Performance** - Target performance within 20% of zap/zerolog
+1. **Zero Allocations** - Simple log operations should have zero allocations ✓
+2. **Performance** - Target performance within 20% of zap/zerolog ✓
 3. **Serilog Compatibility** - API should feel familiar to Serilog users
 4. **Go Idiomatic** - Follow Go conventions and patterns
+
+## Performance
+
+The library achieves **zero allocations** for simple logging through a fast path implementation:
+- Simple log: 13.6ns/op, 0B/op, 0 allocs
+- With properties: 183ns/op, 448B/op, 4 allocs
+- Below minimum level: 1.4ns/op, 0B/op, 0 allocs
+
+See [PERFORMANCE.md](PERFORMANCE.md) for detailed benchmarks and optimization history.
 
 ## Testing Strategy
 
