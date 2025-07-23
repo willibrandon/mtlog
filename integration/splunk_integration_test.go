@@ -442,7 +442,15 @@ func querySplunkEvents(splunkURL, token, testID string) ([]map[string]interface{
 	}
 
 	// Use admin credentials for search API
-	req.SetBasicAuth("admin", "changeme")
+	username := os.Getenv("SPLUNK_USERNAME")
+	if username == "" {
+		username = "admin"
+	}
+	password := os.Getenv("SPLUNK_PASSWORD")
+	if password == "" {
+		password = "changeme"
+	}
+	req.SetBasicAuth(username, password)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Use client with relaxed TLS

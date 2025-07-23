@@ -122,9 +122,11 @@ jobs:
       splunk:
         image: splunk/splunk:latest
         env:
-          SPLUNK_START_ARGS: --accept-license
-          SPLUNK_PASSWORD: changeme
+          SPLUNK_START_ARGS: --accept-license --seed-passwd changeme123!
+          SPLUNK_PASSWORD: changeme123!
           SPLUNK_HEC_TOKEN: abcd1234
+          SPLUNK_ENABLE_LISTEN: 9997
+          SPLUNK_ADD: tcp 1514
         ports:
           - 8088:8088
           - 8089:8089
@@ -201,3 +203,5 @@ jobs:
         SPLUNK_URL: https://localhost:8088
         SPLUNK_QUERY_URL: https://localhost:8089
         SPLUNK_TOKEN: abcd1234
+        SPLUNK_USERNAME: admin
+        SPLUNK_PASSWORD: changeme123!
