@@ -403,9 +403,17 @@ func isSplunkAvailable(splunkURL, token string) bool {
 }
 
 func querySplunkEvents(splunkURL, token, testID string) ([]map[string]interface{}, error) {
-	// Use Splunk management API with admin credentials for searching
-	// Build the management API URL
-	searchURL := strings.Replace(splunkURL, ":8088", ":8089", 1)
+	// Check if we have a separate query URL for CI environments
+	var searchURL string
+	queryBaseURL := os.Getenv("SPLUNK_QUERY_URL")
+	if queryBaseURL != "" {
+		// Use the provided query URL (for CI)
+		searchURL = fmt.Sprintf("https://localhost:%s", strings.TrimPrefix(queryBaseURL, "https://localhost:"))
+	} else {
+		// For local testing, use Splunk management API with admin credentials for searching
+		// Build the management API URL
+		searchURL = strings.Replace(splunkURL, ":8088", ":8089", 1)
+	}
 
 	// Ensure we have the correct base URL for management API
 	if strings.Contains(searchURL, "/services/collector") {

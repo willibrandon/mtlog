@@ -127,6 +127,7 @@ jobs:
           SPLUNK_HEC_TOKEN: abcd1234
         ports:
           - 8088:8088
+          - 8089:8089
           - 8000:8000
         options: >-
           --health-cmd "curl -k -f https://localhost:8088/services/collector/health"
@@ -195,6 +196,8 @@ jobs:
       run: go test -tags=integration -v ./...
       env:
         SEQ_URL: http://localhost:5341
+        SEQ_QUERY_URL: http://localhost:8080
         ELASTICSEARCH_URL: http://localhost:9200
         SPLUNK_URL: https://localhost:8088
+        SPLUNK_QUERY_URL: https://localhost:8089
         SPLUNK_TOKEN: abcd1234

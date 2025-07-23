@@ -244,10 +244,14 @@ func isSeqAvailable(seqURL string) bool {
 }
 
 func querySeqEvents(seqURL, testID string) ([]map[string]interface{}, error) {
-	// For querying, we need to use port 80 (web UI port) instead of 5341 (ingestion port)
-	// Replace port 5342 with 8080 for queries
-	queryURL := strings.Replace(seqURL, ":5342", ":8080", 1)
-	queryURL = fmt.Sprintf("%s/api/events/signal?count=1000", queryURL)
+	// Check if we have a separate query URL for CI environments
+	queryBaseURL := os.Getenv("SEQ_QUERY_URL")
+	if queryBaseURL == "" {
+		// For local testing, we need to use port 8080 (web UI port) instead of 5341/5342 (ingestion port)
+		queryBaseURL = strings.Replace(seqURL, ":5342", ":8080", 1)
+		queryBaseURL = strings.Replace(queryBaseURL, ":5341", ":8080", 1)
+	}
+	queryURL := fmt.Sprintf("%s/api/events/signal?count=1000", queryBaseURL)
 
 	resp, err := http.Get(queryURL)
 	if err != nil {
