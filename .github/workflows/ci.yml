@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15]
         go: ['1.21', '1.22', '1.23']
     steps:
     - uses: actions/checkout@v4
@@ -21,6 +21,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
+        cache: true
 
     - name: Get dependencies
       run: go mod download
@@ -53,6 +54,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: true
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
@@ -69,6 +71,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: true
 
     - name: Run fuzz tests
       run: |
@@ -84,6 +87,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: true
 
     - name: Run benchmarks
       run: |
@@ -143,6 +147,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: true
 
     - name: Wait for services
       run: |
