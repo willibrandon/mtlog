@@ -215,14 +215,3 @@ func TestSeqLevelControllerCleanup(t *testing.T) {
 	t.Logf("Controller cleanup test passed, closed in %v", elapsed)
 }
 
-// Helper function - same as existing integration tests
-func isSeqAvailable(seqURL string) bool {
-	// Test if we can post to the raw endpoint
-	testEvent := `{"@t":"2025-01-22T00:00:00Z","@mt":"Health check","@l":"Information"}`
-	resp, err := http.Post(seqURL+"/api/events/raw", "application/vnd.serilog.clef", strings.NewReader(testEvent))
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
-}
