@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the **mtlog** (Message Template Logging) project - a Serilog-inspired structured logging library for Go. The project aims to bring message templates and pipeline architecture to the Go ecosystem, with native Seq integration.
+**mtlog** (Message Template Logging) is a high-performance, Serilog-inspired structured logging library for Go. The library brings message templates and pipeline architecture to the Go ecosystem, with native integration for Seq, Elasticsearch, and Splunk.
 
-## Key Architecture Concepts
+## Key Features
 
 ### 1. Message Templates
 - Templates like `"User {UserId} logged in"` are preserved throughout the pipeline
 - Properties are extracted from templates and matched positionally to arguments
 - Templates serve as both human-readable messages and event types for grouping/analysis
+- Support for format specifiers like `{Count:000}` and `{Price:F2}`
 
 ### 2. Pipeline Architecture
 The logging pipeline follows this flow:
@@ -19,28 +20,29 @@ The logging pipeline follows this flow:
 Message Template Parser → Enrichment → Filtering → Destructuring → Sinks (Output)
 ```
 
-### 3. Core Interfaces
+### 3. Ecosystem Compatibility
+- **slog**: Full compatibility with Go's standard `log/slog` package via `slog.Handler` adapter
+- **logr**: Integration with Kubernetes ecosystem via `logr.LogSink` adapter
+- **Short Methods**: Convenience methods like `V()`, `D()`, `I()`, `W()`, `E()`, `F()`
+
+### 4. Core Interfaces
 - `Logger` - Main logging interface with methods like `Information()`, `Error()`, etc.
 - `LogEventEnricher` - Adds contextual properties to log events
 - `LogEventFilter` - Determines which events proceed through pipeline
 - `Destructurer` - Converts complex types to log-appropriate representations
 - `LogEventSink` - Outputs events to destinations (Console, File, Seq, etc.)
+- `LoggingLevelSwitch` - Dynamic level control for runtime configuration
 
 ## Development Commands
 
-Since this is a new Go project without implementation yet, here are the expected commands once development begins:
-
 ```bash
-# Initialize Go module
-go mod init github.com/[username]/mtlog
-
 # Run all tests
 go test ./...
 
 # Run with coverage
 go test -cover ./...
 
-# Run only integration tests
+# Run only integration tests (requires Docker)
 go test -tags=integration ./...
 
 # Run benchmarks
@@ -52,94 +54,167 @@ go test -race ./...
 # Run specific test
 go test -run TestSeqIntegration ./...
 
-# Run tests in container (once docker-compose.test.yml is created)
-docker-compose -f docker-compose.test.yml up --abort-on-container-exit
-
-# Build the library
-go build ./...
+# Run fuzz tests
+go test -fuzz=FuzzParseMessageTemplate -fuzztime=30s ./parser
 
 # Format code
 go fmt ./...
 
-# Run linter (once added)
+# Run linter
 golangci-lint run
 
-# Generate mocks (if using mockgen)
-go generate ./...
+# Run benchmarks with specific focus
+go test -bench=BenchmarkSimpleString -benchmem -benchtime=10s .
 ```
 
-## Project Structure (Planned)
+## Project Structure
 
-Based on the design document, the expected structure will be:
-- `core/` - Core logging interfaces and types
-- `parser/` - Message template parsing
-- `enrichers/` - Built-in enrichers (machine name, process, etc.)
-- `filters/` - Level and predicate filters
-- `destructurers/` - Type destructuring logic
-- `sinks/` - Output destinations (console, file, seq)
-- `seq/` - Seq-specific integration and CLEF formatting
+```
+mtlog/
+├── core/              # Core interfaces and types
+├── parser/            # Message template parsing with format specifiers
+├── enrichers/         # Built-in enrichers (machine name, thread ID, etc.)
+├── filters/           # Level, predicate, sampling, and rate limit filters
+├── destructure/       # Type destructuring with LogValue support
+├── sinks/             # Output destinations
+│   ├── async.go       # Async sink wrapper with batching
+│   ├── console.go     # Console output with themes
+│   ├── file.go        # File and rolling file sinks
+│   ├── seq.go         # Seq integration with CLEF formatting
+│   ├── elasticsearch.go # Elasticsearch sink with data streams
+│   ├── splunk.go      # Splunk HEC integration
+│   └── durable.go     # Durable buffering for reliability
+├── handler/           # Ecosystem adapters
+│   ├── slog_handler.go   # slog.Handler implementation
+│   └── logr_sink.go      # logr.LogSink implementation
+├── formatters/        # Log formatters (CLEF, JSON)
+├── configuration/     # JSON/YAML configuration support
+├── integration/       # Integration tests
+└── examples/          # Usage examples
+```
 
-## Important Design Goals
+## Performance Achievements
 
-1. **Zero Allocations** - Simple log operations should have zero allocations ✓
-2. **Performance** - Target performance within 20% of zap/zerolog ✓
-3. **Serilog Compatibility** - API should feel familiar to Serilog users
-4. **Go Idiomatic** - Follow Go conventions and patterns
+The library achieves **zero allocations** for simple logging through optimized implementations:
+- Simple log: ~13ns/op, 0B/op, 0 allocs ✓
+- With properties: ~180ns/op, 448B/op, 4 allocs
+- Below minimum level: ~1.4ns/op, 0B/op, 0 allocs ✓
+- Dynamic level filtering: ~3ns/op, 0B/op, 0 allocs ✓
 
-## Performance
+Performance is comparable to or better than zap/zerolog for common scenarios.
 
-The library achieves **zero allocations** for simple logging through a fast path implementation:
-- Simple log: 13.6ns/op, 0B/op, 0 allocs
-- With properties: 183ns/op, 448B/op, 4 allocs
-- Below minimum level: 1.4ns/op, 0B/op, 0 allocs
-
-See [PERFORMANCE.md](PERFORMANCE.md) for detailed benchmarks and optimization history.
-
-## Testing Strategy
+## Testing Infrastructure
 
 ### Container-Based Testing
-The project uses real infrastructure for integration tests via Docker Compose:
-- **Seq** - Real Seq instance for testing log ingestion and querying
-- **Elasticsearch** - Real Elasticsearch for testing the ES sink
-- **No Mocks** - Integration tests use actual services, not mocks
+The project uses real infrastructure for integration tests:
+- **Seq** - Real Seq instance on ports 5341 (ingestion) and 8080 (query)
+- **Elasticsearch** - Real ES instance on port 9200
+- **Splunk** - Real Splunk instance on ports 8088 (HEC) and 8089 (management)
 
-### Test Types
-1. **Unit Tests** - Use in-memory sinks (MemorySink) for fast feedback
-2. **Integration Tests** - Test against real Seq/Elasticsearch in containers
-3. **Benchmarks** - Track performance and allocations from day one
-4. **Table-Driven Tests** - Go-style tests for comprehensive coverage
+### CI/CD Pipeline
+GitHub Actions workflow includes:
+- Multi-OS testing (Ubuntu, Windows, macOS)
+- Multi-Go version testing (1.21, 1.22, 1.23)
+- Integration tests with real services
+- Fuzz testing
+- Race condition testing
+- Performance benchmarking
+- Code coverage reporting
 
-### Testing Philosophy
-- Real dependencies over mocks
-- Integration-first approach
-- Continuous performance tracking
-- Container-based infrastructure
+### Test Categories
+1. **Unit Tests** (330+ tests) - Fast, focused tests using MemorySink
+2. **Integration Tests** - Real service testing with Docker containers
+3. **Benchmarks** - Performance and allocation tracking
+4. **Fuzz Tests** - Parser robustness testing
+5. **Race Tests** - Concurrency safety verification
 
-## Implementation Status
+## Key Features Implemented
 
-According to the design document's roadmap:
-- Phase 1: Core Foundation (not started)
-- Phase 2: Pipeline Implementation
-- Phase 3: Seq Integration
-- Phase 4: Advanced Features
-- Phase 5: Production Readiness
-- Phase 6: Community Release
+### Core Features
+- ✓ Message template parsing with format specifiers
+- ✓ Property extraction and rendering
+- ✓ Pipeline architecture
+- ✓ Context propagation
+- ✓ Structured destructuring
+- ✓ LogValue protocol support
 
-Currently, only the design document exists - no implementation has begun.
+### Sinks
+- ✓ Console sink with color themes
+- ✓ File sink with atomic writes
+- ✓ Rolling file sink with retention
+- ✓ Seq sink with batching and CLEF
+- ✓ Elasticsearch sink with data streams
+- ✓ Splunk HEC sink
+- ✓ Async sink with buffering
+- ✓ Durable sink with persistence
 
-## Week-by-Week Development Plan
+### Advanced Features
+- ✓ Dynamic level control
+- ✓ Seq level controller
+- ✓ Configuration from JSON/YAML
+- ✓ Environment variable expansion
+- ✓ slog.Handler adapter
+- ✓ logr.LogSink adapter
+- ✓ Generic logger interface
+- ✓ Short method names
 
-### Week 1: Core + Learning Go
-- Days 1-2: Message template parser (string manipulation)
-- Days 3-4: Basic logger and sinks (interfaces and methods)
-- Days 5-7: File operations and basic enrichers (io package)
+### Enrichers & Filters
+- ✓ Machine name enricher
+- ✓ Thread ID enricher
+- ✓ Callers enricher
+- ✓ Environment enricher
+- ✓ Level filtering
+- ✓ Predicate filtering
+- ✓ Sampling filters
+- ✓ Rate limiting
 
-### Week 2: Pipeline + Seq
-- Days 1-2: Pipeline architecture (composition patterns)
-- Days 3-4: Seq sink with batching (goroutines and channels)
-- Days 5-7: Container-based testing setup
+## Usage Examples
 
-### Week 3: Polish + Performance
-- Days 1-2: Performance optimization (profiling)
-- Days 3-4: Elasticsearch sink
-- Days 5-7: Documentation and examples
+### Basic Usage
+```go
+log := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithSeq("http://localhost:5341"),
+)
+
+log.Information("User {UserId} logged in", 123)
+log.Warning("Disk usage at {Percentage:P1}", 0.85)
+```
+
+### With slog
+```go
+slogger := mtlog.NewSlogLogger(
+    mtlog.WithConsole(),
+    mtlog.WithMinimumLevel(core.DebugLevel),
+)
+
+slog.SetDefault(slogger)
+```
+
+### With logr
+```go
+logrLogger := mtlog.NewLogrLogger(
+    mtlog.WithConsole(),
+    mtlog.WithProperty("app", "myapp"),
+)
+```
+
+### Dynamic Level Control
+```go
+levelSwitch := mtlog.NewLoggingLevelSwitch(core.InformationLevel)
+log := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithLevelSwitch(levelSwitch),
+)
+
+// Change level at runtime
+levelSwitch.SetLevel(core.DebugLevel)
+```
+
+## Important Notes
+
+- The library is feature-complete and ready for production use
+- All performance targets have been met or exceeded
+- Integration with major logging ecosystems is complete
+- Comprehensive test coverage ensures reliability
+- CI/CD pipeline ensures quality across platforms
