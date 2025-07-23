@@ -129,8 +129,37 @@ jobs:
 
     - name: Wait for services
       run: |
-        until curl -f http://localhost:5341/api/events/signal; do sleep 1; done
-        until curl -f http://localhost:9200/_cluster/health; do sleep 1; done
+        echo "Waiting for Seq..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if curl -f http://localhost:8080/ 2>/dev/null; then
+            echo "Seq is ready"
+            break
+          fi
+          echo "Waiting for Seq... ($timeout seconds left)"
+          sleep 1
+          timeout=$((timeout-1))
+        done
+        if [ $timeout -eq 0 ]; then
+          echo "Seq failed to start in 30 seconds"
+          exit 1
+        fi
+        
+        echo "Waiting for Elasticsearch..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if curl -f http://localhost:9200/_cluster/health 2>/dev/null; then
+            echo "Elasticsearch is ready"
+            break
+          fi
+          echo "Waiting for Elasticsearch... ($timeout seconds left)"
+          sleep 1
+          timeout=$((timeout-1))
+        done
+        if [ $timeout -eq 0 ]; then
+          echo "Elasticsearch failed to start in 30 seconds"
+          exit 1
+        fi
 
     - name: Run integration tests
       run: go test -tags=integration -v ./...
