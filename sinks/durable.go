@@ -43,6 +43,10 @@ type DurableOptions struct {
 	
 	// FlushInterval is how often to flush the buffer file to disk.
 	FlushInterval time.Duration
+	
+	// ChannelBufferSize is the size of the internal event channel.
+	// Defaults to 10000 if not specified.
+	ChannelBufferSize int
 }
 
 // DurableSink wraps another sink to provide persistent buffering when the sink fails.
@@ -108,6 +112,9 @@ func NewDurableSink(wrapped core.LogEventSink, options DurableOptions) (*Durable
 	if options.FlushInterval <= 0 {
 		options.FlushInterval = 5 * time.Second
 	}
+	if options.ChannelBufferSize <= 0 {
+		options.ChannelBufferSize = 10000
+	}
 	if options.OnError == nil {
 		options.OnError = func(err error) {
 			fmt.Printf("DurableSink error: %v\n", err)
@@ -126,7 +133,7 @@ func NewDurableSink(wrapped core.LogEventSink, options DurableOptions) (*Durable
 		options:      options,
 		ctx:          ctx,
 		cancel:       cancel,
-		events:       make(chan *core.LogEvent, 1000),
+		events:       make(chan *core.LogEvent, options.ChannelBufferSize),
 		flushTrigger: make(chan struct{}, 1),
 	}
 	

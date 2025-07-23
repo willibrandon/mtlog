@@ -15,6 +15,10 @@ type LoggerG[T any] interface {
 	ErrorT(messageTemplate string, value T, args ...interface{})
 	FatalT(messageTemplate string, value T, args ...interface{})
 	
+	// Short method names
+	InfoT(messageTemplate string, value T, args ...interface{})
+	WarnT(messageTemplate string, value T, args ...interface{})
+	
 	// ForContextT adds a typed property
 	ForContextT(propertyName string, value T) LoggerG[T]
 }
@@ -65,6 +69,18 @@ func (l *TypedLogger[T]) ErrorT(messageTemplate string, value T, args ...interfa
 func (l *TypedLogger[T]) FatalT(messageTemplate string, value T, args ...interface{}) {
 	allArgs := append([]interface{}{value}, args...)
 	l.logger.Fatal(messageTemplate, allArgs...)
+}
+
+// InfoT writes an information-level log event with a typed value (alias for InformationT)
+func (l *TypedLogger[T]) InfoT(messageTemplate string, value T, args ...interface{}) {
+	allArgs := append([]interface{}{value}, args...)
+	l.logger.Info(messageTemplate, allArgs...)
+}
+
+// WarnT writes a warning-level log event with a typed value (alias for WarningT)
+func (l *TypedLogger[T]) WarnT(messageTemplate string, value T, args ...interface{}) {
+	allArgs := append([]interface{}{value}, args...)
+	l.logger.Warn(messageTemplate, allArgs...)
 }
 
 // ForContextT adds a typed property to the logger context

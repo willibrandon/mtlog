@@ -14,6 +14,8 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Type-safe generics** for better compile-time safety
 - **LogValue interface** for safe logging of sensitive data
 - **8.7x faster** than zap for simple string logging
+- **Standard library compatibility** via slog.Handler adapter (Go 1.21+)
+- **Kubernetes ecosystem** support via logr.LogSink adapter
 
 ### Sinks & Output
 - **Console sink** with customizable themes (dark, light, ANSI colors)
@@ -405,6 +407,47 @@ See the [examples](./examples) directory for complete examples:
 - [Dynamic levels](./examples/dynamic-levels/main.go)
 - [Configuration](./examples/configuration/main.go)
 - [Generics usage](./examples/generics/main.go)
+
+## Ecosystem Compatibility
+
+### Standard Library (slog)
+
+mtlog provides full compatibility with Go's standard `log/slog` package:
+
+```go
+// Use mtlog as a backend for slog
+slogger := mtlog.NewSlogLogger(
+    mtlog.WithSeq("http://localhost:5341"),
+    mtlog.WithMinimumLevel(core.InformationLevel),
+)
+
+// Use standard slog API
+slogger.Info("user logged in", "user_id", 123, "ip", "192.168.1.1")
+
+// Or create a custom slog handler
+logger := mtlog.New(mtlog.WithConsole())
+slogger = slog.New(logger.AsSlogHandler())
+```
+
+### Kubernetes (logr)
+
+mtlog integrates with the Kubernetes ecosystem via logr:
+
+```go
+// Use mtlog as a backend for logr
+logrLogger := mtlog.NewLogrLogger(
+    mtlog.WithConsole(),
+    mtlog.WithMinimumLevel(core.DebugLevel),
+)
+
+// Use standard logr API
+logrLogger.Info("reconciling", "namespace", "default", "name", "my-app")
+logrLogger.Error(err, "failed to update resource")
+
+// Or create a custom logr sink
+logger := mtlog.New(mtlog.WithSeq("http://localhost:5341"))
+logrLogger = logr.New(logger.AsLogrSink())
+```
 
 ## Advanced Usage
 

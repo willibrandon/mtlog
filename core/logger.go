@@ -31,4 +31,15 @@ type Logger interface {
 	
 	// WithContext creates a logger that enriches events with context values.
 	WithContext(ctx context.Context) Logger
+	
+	// IsEnabled returns true if events at the specified level would be processed.
+	IsEnabled(level LogEventLevel) bool
+	
+	// Short method names for idiomatic Go usage
+	
+	// Info writes an information-level log event (alias for Information).
+	Info(messageTemplate string, args ...interface{})
+	
+	// Warn writes a warning-level log event (alias for Warning).
+	Warn(messageTemplate string, args ...interface{})
 }

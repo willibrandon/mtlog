@@ -76,6 +76,16 @@ func (l *logger) Fatal(messageTemplate string, args ...interface{}) {
 	l.Write(core.FatalLevel, messageTemplate, args...)
 }
 
+// Info writes an information-level log event (alias for Information).
+func (l *logger) Info(messageTemplate string, args ...interface{}) {
+	l.Write(core.InformationLevel, messageTemplate, args...)
+}
+
+// Warn writes a warning-level log event (alias for Warning).
+func (l *logger) Warn(messageTemplate string, args ...interface{}) {
+	l.Write(core.WarningLevel, messageTemplate, args...)
+}
+
 // Write writes a log event at the specified level.
 func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ...interface{}) {
 	// Check minimum level (dynamic level switch takes precedence)
