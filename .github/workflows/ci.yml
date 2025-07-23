@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go: ['1.21', '1.22', '1.23']
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ matrix.go }}
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Test
+      run: go test -v ./...
+
+    - name: Test with race detector
+      run: go test -race -v ./...
+
+    - name: Test coverage
+      run: go test -coverprofile=coverage.out ./...
+      if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v5
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+      if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.23'
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: latest
+
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.23'
+
+    - name: Run fuzz tests
+      run: |
+        go test -fuzz=FuzzParseMessageTemplate -fuzztime=30s ./parser
+
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.23'
+
+    - name: Run benchmarks
+      run: |
+        go test -bench=BenchmarkSimpleString -benchmem -benchtime=10s . | tee benchmark.txt
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v5
+      with:
+        name: benchmark-results
+        path: benchmark.txt
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      seq:
+        image: datalust/seq:latest
+        env:
+          ACCEPT_EULA: Y
+          SEQ_FIRSTRUN_NOAUTHENTICATION: true
+        ports:
+          - 5341:5341
+          - 8080:80
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: false
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -f http://localhost:9200/_cluster/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.23'
+
+    - name: Wait for services
+      run: |
+        until curl -f http://localhost:5341/api/events/signal; do sleep 1; done
+        until curl -f http://localhost:9200/_cluster/health; do sleep 1; done
+
+    - name: Run integration tests
+      run: go test -tags=integration -v ./...
+      env:
+        SEQ_URL: http://localhost:5341
+        ELASTICSEARCH_URL: http://localhost:9200
