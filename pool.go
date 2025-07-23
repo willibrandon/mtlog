@@ -2,7 +2,6 @@ package mtlog
 
 import (
 	"sync"
-	"time"
 	
 	"github.com/willibrandon/mtlog/core"
 )
@@ -36,32 +35,3 @@ func getPropertyMap() map[string]interface{} {
 	return m
 }
 
-// putPropertyMap returns a property map to the pool.
-func putPropertyMap(m map[string]interface{}) {
-	// Don't pool maps that have grown too large
-	if len(m) > 32 {
-		return
-	}
-	pools.properties.Put(m)
-}
-
-// getLogEvent gets a log event from the pool.
-func getLogEvent() *core.LogEvent {
-	return pools.events.Get().(*core.LogEvent)
-}
-
-// putLogEvent returns a log event to the pool.
-func putLogEvent(e *core.LogEvent) {
-	// Clear the event for reuse
-	e.Timestamp = time.Time{}
-	e.Level = 0
-	e.MessageTemplate = ""
-	e.Exception = nil
-	
-	// Clear properties
-	for k := range e.Properties {
-		delete(e.Properties, k)
-	}
-	
-	pools.events.Put(e)
-}

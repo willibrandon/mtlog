@@ -1,6 +1,7 @@
 package mtlog
 
 import (
+	"fmt"
 	"testing"
 	
 	"github.com/willibrandon/mtlog/core"
@@ -12,7 +13,10 @@ func TestAllocationBreakdown(t *testing.T) {
 	// Test 1: Parse template
 	t.Run("ParseTemplate", func(t *testing.T) {
 		allocs := testing.AllocsPerRun(100, func() {
-			parser.Parse("This is a simple log message")
+			_, err := parser.Parse("This is a simple log message")
+			if err != nil {
+				panic(fmt.Sprintf("Failed to parse template: %v", err))
+			}
 		})
 		t.Logf("Parse template allocations: %.1f", allocs)
 	})

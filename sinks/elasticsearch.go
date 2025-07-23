@@ -292,6 +292,8 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 						if errorInfo != nil {
 							// Individual document error - could log or handle
 							// In production, you might want to retry failed documents
+							// For now, increment a counter or log the error
+							continue // Skip to next item
 						}
 					}
 				}

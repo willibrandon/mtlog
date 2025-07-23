@@ -34,8 +34,6 @@ type SplunkSink struct {
 	stopCh     chan struct{}
 	flushCh    chan struct{}
 	wg         sync.WaitGroup
-	flushing   bool
-	flushMu    sync.Mutex
 }
 
 // SplunkOption configures a Splunk sink

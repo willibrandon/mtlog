@@ -198,8 +198,12 @@ func (ds *DurableSink) Close() error {
 	// Close buffer file properly
 	ds.fileMu.Lock()
 	if ds.bufferFile != nil {
-		ds.bufferFile.Sync()
-		ds.bufferFile.Close()
+		if err := ds.bufferFile.Sync(); err != nil && ds.options.OnError != nil {
+			ds.options.OnError(fmt.Errorf("failed to sync buffer file during close: %w", err))
+		}
+		if err := ds.bufferFile.Close(); err != nil && ds.options.OnError != nil {
+			ds.options.OnError(fmt.Errorf("failed to close buffer file: %w", err))
+		}
 		ds.bufferFile = nil
 	}
 	ds.fileMu.Unlock()
@@ -278,7 +282,11 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				// Sink panicked
+				// Sink panicked, mark as unhealthy
+				ds.sinkHealthy.Store(false)
+				if ds.options.OnError != nil {
+					ds.options.OnError(fmt.Errorf("sink panicked: %v", r))
+				}
 			}
 			close(done)
 		}()
@@ -528,7 +536,9 @@ func (ds *DurableSink) flushBufferFile() {
 	defer ds.fileMu.Unlock()
 	
 	if ds.bufferFile != nil {
-		ds.bufferFile.Sync()
+		if err := ds.bufferFile.Sync(); err != nil && ds.options.OnError != nil {
+			ds.options.OnError(fmt.Errorf("failed to sync buffer file: %w", err))
+		}
 	}
 }
 

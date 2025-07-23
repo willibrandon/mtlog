@@ -302,9 +302,18 @@ func TestLoadFromFile(t *testing.T) {
 func TestEnvironmentConfiguration(t *testing.T) {
 	// Create temporary directory with config files
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
 	
 	// Base configuration
 	baseConfig := `{
@@ -342,8 +351,12 @@ func TestEnvironmentConfiguration(t *testing.T) {
 	}`
 	
 	// Write config files
-	os.WriteFile("appsettings.json", []byte(baseConfig), 0644)
-	os.WriteFile("appsettings.Development.json", []byte(devConfig), 0644)
+	if err := os.WriteFile("appsettings.json", []byte(baseConfig), 0644); err != nil {
+		t.Fatalf("Failed to write base config: %v", err)
+	}
+	if err := os.WriteFile("appsettings.Development.json", []byte(devConfig), 0644); err != nil {
+		t.Fatalf("Failed to write dev config: %v", err)
+	}
 	
 	// Create logger for development environment
 	logger, err := CreateLoggerFromEnvironment("Development")

@@ -182,10 +182,18 @@ func BenchmarkTypicalError(b *testing.B) {
 	})
 }
 
+// Define context keys to avoid collisions
+type contextKey string
+
+const (
+	requestIDKey contextKey = "request_id"
+	userIDKey    contextKey = "user_id"
+)
+
 // BenchmarkTypicalDebugWithContext simulates debug logging with context
 func BenchmarkTypicalDebugWithContext(b *testing.B) {
-	ctx := context.WithValue(context.Background(), "request_id", "req-123")
-	ctx = context.WithValue(ctx, "user_id", 456)
+	ctx := context.WithValue(context.Background(), requestIDKey, "req-123")
+	ctx = context.WithValue(ctx, userIDKey, 456)
 	
 	query := "SELECT * FROM orders WHERE user_id = ?"
 	params := []interface{}{456}

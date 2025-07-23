@@ -101,9 +101,7 @@ func WithEnvironmentVariables(variables ...string) Option {
 // WithCommonEnvironment adds enrichers for common environment variables.
 func WithCommonEnvironment() Option {
 	return func(c *config) {
-		for _, enricher := range enrichers.CommonEnvironmentEnrichers() {
-			c.enrichers = append(c.enrichers, enricher)
-		}
+		c.enrichers = append(c.enrichers, enrichers.CommonEnvironmentEnrichers()...)
 	}
 }
 
