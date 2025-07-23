@@ -4,9 +4,7 @@
 package integration
 
 import (
-	"net/http"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
