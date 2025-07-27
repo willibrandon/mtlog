@@ -245,23 +245,6 @@ func Eventually(t *testing.T, condition func() bool, timeout time.Duration) {
 }
 ```
 
-## Week-by-Week Plan
-
-### Week 1: Core + Learning Go
-- **Days 1-2**: Message template parser (learn string manipulation in Go)
-- **Days 3-4**: Basic logger and sinks (learn interfaces and methods)
-- **Days 5-7**: File operations and basic enrichers (learn Go's io package)
-
-### Week 2: Pipeline + Seq
-- **Days 1-2**: Pipeline architecture (learn composition patterns)
-- **Days 3-4**: Seq sink with batching (learn goroutines and channels)
-- **Days 5-7**: Container-based testing setup
-
-### Week 3: Polish + Performance
-- **Days 1-2**: Performance optimization (learn profiling)
-- **Days 3-4**: Elasticsearch sink
-- **Days 5-7**: Documentation and examples
-
 ## Quick Go Testing Commands
 
 ```bash
