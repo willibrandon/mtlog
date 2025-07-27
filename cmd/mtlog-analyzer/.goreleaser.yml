@@ -1,0 +1,114 @@
+gomod:
+  proxy: true
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mtlog-analyzer
+    binary: mtlog-analyzer
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: 386
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: mtlog-analyzer
+    builds:
+      - mtlog-analyzer
+    name_template: >-
+      mtlog-analyzer_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^style:'
+      - '^refactor:'
+      - '^perf:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'Features'
+      regexp: '^feat'
+    - title: 'Bug Fixes'
+      regexp: '^fix'
+    - title: 'Improvements'
+      regexp: '^(enhance|improve)'
+
+release:
+  github:
+    owner: willibrandon
+    name: mtlog
+  
+  # Header for the release notes
+  header: |
+    ## mtlog-analyzer {{ .Tag }}
+
+    Static analysis tool for mtlog message templates.
+
+  # Footer for the release notes  
+  footer: |
+    ## Installation
+
+    ### Using Go install
+    ```bash
+    go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@{{ .Tag }}
+    ```
+
+    ### Using binaries
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Verify Installation
+    ```bash
+    mtlog-analyzer -h
+    ```
+
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Universal binaries for macOS
+universal_binaries:
+  - id: mtlog-analyzer-darwin
+    builds:
+      - mtlog-analyzer
+    name_template: 'mtlog-analyzer_{{ .Version }}_Darwin_universal'
+    replace: true

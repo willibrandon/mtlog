@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-15]
-        go: ['1.21', '1.22', '1.23']
+        go: ['1.21', '1.22', '1.23', '1.24']
     steps:
     - uses: actions/checkout@v4
 
@@ -31,6 +31,11 @@ jobs:
 
     - name: Test with race detector
       run: go test -race -v ./...
+
+    - name: Test mtlog-analyzer
+      run: |
+        cd cmd/mtlog-analyzer
+        go test -v ./...
 
     - name: Test coverage
       run: go test -coverprofile=coverage.out ./...

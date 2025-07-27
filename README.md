@@ -543,6 +543,44 @@ export MTLOG_SOURCE_CTX_CACHE=50000  # Increase for large applications
 export MTLOG_SOURCE_CTX_CACHE=1000   # Decrease for memory-constrained environments
 ```
 
+## Tools
+
+### mtlog-analyzer
+
+A static analysis tool that catches common mtlog mistakes at compile time:
+
+```bash
+# Install the analyzer
+go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+
+# Run with go vet
+go vet -vettool=$(which mtlog-analyzer) ./...
+```
+
+The analyzer detects:
+- Template/argument count mismatches
+- Invalid property names (spaces, starting with numbers)
+- Duplicate properties in templates
+- Missing destructuring hints for complex types
+- Error logging without error values
+
+Example catches:
+```go
+// ❌ Template has 2 properties but 1 argument provided
+log.Information("User {UserId} logged in from {IP}", userId)
+
+// ❌ Duplicate property 'UserId'
+log.Information("User {UserId} did {Action} as {UserId}", id, "login", id)
+
+// ❌ Using @ prefix for basic type
+log.Information("Count is {@Count}", 42)
+
+// ✅ Correct usage
+log.Information("User {@User} has {Count} items", user, count)
+```
+
+See [mtlog-analyzer README](./cmd/mtlog-analyzer/README.md) for detailed documentation and CI integration.
+
 ## Advanced Usage
 
 ### Custom Sinks

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **mtlog-analyzer** - Static analysis tool for mtlog usage
+  - Detects template/argument mismatches
+  - Validates format specifiers
+  - Suggests property naming conventions (PascalCase)
+  - Detects duplicate properties
+  - Suggests destructuring hints for complex types
+  - Validates error logging patterns
+  - Suggests constants for common context keys
+  - Configuration flags: `-strict`, `-common-keys`, `-disable`, `-ignore-dynamic-templates`, `-strict-logger-types`, `-downgrade-errors`
+  - IDE integration with automatic fixes
+  - Can be used standalone or as a go vet tool
+  - Comprehensive test coverage (88.6%)
+
 ## [0.2.1] - 2025-01-27
 
 ### Changed
