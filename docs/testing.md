@@ -277,7 +277,5 @@ docker-compose -f docker/docker-compose.test.yml down
 1. **Real Dependencies** - Use real Seq, real Elasticsearch via containers
 2. **Memory Sinks** - For unit tests, use in-memory sinks that capture events
 3. **Table-Driven** - Go's table-driven tests are perfect for template parsing
-4. **Integration First** - Test the actual integration points, not mocks
+4. **Integration First** - Test the actual integration points
 5. **Benchmarks** - Track allocations from day one
-
-This approach means your tests actually prove the system works with real infrastructure, which is much more valuable than mock-based tests.
