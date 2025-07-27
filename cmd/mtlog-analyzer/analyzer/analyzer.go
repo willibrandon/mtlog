@@ -42,11 +42,6 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-// Known logger type names for receiver checking
-var knownLoggerTypes = map[string]bool{
-	"Logger":  true,
-	"*Logger": true,
-}
 
 // Template cache to avoid redundant parsing within a single pass
 type templateCache struct {
@@ -575,10 +570,6 @@ func runWithAllChecks(pass *analysis.Pass, call *ast.CallExpr, cache *templateCa
 	}
 }
 
-// checkDuplicateProperties checks for duplicate property names in templates
-func checkDuplicateProperties(pass *analysis.Pass, call *ast.CallExpr, template string) {
-	checkDuplicatePropertiesWithConfig(pass, call, template, nil)
-}
 
 // checkDuplicatePropertiesWithConfig checks for duplicate property names in templates
 func checkDuplicatePropertiesWithConfig(pass *analysis.Pass, call *ast.CallExpr, template string, config *Config) {
@@ -600,10 +591,6 @@ func checkDuplicatePropertiesWithConfig(pass *analysis.Pass, call *ast.CallExpr,
 	}
 }
 
-// checkPropertyNaming checks for common naming issues
-func checkPropertyNaming(pass *analysis.Pass, call *ast.CallExpr, template string) {
-	checkPropertyNamingWithConfig(pass, call, template, nil)
-}
 
 // checkPropertyNamingWithConfig checks for common naming issues
 func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, template string, config *Config) {
@@ -679,10 +666,6 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 	}
 }
 
-// checkDestructuringUsage checks for proper use of @ and $ prefixes
-func checkDestructuringUsage(pass *analysis.Pass, call *ast.CallExpr, template string) {
-	checkDestructuringUsageWithConfig(pass, call, template, nil)
-}
 
 // checkDestructuringUsageWithConfig checks for proper use of @ and $ prefixes
 func checkDestructuringUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, template string, config *Config) {
@@ -795,10 +778,6 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 	}
 }
 
-// checkErrorLogging checks for proper error logging patterns
-func checkErrorLogging(pass *analysis.Pass, call *ast.CallExpr) {
-	checkErrorLoggingWithConfig(pass, call, nil)
-}
 
 // checkErrorLoggingWithConfig checks for proper error logging patterns
 func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config *Config) {

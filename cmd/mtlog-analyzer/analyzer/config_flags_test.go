@@ -37,35 +37,45 @@ func TestConfigurationFlags(t *testing.T) {
 	// Test with strict mode enabled
 	t.Run("StrictMode", func(t *testing.T) {
 		strictAnalyzer := createTestAnalyzer()
-		strictAnalyzer.Flags.Set("strict", "true")
+		if err := strictAnalyzer.Flags.Set("strict", "true"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, strictAnalyzer, "strict")
 	})
 	
 	// Test with disabled checks
 	t.Run("DisabledChecks", func(t *testing.T) {
 		disabledAnalyzer := createTestAnalyzer()
-		disabledAnalyzer.Flags.Set("disable", "naming")
+		if err := disabledAnalyzer.Flags.Set("disable", "naming"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, disabledAnalyzer, "disabled")
 	})
 	
 	// Test common-keys flag
 	t.Run("CommonKeys", func(t *testing.T) {
 		commonKeysAnalyzer := createTestAnalyzer()
-		commonKeysAnalyzer.Flags.Set("common-keys", "custom_id,tenant_id,user.id,user-id,user:id,user/id,user_id.test-value,request-id:trace_id")
+		if err := commonKeysAnalyzer.Flags.Set("common-keys", "custom_id,tenant_id,user.id,user-id,user:id,user/id,user_id.test-value,request-id:trace_id"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, commonKeysAnalyzer, "commonkeys")
 	})
 	
 	// Test ignore-dynamic-templates flag
 	t.Run("IgnoreDynamicTemplates", func(t *testing.T) {
 		ignoreDynamicAnalyzer := createTestAnalyzer()
-		ignoreDynamicAnalyzer.Flags.Set("ignore-dynamic-templates", "true")
+		if err := ignoreDynamicAnalyzer.Flags.Set("ignore-dynamic-templates", "true"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, ignoreDynamicAnalyzer, "dynamicignore")
 	})
 	
 	// Test strict-logger-types flag
 	t.Run("StrictLoggerTypes", func(t *testing.T) {
 		strictTypesAnalyzer := createTestAnalyzer()
-		strictTypesAnalyzer.Flags.Set("strict-logger-types", "true")
+		if err := strictTypesAnalyzer.Flags.Set("strict-logger-types", "true"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, strictTypesAnalyzer, "stricttypes")
 	})
 	
@@ -73,15 +83,21 @@ func TestConfigurationFlags(t *testing.T) {
 	t.Run("InvalidDisableValues", func(t *testing.T) {
 		invalidDisableAnalyzer := createTestAnalyzer()
 		// "invalid" is not a valid check name, should be ignored
-		invalidDisableAnalyzer.Flags.Set("disable", "invalid,naming,notacheck")
+		if err := invalidDisableAnalyzer.Flags.Set("disable", "invalid,naming,notacheck"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, invalidDisableAnalyzer, "invalidflags")
 	})
 	
 	// Test downgrade-errors flag
 	t.Run("DowngradeErrors", func(t *testing.T) {
 		downgradeAnalyzer := createTestAnalyzer()
-		downgradeAnalyzer.Flags.Set("downgrade-errors", "true")
-		downgradeAnalyzer.Flags.Set("strict", "true") // Enable strict mode to generate some errors
+		if err := downgradeAnalyzer.Flags.Set("downgrade-errors", "true"); err != nil {
+			t.Fatal(err)
+		}
+		if err := downgradeAnalyzer.Flags.Set("strict", "true"); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, downgradeAnalyzer, "downgrade")
 	})
 	
@@ -89,8 +105,12 @@ func TestConfigurationFlags(t *testing.T) {
 	t.Run("EmptyFlagValues", func(t *testing.T) {
 		emptyFlagsAnalyzer := createTestAnalyzer()
 		// Set empty values for various flags - should be handled gracefully
-		emptyFlagsAnalyzer.Flags.Set("disable", "")
-		emptyFlagsAnalyzer.Flags.Set("common-keys", "")
+		if err := emptyFlagsAnalyzer.Flags.Set("disable", ""); err != nil {
+			t.Fatal(err)
+		}
+		if err := emptyFlagsAnalyzer.Flags.Set("common-keys", ""); err != nil {
+			t.Fatal(err)
+		}
 		analysistest.Run(t, testdata, emptyFlagsAnalyzer, "emptyflags")
 	})
 }
