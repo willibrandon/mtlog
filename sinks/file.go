@@ -8,8 +8,8 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/formatters/output"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/formatters/output"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // FileSink writes log events to a file.

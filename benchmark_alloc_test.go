@@ -5,7 +5,7 @@ import (
 	"testing"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // Let's break down where allocations happen

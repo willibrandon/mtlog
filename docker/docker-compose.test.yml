@@ -23,8 +23,8 @@ services:
     container_name: splunk-test
     environment:
       - SPLUNK_START_ARGS=--accept-license
-      - SPLUNK_PASSWORD=changeme
-      - SPLUNK_HEC_TOKEN=00000000-0000-0000-0000-000000000000
+      - SPLUNK_PASSWORD=Admin123!
+      - SPLUNK_HEC_TOKEN=eb6baeef-eeb3-4a35-ab73-e17a12523b10
     ports:
       - "8000:8000"
       - "8088:8088"

@@ -448,7 +448,7 @@ func querySplunkEvents(splunkURL, token, testID string) ([]map[string]interface{
 	}
 	password := os.Getenv("SPLUNK_PASSWORD")
 	if password == "" {
-		password = "changeme"
+		password = "Admin123!"
 	}
 	req.SetBasicAuth(username, password)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

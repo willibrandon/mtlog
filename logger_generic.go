@@ -2,7 +2,7 @@ package mtlog
 
 import (
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // LoggerG is a generic type-safe logger interface

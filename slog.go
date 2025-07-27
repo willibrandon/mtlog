@@ -3,7 +3,7 @@ package mtlog
 import (
 	"log/slog"
 
-	"github.com/willibrandon/mtlog/handler"
+	"github.com/willibrandon/mtlog/internal/handler"
 )
 
 // NewSlogLogger creates a new slog.Logger backed by mtlog

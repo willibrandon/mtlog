@@ -6,8 +6,8 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/enrichers"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/enrichers"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // logger is the default implementation of core.Logger.

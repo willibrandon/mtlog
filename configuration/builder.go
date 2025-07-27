@@ -8,8 +8,8 @@ import (
 	
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/enrichers"
-	"github.com/willibrandon/mtlog/filters"
+	"github.com/willibrandon/mtlog/internal/enrichers"
+	"github.com/willibrandon/mtlog/internal/filters"
 	"github.com/willibrandon/mtlog/sinks"
 )
 

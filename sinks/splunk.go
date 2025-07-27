@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // SplunkSink writes log events to Splunk HTTP Event Collector (HEC)

@@ -7,7 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/handler"
+	"github.com/willibrandon/mtlog/internal/handler"
 	"github.com/willibrandon/mtlog/sinks"
 )
 

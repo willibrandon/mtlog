@@ -7,7 +7,7 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/formatters"
+	"github.com/willibrandon/mtlog/internal/formatters"
 )
 
 func TestSeqSink_CLEFFormat(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/parser"
 )
 
 // Token represents a token in an output template

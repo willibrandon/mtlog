@@ -7,7 +7,7 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/parser"
+	"github.com/willibrandon/mtlog/internal/parser"
 	"github.com/willibrandon/mtlog/sinks"
 )
 

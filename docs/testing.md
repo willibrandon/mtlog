@@ -35,7 +35,9 @@ go test -tags=integration ./...
 docker stop es-test && docker rm es-test
 
 # Run integration tests with Splunk
-docker run -d --name splunk-test -p 8000:8000 -p 8088:8088 -e SPLUNK_START_ARGS="--accept-license" -e SPLUNK_PASSWORD="changeme" -e SPLUNK_HEC_TOKEN="00000000-0000-0000-0000-000000000000" splunk/splunk:latest
+# Note: Port 8089 is required for Splunk management API used by tests
+# A non-default password is required to enable remote login
+docker run -d --name splunk-test -p 8000:8000 -p 8088:8088 -p 8089:8089 -e SPLUNK_START_ARGS="--accept-license" -e SPLUNK_PASSWORD="Admin123!" -e SPLUNK_HEC_TOKEN="eb6baeef-eeb3-4a35-ab73-e17a12523b10" splunk/splunk:latest
 # Wait for Splunk to be ready
 sleep 60
 go test -tags=integration ./...

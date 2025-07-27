@@ -6,7 +6,7 @@ import (
 	
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/filters"
+	"github.com/willibrandon/mtlog/internal/filters"
 )
 
 func main() {

@@ -2,7 +2,7 @@ package mtlog
 
 import (
 	"github.com/go-logr/logr"
-	"github.com/willibrandon/mtlog/handler"
+	"github.com/willibrandon/mtlog/internal/handler"
 )
 
 // NewLogrLogger creates a new logr.Logger backed by mtlog
