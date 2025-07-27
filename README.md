@@ -638,7 +638,7 @@ See [testing.md](./docs/testing.md) for detailed integration test setup with Doc
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
