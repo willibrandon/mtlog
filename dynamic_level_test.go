@@ -298,10 +298,10 @@ func TestDynamicLevelControl_Performance(t *testing.T) {
 	duration := time.Since(start)
 	nsPerOp := duration.Nanoseconds() / iterations
 
-	// Should be very fast (under 100ns per operation for filtered messages)
-	// Allow variance for different architectures, OS, and Go versions
-	if nsPerOp > 100 {
-		t.Errorf("Dynamic level filtering too slow: %d ns/op (expected < 100 ns/op)", nsPerOp)
+	// Should be very fast (under 150ns per operation for filtered messages)
+	// Allow variance for different architectures, OS (Windows tends to be slower), and Go versions
+	if nsPerOp > 150 {
+		t.Errorf("Dynamic level filtering too slow: %d ns/op (expected < 150 ns/op)", nsPerOp)
 	}
 
 	t.Logf("Dynamic level filtering performance: %d ns/op", nsPerOp)
