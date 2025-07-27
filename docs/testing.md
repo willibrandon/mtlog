@@ -4,7 +4,22 @@
 
 ### Running Integration Tests
 
-Integration tests run against real services using Docker containers. We do not use docker-compose files - instead, run containers directly:
+Integration tests run against real services using Docker containers.
+
+#### Using Docker Compose
+
+```bash
+# Start all test services
+docker-compose -f docker/docker-compose.test.yml up -d
+
+# Run integration tests
+go test -tags=integration ./...
+
+# Stop services
+docker-compose -f docker/docker-compose.test.yml down
+```
+
+#### Manual Container Management
 
 ```bash
 # Run integration tests with Seq
@@ -268,8 +283,10 @@ go test -race ./...
 # Run specific test
 go test -run TestSeqIntegration ./...
 
-# Run tests in container
-docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+# Run tests with docker-compose
+docker-compose -f docker/docker-compose.test.yml up -d
+go test -tags=integration ./...
+docker-compose -f docker/docker-compose.test.yml down
 ```
 
 ## Testing Philosophy for This Project

@@ -608,33 +608,16 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 # Run unit tests
 go test ./...
 
-# Run integration tests (requires Docker)
+# Run integration tests with Docker Compose
+docker-compose -f docker/docker-compose.test.yml up -d
 go test -tags=integration ./...
+docker-compose -f docker/docker-compose.test.yml down
 
 # Run benchmarks
 go test -bench=. -benchmem ./...
-
-# Run integration tests with Seq
-docker run -d --name seq-test -e ACCEPT_EULA=Y -e SEQ_FIRSTRUN_NOAUTHENTICATION=true -p 8080:80 -p 5342:5341 datalust/seq
-go test -tags=integration ./...
-docker stop seq-test && docker rm seq-test
-
-# Run integration tests with Elasticsearch
-docker run -d --name es-test -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 docker.elastic.co/elasticsearch/elasticsearch:8.11.1
-# Wait for Elasticsearch to be ready
-sleep 30
-go test -tags=integration ./...
-docker stop es-test && docker rm es-test
-
-# Run integration tests with Splunk
-docker run -d --name splunk-test -p 8000:8000 -p 8088:8088 -e SPLUNK_START_ARGS="--accept-license" -e SPLUNK_PASSWORD="changeme" -e SPLUNK_HEC_TOKEN="00000000-0000-0000-0000-000000000000" splunk/splunk:latest
-# Wait for Splunk to be ready
-sleep 60
-go test -tags=integration ./...
-docker stop splunk-test && docker rm splunk-test
 ```
 
-See [testing.md](./docs/testing.md) for detailed integration test setup with Docker containers.
+See [testing.md](./docs/testing.md) for detailed testing guide and manual container setup.
 
 ## Contributing
 
