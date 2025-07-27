@@ -20,12 +20,52 @@ func WithConsoleProperties() Option {
 	return WithSink(sinks.NewConsoleSinkWithProperties())
 }
 
+// WithConsoleTemplate adds a console sink with a custom output template.
+func WithConsoleTemplate(template string) Option {
+	return func(c *config) {
+		if c.err != nil {
+			return // Don't process if already errored
+		}
+		sink, err := sinks.NewConsoleSinkWithTemplate(template)
+		if err != nil {
+			c.err = err
+			return
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithConsoleTheme adds a console sink with a custom theme.
+func WithConsoleTheme(theme *sinks.ConsoleTheme) Option {
+	return WithSink(sinks.NewConsoleSinkWithTheme(theme))
+}
+
+
 // WithFile adds a file sink.
 func WithFile(path string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewFileSink(path)
 		if err != nil {
-			panic(err) // Configuration errors should fail fast
+			c.err = err
+			return
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
+// WithFileTemplate adds a file sink with a custom output template.
+func WithFileTemplate(path string, template string) Option {
+	return func(c *config) {
+		if c.err != nil {
+			return
+		}
+		sink, err := sinks.NewFileSinkWithTemplate(path, template)
+		if err != nil {
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -34,9 +74,13 @@ func WithFile(path string) Option {
 // WithSeq adds a Seq sink with default configuration.
 func WithSeq(serverURL string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewSeqSink(serverURL)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -45,9 +89,13 @@ func WithSeq(serverURL string) Option {
 // WithSeqAPIKey adds a Seq sink with API key authentication.
 func WithSeqAPIKey(serverURL, apiKey string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewSeqSink(serverURL, sinks.WithSeqAPIKey(apiKey))
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -56,9 +104,13 @@ func WithSeqAPIKey(serverURL, apiKey string) Option {
 // WithSeqAdvanced adds a Seq sink with advanced options.
 func WithSeqAdvanced(serverURL string, opts ...sinks.SeqOption) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewSeqSink(serverURL, opts...)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -125,6 +177,16 @@ func WithCorrelationId(correlationId string) Option {
 	return WithEnricher(enrichers.NewCorrelationIdEnricher(correlationId))
 }
 
+// WithSourceContext adds source context enrichment with the specified context.
+func WithSourceContext(sourceContext string) Option {
+	return WithEnricher(enrichers.NewSourceContextEnricher(sourceContext))
+}
+
+// WithAutoSourceContext adds automatic source context detection.
+func WithAutoSourceContext() Option {
+	return WithEnricher(enrichers.NewAutoSourceContextEnricher())
+}
+
 // Filter convenience options
 
 // WithLevelFilter adds a minimum level filter.
@@ -155,6 +217,11 @@ func WithHashSampling(propertyName string, rate float32) Option {
 // WithRateLimit adds a rate limiting filter.
 func WithRateLimit(maxEvents int, windowNanos int64) Option {
 	return WithFilter(filters.NewRateLimitFilter(maxEvents, windowNanos))
+}
+
+// WithMinimumLevelOverrides adds source context-based level filtering.
+func WithMinimumLevelOverrides(defaultLevel core.LogEventLevel, overrides map[string]core.LogEventLevel) Option {
+	return WithFilter(filters.NewSourceContextLevelFilter(defaultLevel, overrides))
 }
 
 // Destructuring options
@@ -219,10 +286,13 @@ func WithDynamicLevel(levelSwitch *LoggingLevelSwitch) Option {
 // WithElasticsearch adds an Elasticsearch sink with default configuration.
 func WithElasticsearch(url string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewElasticsearchSink(url)
 		if err != nil {
-			// In production, you might want to handle this error differently
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -231,10 +301,14 @@ func WithElasticsearch(url string) Option {
 // WithElasticsearchBasicAuth adds an Elasticsearch sink with basic authentication.
 func WithElasticsearchBasicAuth(url, username, password string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewElasticsearchSink(url, 
 			sinks.WithElasticsearchBasicAuth(username, password))
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -243,10 +317,14 @@ func WithElasticsearchBasicAuth(url, username, password string) Option {
 // WithElasticsearchAPIKey adds an Elasticsearch sink with API key authentication.
 func WithElasticsearchAPIKey(url, apiKey string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewElasticsearchSink(url, 
 			sinks.WithElasticsearchAPIKey(apiKey))
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -255,9 +333,13 @@ func WithElasticsearchAPIKey(url, apiKey string) Option {
 // WithElasticsearchAdvanced adds an Elasticsearch sink with advanced options.
 func WithElasticsearchAdvanced(url string, opts ...sinks.ElasticsearchOption) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewElasticsearchSink(url, opts...)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -266,9 +348,13 @@ func WithElasticsearchAdvanced(url string, opts ...sinks.ElasticsearchOption) Op
 // WithSplunk adds a Splunk sink to the logger.
 func WithSplunk(url, token string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewSplunkSink(url, token)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -277,9 +363,13 @@ func WithSplunk(url, token string) Option {
 // WithSplunkAdvanced adds a Splunk sink with advanced options.
 func WithSplunkAdvanced(url, token string, opts ...sinks.SplunkOption) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewSplunkSink(url, token, opts...)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -288,11 +378,15 @@ func WithSplunkAdvanced(url, token string, opts ...sinks.SplunkOption) Option {
 // WithDurableBuffer adds durable buffering to a sink for reliability.
 func WithDurableBuffer(wrapped core.LogEventSink, bufferPath string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewDurableSink(wrapped, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -301,9 +395,13 @@ func WithDurableBuffer(wrapped core.LogEventSink, bufferPath string) Option {
 // WithDurableBufferAdvanced adds durable buffering with advanced options.
 func WithDurableBufferAdvanced(wrapped core.LogEventSink, options sinks.DurableOptions) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		sink, err := sinks.NewDurableSink(wrapped, options)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		c.sinks = append(c.sinks, sink)
 	}
@@ -312,16 +410,21 @@ func WithDurableBufferAdvanced(wrapped core.LogEventSink, options sinks.DurableO
 // WithDurableSeq adds a Seq sink with durable buffering.
 func WithDurableSeq(serverURL, bufferPath string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		seqSink, err := sinks.NewSeqSink(serverURL)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		durableSink, err := sinks.NewDurableSink(seqSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		c.sinks = append(c.sinks, durableSink)
@@ -331,16 +434,21 @@ func WithDurableSeq(serverURL, bufferPath string) Option {
 // WithDurableElasticsearch adds an Elasticsearch sink with durable buffering.
 func WithDurableElasticsearch(url, bufferPath string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		esSink, err := sinks.NewElasticsearchSink(url)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		durableSink, err := sinks.NewDurableSink(esSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		c.sinks = append(c.sinks, durableSink)
@@ -350,16 +458,21 @@ func WithDurableElasticsearch(url, bufferPath string) Option {
 // WithDurableSplunk adds a Splunk sink with durable buffering.
 func WithDurableSplunk(url, token, bufferPath string) Option {
 	return func(c *config) {
+		if c.err != nil {
+			return
+		}
 		splunkSink, err := sinks.NewSplunkSink(url, token)
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		durableSink, err := sinks.NewDurableSink(splunkSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
 		if err != nil {
-			panic(err)
+			c.err = err
+			return
 		}
 		
 		c.sinks = append(c.sinks, durableSink)

@@ -45,6 +45,18 @@ logger.FatalT("Fatal: {Reason}", reason)
 
 ## Message Templates
 
+### Template Syntaxes
+```go
+// Traditional syntax
+logger.Information("User {UserId} logged in", userId)
+
+// Go template syntax
+logger.Information("User {{.UserId}} logged in", userId)
+
+// Mix both syntaxes
+logger.Information("User {UserId} ({{.Username}}) logged in", userId, username)
+```
+
 ### Destructuring Hints
 ```go
 // @ - destructure complex types
@@ -56,10 +68,21 @@ logger.Information("Error: {$Error}", complexError)
 
 ### Format Specifiers
 ```go
-logger.Information("Price: {Amount:C}", 99.95)        // Currency
-logger.Information("Count: {Items:N0}", 1000)        // Number with separators
-logger.Information("Percent: {Rate:P2}", 0.755)      // Percentage
-logger.Information("Time: {Duration:F2}ms", 123.45)  // Fixed decimal
+// Numbers
+logger.Information("Order {Id:000} total: ${Amount:F2}", 42, 99.95)
+logger.Information("Progress: {Percent:P1}", 0.755)    // 75.5%
+logger.Information("Speed: {Value:F2} MB/s", 123.456)  // 123.46 MB/s
+logger.Information("CPU Usage: {Usage:P0}", 0.65)      // 65%
+
+// Timestamps (in output templates)
+// {Timestamp:HH:mm:ss} -> 15:04:05
+// {Timestamp:yyyy-MM-dd} -> 2024-01-02
+// {Timestamp:yyyy-MM-dd HH:mm:ss.fff} -> 2024-01-02 15:04:05.123
+
+// Levels (in output templates)
+// {Level:u3} -> INF, WRN, ERR
+// {Level:u} -> INFORMATION, WARNING, ERROR
+// {Level:l} -> information, warning, error
 ```
 
 ## Sinks
@@ -68,9 +91,13 @@ logger.Information("Time: {Duration:F2}ms", 123.45)  // Fixed decimal
 ```go
 mtlog.WithConsole()                    // Plain console
 mtlog.WithConsoleProperties()          // Console with properties
-mtlog.WithConsoleTheme("dark")         // Dark theme
-mtlog.WithConsoleTheme("light")        // Light theme
-mtlog.WithConsoleTheme("ansi")         // ANSI colors
+mtlog.WithConsoleTheme(sinks.LiterateTheme())   // Literate theme (beautiful!)
+mtlog.WithConsoleTheme(sinks.DarkTheme())       // Dark theme
+mtlog.WithConsoleTheme(sinks.LightTheme())      // Light theme
+mtlog.WithConsoleTheme(sinks.NoColorTheme())    // No colors
+
+// With output template
+mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}")
 ```
 
 ### File
@@ -78,6 +105,10 @@ mtlog.WithConsoleTheme("ansi")         // ANSI colors
 mtlog.WithFileSink("app.log")                           // Simple file
 mtlog.WithRollingFile("app.log", 10*1024*1024)         // Size-based rolling (10MB)
 mtlog.WithRollingFileTime("app.log", time.Hour)        // Time-based rolling
+
+// With output template
+mtlog.WithFileTemplate("app.log", 
+    "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}")
 ```
 
 ### Seq
@@ -126,12 +157,22 @@ mtlog.WithEnvironmentVariables("APP_ENV")     // Add env vars
 mtlog.WithThreadId()                           // Add ThreadId
 mtlog.WithCorrelationId("RequestId")          // Add correlation ID
 mtlog.WithProperty("Version", "1.0.0")        // Static property
+mtlog.WithSourceContext()                      // Auto-detect source context (cached)
+mtlog.WithSourceContext("MyApp.Services")      // Explicit source context
 ```
 
 ## Filters
 
 ```go
 mtlog.WithMinimumLevel(core.WarningLevel)     // Level filter
+
+// Minimum level overrides by source context
+mtlog.WithMinimumLevelOverrides(map[string]core.LogEventLevel{
+    "github.com/gin-gonic/gin":     core.WarningLevel,  // Only warnings from Gin
+    "myapp/internal/services":      core.DebugLevel,    // Debug for services
+    "myapp/internal/services/auth": core.VerboseLevel,  // Verbose for auth
+})
+
 mtlog.WithFilter(filters.NewPredicateFilter(func(e *core.LogEvent) bool {
     return !strings.Contains(e.MessageTemplate.Text, "health")
 }))
@@ -171,6 +212,10 @@ contextLogger.Information("Processing request")
 
 // Multiple properties
 contextLogger := logger.ForContext("UserId", 123, "SessionId", "xyz")
+
+// Source context for sub-loggers
+serviceLogger := logger.ForSourceContext("MyApp.Services.UserService")
+serviceLogger.Information("User service initialized")
 ```
 
 ## Configuration from JSON

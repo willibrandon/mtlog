@@ -13,6 +13,7 @@ type config struct {
 	destructurer core.Destructurer
 	sinks        []core.LogEventSink
 	properties   map[string]interface{}
+	err          error // First error encountered during configuration
 }
 
 // Option is a functional option for configuring a logger.

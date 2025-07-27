@@ -8,17 +8,20 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 ## Features
 
 ### Core Features
-- **Zero-allocation logging** for simple messages (13.6 ns/op)
+- **Zero-allocation logging** for simple messages (17.3 ns/op)
 - **Message templates** with positional property extraction and format specifiers
+- **Go template syntax** support (`{{.Property}}`) alongside traditional syntax
+- **Output templates** for customizable log formatting
+- **Source context enrichment** with intelligent caching for automatic logger categorization
 - **Pipeline architecture** for clean separation of concerns
 - **Type-safe generics** for better compile-time safety
 - **LogValue interface** for safe logging of sensitive data
-- **8.7x faster** than zap for simple string logging
+- **7.7x faster** than zap for simple string logging
 - **Standard library compatibility** via slog.Handler adapter (Go 1.21+)
 - **Kubernetes ecosystem** support via logr.LogSink adapter
 
 ### Sinks & Output
-- **Console sink** with customizable themes (dark, light, ANSI colors)
+- **Console sink** with customizable themes (dark, light, ANSI, Literate)
 - **File sink** with rolling policies (size, time-based)
 - **Seq integration** with CLEF format and dynamic level control
 - **Elasticsearch sink** for centralized log storage and search
@@ -29,6 +32,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 ### Pipeline Components
 - **Rich enrichment** with built-in and custom enrichers
 - **Advanced filtering** including rate limiting and sampling
+- **Minimum level overrides** by source context patterns
 - **Type-safe destructuring** with caching for performance
 - **Dynamic level control** with runtime adjustments
 - **Configuration from JSON** for flexible deployment
@@ -67,6 +71,14 @@ func main() {
     order := Order{ID: 456, Total: 99.95}
     log.Information("Processing {@Order}", order)
 }
+
+// For libraries that need error handling:
+func NewLibraryLogger() (*mtlog.Logger, error) {
+    return mtlog.Build(
+        mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {Message}"),
+        mtlog.WithMinimumLevel(core.DebugLevel),
+    )
+}
 ```
 
 ## Message Templates
@@ -77,6 +89,12 @@ mtlog uses message templates that preserve structure throughout the logging pipe
 // Properties are extracted positionally
 log.Information("User {UserId} logged in from {IP}", userId, ipAddress)
 
+// Go template syntax is also supported
+log.Information("User {{.UserId}} logged in from {{.IP}}", userId, ipAddress)
+
+// Mix both syntaxes as needed
+log.Information("User {UserId} ({{.Username}}) from {IP}", userId, username, ipAddress)
+
 // Destructuring hints:
 // @ - destructure complex types into properties
 log.Information("Order {@Order} created", order)
@@ -84,10 +102,43 @@ log.Information("Order {@Order} created", order)
 // $ - force scalar rendering (stringify)
 log.Information("Error occurred: {$Error}", err)
 
-// Format specifiers (new feature)
-log.Information("Price: {Amount:C} for {Quantity:N0} items", 99.95, 1000)
+// Format specifiers
 log.Information("Processing time: {Duration:F2}ms", 123.456)
+log.Information("Disk usage at {Percentage:P1}", 0.85)  // 85.0%
+log.Information("Order {OrderId:000} total: ${Amount:F2}", 42, 99.95)
 ```
+
+## Output Templates
+
+Control how log events are formatted for output with customizable templates:
+
+```go
+// Console with custom output template
+log := mtlog.New(
+    mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}"),
+    mtlog.WithConsoleTheme(sinks.LiterateTheme()),
+)
+
+// File with detailed template
+log := mtlog.New(
+    mtlog.WithFileTemplate("app.log", 
+        "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}"),
+)
+```
+
+### Template Properties
+- `{Timestamp}` - Event timestamp with optional format
+- `{Level}` - Log level with format options (u3, u, l)
+- `{Message}` - Rendered message from template
+- `{SourceContext}` - Logger context/category
+- `{Exception}` - Exception details if present
+- `{NewLine}` - Platform-specific line separator
+- Custom properties by name: `{RequestId}`, `{UserId}`, etc.
+
+### Format Specifiers
+- **Timestamps**: `HH:mm:ss`, `yyyy-MM-dd`, `HH:mm:ss.fff`
+- **Levels**: `u3` (INF), `u` (INFORMATION), `l` (information)
+- **Numbers**: `000` (zero-pad), `F2` (2 decimals), `P1` (percentage)
 
 ## Pipeline Architecture
 
@@ -137,11 +188,16 @@ log := mtlog.New(
     mtlog.WithThreadId(),
     mtlog.WithCallersInfo(),
     mtlog.WithCorrelationId("RequestId"),
+    mtlog.WithSourceContext(), // Auto-detect logger context
 )
 
 // Context-based enrichment
 ctx := context.WithValue(context.Background(), "RequestId", "abc-123")
 log.ForContext("UserId", userId).Information("Processing request")
+
+// Source context for sub-loggers
+serviceLog := log.ForSourceContext("MyApp.Services.UserService")
+serviceLog.Information("User service started")
 ```
 
 ## Filters
@@ -151,6 +207,14 @@ Control which events are logged with powerful filtering:
 ```go
 // Level filtering
 mtlog.WithMinimumLevel(core.WarningLevel)
+
+// Minimum level overrides by source context
+mtlog.WithMinimumLevelOverrides(map[string]core.LogEventLevel{
+    "github.com/gin-gonic/gin":       core.WarningLevel,    // Suppress Gin info logs
+    "github.com/go-redis/redis":      core.ErrorLevel,      // Only Redis errors
+    "myapp/internal/services":        core.DebugLevel,      // Debug for internal services
+    "myapp/internal/services/auth":   core.VerboseLevel,    // Verbose for auth debugging
+})
 
 // Custom predicate
 mtlog.WithFilter(filters.NewPredicateFilter(func(e *core.LogEvent) bool {
@@ -174,17 +238,17 @@ mtlog supports multiple output destinations with advanced features:
 ### Console Sink with Themes
 
 ```go
+// Literate theme - beautiful, easy on the eyes
+mtlog.WithConsoleTheme(sinks.LiterateTheme())
+
 // Dark theme (default)
-mtlog.WithConsoleTheme("dark")
+mtlog.WithConsoleTheme(sinks.DarkTheme())
 
 // Light theme
-mtlog.WithConsoleTheme("light") 
-
-// ANSI colors
-mtlog.WithConsoleTheme("ansi")
+mtlog.WithConsoleTheme(sinks.LightTheme()) 
 
 // Plain text (no colors)
-mtlog.WithConsole()
+mtlog.WithConsoleTheme(sinks.NoColorTheme())
 ```
 
 ### File Sinks
@@ -398,6 +462,8 @@ See the [examples](./examples) directory for complete examples:
 - [Destructuring](./examples/destructuring/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
 - [Console themes](./examples/themes/main.go)
+- [Output templates](./examples/output-templates/main.go)
+- [Go template syntax](./examples/go-templates/main.go)
 - [Rolling files](./examples/rolling/main.go)
 - [Seq integration](./examples/seq/main.go)
 - [Elasticsearch](./examples/elasticsearch/main.go)
@@ -447,6 +513,30 @@ logrLogger.Error(err, "failed to update resource")
 // Or create a custom logr sink
 logger := mtlog.New(mtlog.WithSeq("http://localhost:5341"))
 logrLogger = logr.New(logger.AsLogrSink())
+```
+
+## Environment Variables
+
+mtlog respects several environment variables for runtime configuration:
+
+### Color Control
+
+```bash
+# Force specific color mode (overrides terminal detection)
+export MTLOG_FORCE_COLOR=none     # Disable all colors
+export MTLOG_FORCE_COLOR=8        # Force 8-color mode (basic ANSI)
+export MTLOG_FORCE_COLOR=256      # Force 256-color mode
+
+# Standard NO_COLOR variable is also respected
+export NO_COLOR=1                 # Disable colors (follows no-color.org)
+```
+
+### Performance Tuning
+
+```bash
+# Adjust source context cache size (default: 10000)
+export MTLOG_SOURCE_CTX_CACHE=50000  # Increase for large applications
+export MTLOG_SOURCE_CTX_CACHE=1000   # Decrease for memory-constrained environments
 ```
 
 ## Advanced Usage
@@ -500,6 +590,7 @@ destructurer.RegisterScalarType(reflect.TypeOf(uuid.UUID{}))
 For comprehensive guides and examples, see the [docs](./docs) directory:
 
 - **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
+- **[Template Syntax](./docs/template-syntax.md)** - Guide to message template syntaxes
 - **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
 - **[Dynamic Level Control](./docs/dynamic-levels.md)** - Runtime level management
 - **[Type-Safe Generics](./docs/generics.md)** - Compile-time safe logging methods

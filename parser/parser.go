@@ -26,15 +26,117 @@ func Parse(template string) (*MessageTemplate, error) {
 				tokens = append(tokens, &TextToken{Text: template[textStart:i]})
 			}
 			
-			// Check for escaped brace
+			// Check for Go template syntax {{.Property}}
 			if i+1 < len(template) && template[i+1] == '{' {
-				tokens = append(tokens, &TextToken{Text: "{"})
-				i += 2
-				textStart = i
-				continue
+				// Look for }} to see if this might be a Go template
+				closeIdx := strings.Index(template[i+2:], "}}")
+				if closeIdx != -1 {
+					// Found closing }}, check if it's a valid Go template
+					content := template[i+2 : i+2+closeIdx]
+					
+					// Check for {{{{ which is escaped {{
+					if len(content) >= 2 && content[0] == '{' && content[1] == '{' {
+						// Escaped brace {{{{ -> {{
+						tokens = append(tokens, &TextToken{Text: "{{"})
+						i += 4
+						textStart = i
+						continue
+					}
+					
+					// Check if content has no dots - this means it's escaped braces like {{text}}
+					hasDot := false
+					for _, r := range content {
+						if r == '.' {
+							hasDot = true
+							break
+						}
+					}
+					
+					// If no dot found and not starting with @/$ and it's not a valid property name, treat as escaped braces
+					if !hasDot && len(content) > 0 && content[0] != '@' && content[0] != '$' {
+						// Check if it's a plain property name (valid identifier)
+						isValidProp := isValidPropertyName(content)
+						if !isValidProp {
+							// This is escaped braces like {{double braces}}
+							tokens = append(tokens, &TextToken{Text: "{"})
+							tokens = append(tokens, &TextToken{Text: content})
+							tokens = append(tokens, &TextToken{Text: "}"})
+							i = i + 2 + closeIdx + 2 // Skip past }}
+							textStart = i
+							continue
+						}
+					}
+					
+					// Trim spaces to check for Go template patterns
+					trimmedContent := strings.TrimSpace(content)
+					
+					// Check if it starts with . (Go template syntax)
+					if len(trimmedContent) > 0 && trimmedContent[0] == '.' {
+						// Check if original had spaces (invalid Go template)
+						if content != trimmedContent {
+							// Has spaces, treat as property token  
+							propToken := parsePropertyToken(content)
+							tokens = append(tokens, propToken)
+							
+							i = i + 2 + closeIdx + 2 // Skip past }}
+							textStart = i
+							continue
+						}
+						
+						// This is Go template syntax {{.Property}}
+						propertyContent := trimmedContent[1:] // Remove the leading .
+						
+						// For edge case {{.}} with no property name
+						if propertyContent == "" {
+							// Empty property name - use empty property token
+							tokens = append(tokens, &PropertyToken{
+								PropertyName:  "",
+								Destructuring: Default,
+							})
+						} else {
+							// Parse property token (including destructuring hints)
+							propToken := parsePropertyToken(propertyContent)
+							tokens = append(tokens, propToken)
+						}
+						
+						i = i + 2 + closeIdx + 2 // Skip past }}
+						textStart = i
+						continue
+					} else if len(content) > 0 && (content[0] == '@' || content[0] == '$') && len(content) > 1 && content[1] == '.' {
+						// Handle {{@.Property}} or {{$.Property}}
+						destructuring := Default
+						if content[0] == '@' {
+							destructuring = Destructure
+						} else if content[0] == '$' {
+							destructuring = AsScalar
+						}
+						
+						propertyContent := content[2:] // Skip @. or $.
+						propToken := parsePropertyToken(propertyContent)
+						propToken.Destructuring = destructuring
+						tokens = append(tokens, propToken)
+						
+						i = i + 2 + closeIdx + 2 // Skip past }}
+						textStart = i
+						continue
+					} else {
+						// Not a valid Go template (no dot), treat as regular property token
+						propToken := parsePropertyToken(content)
+						tokens = append(tokens, propToken)
+						
+						i = i + 2 + closeIdx + 2 // Skip past }}
+						textStart = i
+						continue
+					}
+				} else {
+					// No closing }}, treat as text
+					tokens = append(tokens, &TextToken{Text: template[i:]})
+					textStart = len(template)
+					break
+				}
 			}
 			
-			// Parse property token
+			// Parse regular {Property} token
 			propStart := i + 1
 			propEnd := strings.IndexByte(template[propStart:], '}')
 			if propEnd == -1 {
@@ -199,7 +301,8 @@ func isValidPropertyName(name string) bool {
 				return false
 			}
 		} else {
-			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+			// Allow letters, digits, underscores, and hyphens (for Go template compatibility)
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
 				return false
 			}
 		}

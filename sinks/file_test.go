@@ -208,3 +208,140 @@ func TestFileSinkConcurrency(t *testing.T) {
 		t.Errorf("Expected 100 log lines, got %d", len(lines))
 	}
 }
+
+func TestFileSinkWithTemplate(t *testing.T) {
+	// Test file sink with custom output template
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "template.log")
+	
+	template := "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message}"
+	sink, err := NewFileSinkWithTemplate(logPath, template)
+	if err != nil {
+		t.Fatalf("Failed to create file sink with template: %v", err)
+	}
+	defer sink.Close()
+	
+	event := &core.LogEvent{
+		Timestamp:       time.Date(2024, 1, 15, 10, 30, 45, 0, time.UTC),
+		Level:           core.InformationLevel,
+		MessageTemplate: "Processing order {OrderId} for customer {CustomerId}",
+		Properties: map[string]interface{}{
+			"OrderId":       "ORD-12345",
+			"CustomerId":    "CUST-789",
+			"SourceContext": "OrderService",
+		},
+	}
+	
+	sink.Emit(event)
+	sink.Close()
+	
+	// Read and verify output
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	
+	output := strings.TrimSpace(string(content))
+	expected := "[2024-01-15 10:30:45 INF] OrderService: Processing order ORD-12345 for customer CUST-789"
+	
+	if output != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output)
+	}
+}
+
+func TestFileSinkTemplateWithFormattedProperties(t *testing.T) {
+	// Test template with formatted numeric properties
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "formatted.log")
+	
+	template := "{Timestamp:HH:mm:ss} [{Level:u3}] {Message}"
+	sink, err := NewFileSinkWithTemplate(logPath, template)
+	if err != nil {
+		t.Fatalf("Failed to create file sink: %v", err)
+	}
+	defer sink.Close()
+	
+	event := &core.LogEvent{
+		Timestamp:       time.Date(2024, 1, 15, 10, 30, 45, 0, time.UTC),
+		Level:           core.InformationLevel,
+		MessageTemplate: "Progress: {Percentage:P1}, Speed: {Speed:F2} MB/s, Count: {Count:000}",
+		Properties: map[string]interface{}{
+			"Percentage": 0.753,
+			"Speed":      125.4567,
+			"Count":      42,
+		},
+	}
+	
+	sink.Emit(event)
+	sink.Close()
+	
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	
+	output := strings.TrimSpace(string(content))
+	
+	// Verify formatted values
+	if !strings.Contains(output, "75.3%") {
+		t.Error("Output should contain formatted percentage")
+	}
+	if !strings.Contains(output, "125.46") {
+		t.Error("Output should contain formatted speed with 2 decimals")
+	}
+	if !strings.Contains(output, "042") {
+		t.Error("Output should contain zero-padded count")
+	}
+}
+
+func TestFileSinkTemplateWithNewLine(t *testing.T) {
+	// Test that {NewLine} works in templates
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "newline.log")
+	
+	template := "{Level}: {Message}{NewLine}Exception: {Exception}"
+	sink, err := NewFileSinkWithTemplate(logPath, template)
+	if err != nil {
+		t.Fatalf("Failed to create file sink: %v", err)
+	}
+	defer sink.Close()
+	
+	testErr := &testError{msg: "Database connection failed"}
+	event := &core.LogEvent{
+		Timestamp:       time.Now(),
+		Level:           core.ErrorLevel,
+		MessageTemplate: "Failed to save user",
+		Properties:      map[string]interface{}{},
+		Exception:       testErr,
+	}
+	
+	sink.Emit(event)
+	sink.Close()
+	
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	
+	lines := strings.Split(string(content), "\n")
+	// Should have 3 lines: first line, exception line, and empty line at end
+	if len(lines) < 2 {
+		t.Error("Output should contain multiple lines due to {NewLine}")
+	}
+	
+	if !strings.Contains(lines[0], "Error: Failed to save user") {
+		t.Error("First line should contain error message")
+	}
+	if !strings.Contains(lines[1], "Exception: Database connection failed") {
+		t.Error("Second line should contain exception")
+	}
+}
+
+// testError is a simple error type for testing
+type testError struct {
+	msg string
+}
+
+func (e *testError) Error() string {
+	return e.msg
+}

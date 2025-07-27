@@ -4,7 +4,7 @@
 - CPU: AMD Ryzen 9 9950X 16-Core Processor
 - OS: Windows
 - Go: (latest)
-- Date: 2025-07-21
+- Date: 2025-07-26 (Updated with latest optimizations)
 
 ## Summary
 
@@ -19,20 +19,20 @@ mtlog achieves its goal of zero-allocation logging for simple messages while mai
 ### 1. Simple String Logging (No Properties)
 | Logger | Time/op | Allocations | Bytes/op | vs mtlog |
 |--------|---------|-------------|----------|----------|
-| **mtlog** | 16.82 ns | 0 | 0 B | baseline |
-| zap | 146.6 ns | 0 | 0 B | 8.7x slower |
-| zap-sugar | 151.7 ns | 0 | 0 B | 9.0x slower |
-| zerolog | 36.46 ns | 0 | 0 B | 2.2x slower |
+| **mtlog** | 17.29 ns | 0 | 0 B | baseline |
+| zap | 133.8 ns | 0 | 0 B | 7.7x slower |
+| zap-sugar | 138.4 ns | 0 | 0 B | 8.0x slower |
+| zerolog | 35.66 ns | 0 | 0 B | 2.1x slower |
 
 ✅ **mtlog wins** - Achieved zero-allocation goal with best performance
 
 ### 2. Two Properties
 | Logger | Time/op | Allocations | Bytes/op |
 |--------|---------|-------------|----------|
-| mtlog | 190.6 ns | 4 | 448 B |
-| zap | 216.9 ns | 1 | 128 B |
-| zap-sugar | 285.0 ns | 1 | 257 B |
-| **zerolog** | 49.48 ns | 0 | 0 B |
+| mtlog | 209.3 ns | 4 | 448 B |
+| zap | 199.7 ns | 1 | 128 B |
+| zap-sugar | 265.7 ns | 1 | 257 B |
+| **zerolog** | 51.39 ns | 0 | 0 B |
 
 ⚡ zerolog is highly optimized for structured logging with zero allocations
 
@@ -60,9 +60,9 @@ mtlog achieves its goal of zero-allocation logging for simple messages while mai
 ### 6. Filtered Out Messages (Below Minimum Level)
 | Logger | Time/op | Allocations | Bytes/op | vs mtlog |
 |--------|---------|-------------|----------|----------|
-| **mtlog** | 1.470 ns | 0 | 0 B | baseline |
-| zap | 3.572 ns | 0 | 0 B | 2.4x slower |
-| zerolog | 1.711 ns | 0 | 0 B | 1.2x slower |
+| **mtlog** | 1.493 ns | 0 | 0 B | baseline |
+| zap | 3.475 ns | 0 | 0 B | 2.3x slower |
+| zerolog | 1.688 ns | 0 | 0 B | 1.1x slower |
 
 ✅ **mtlog wins** - Extremely fast early rejection of filtered messages
 
@@ -103,6 +103,11 @@ mtlog achieves its goal of zero-allocation logging for simple messages while mai
    - You need absolute minimum allocations for all scenarios (zerolog)
    - You're already invested in the zap ecosystem
    - Performance with many properties is critical
+
+## Recent Optimizations
+
+1. **Source context caching** - 18x speedup (801ns → 44ns) for source context enrichment
+2. **Go template syntax** - Added with minimal overhead (~10% parsing overhead)
 
 ## Future Optimizations
 

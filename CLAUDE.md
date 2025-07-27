@@ -96,10 +96,10 @@ mtlog/
 ## Performance Achievements
 
 The library achieves **zero allocations** for simple logging through optimized implementations:
-- Simple log: ~13ns/op, 0B/op, 0 allocs ✓
-- With properties: ~180ns/op, 448B/op, 4 allocs
-- Below minimum level: ~1.4ns/op, 0B/op, 0 allocs ✓
-- Dynamic level filtering: ~3ns/op, 0B/op, 0 allocs ✓
+- Simple log: ~17.3ns/op, 0B/op, 0 allocs ✓
+- With properties: ~209ns/op, 448B/op, 4 allocs
+- Below minimum level: ~1.5ns/op, 0B/op, 0 allocs ✓
+- Dynamic level filtering: ~0.2ns/op, 0B/op, 0 allocs ✓
 
 Performance is comparable to or better than zap/zerolog for common scenarios.
 

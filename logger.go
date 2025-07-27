@@ -20,7 +20,19 @@ type logger struct {
 }
 
 // New creates a new logger with the specified options.
+// If any option returns an error during configuration, New will panic.
+// Use Build() for non-panicking initialization.
 func New(opts ...Option) *logger {
+	log, err := Build(opts...)
+	if err != nil {
+		panic(err)
+	}
+	return log
+}
+
+// Build creates a new logger with the specified options.
+// Returns an error if any option fails during configuration.
+func Build(opts ...Option) (*logger, error) {
 	// Apply default configuration
 	cfg := &config{
 		minimumLevel: core.InformationLevel,
@@ -35,6 +47,11 @@ func New(opts ...Option) *logger {
 		opt(cfg)
 	}
 	
+	// Check for configuration errors
+	if cfg.err != nil {
+		return nil, cfg.err
+	}
+	
 	// Create the pipeline
 	p := newPipeline(cfg.enrichers, cfg.filters, cfg.destructurer, cfg.sinks)
 	
@@ -43,7 +60,7 @@ func New(opts ...Option) *logger {
 		levelSwitch:  cfg.levelSwitch,
 		pipeline:     p,
 		properties:   cfg.properties,
-	}
+	}, nil
 }
 
 // Verbose writes a verbose-level log event.
@@ -162,6 +179,12 @@ func (l *logger) ForContext(propertyName string, value interface{}) core.Logger 
 	newLogger.properties[propertyName] = value
 	
 	return newLogger
+}
+
+// ForSourceContext creates a logger with the specified source context.
+// This is equivalent to ForContext("SourceContext", sourceContext).
+func (l *logger) ForSourceContext(sourceContext string) core.Logger {
+	return l.ForContext("SourceContext", sourceContext)
 }
 
 // WithContext creates a logger that enriches events with context values.

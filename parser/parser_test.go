@@ -185,7 +185,7 @@ func TestIsValidPropertyName(t *testing.T) {
 		{"empty", "", false},
 		{"starts with number", "123user", false},
 		{"contains space", "user name", false},
-		{"contains hyphen", "user-id", false},
+		{"contains hyphen", "user-id", true}, // Allowed for Go compatibility
 		{"contains dot", "user.id", false},
 	}
 	

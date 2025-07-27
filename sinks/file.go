@@ -8,17 +8,20 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/formatters/output"
 	"github.com/willibrandon/mtlog/parser"
 )
 
 // FileSink writes log events to a file.
 type FileSink struct {
-	path       string
-	file       *os.File
-	mu         sync.Mutex
-	bufferSize int
-	buffer     []byte
-	isOpen     bool
+	path           string
+	file           *os.File
+	mu             sync.Mutex
+	bufferSize     int
+	buffer         []byte
+	isOpen         bool
+	template       string
+	parsedTemplate *output.Template
 }
 
 // NewFileSink creates a new file sink.
@@ -41,6 +44,27 @@ func NewFileSinkWithOptions(path string, bufferSize int) (*FileSink, error) {
 	return fs, nil
 }
 
+// NewFileSinkWithTemplate creates a new file sink with a custom output template.
+func NewFileSinkWithTemplate(path string, template string) (*FileSink, error) {
+	parsedTemplate, err := output.Parse(template)
+	if err != nil {
+		return nil, fmt.Errorf("invalid output template: %w", err)
+	}
+	fs := &FileSink{
+		path:           path,
+		bufferSize:     4096,
+		buffer:         make([]byte, 0, 4096),
+		template:       template,
+		parsedTemplate: parsedTemplate,
+	}
+	
+	if err := fs.open(); err != nil {
+		return nil, err
+	}
+	
+	return fs, nil
+}
+
 // Emit writes the log event to the file.
 func (fs *FileSink) Emit(event *core.LogEvent) {
 	fs.mu.Lock()
@@ -50,8 +74,14 @@ func (fs *FileSink) Emit(event *core.LogEvent) {
 		return
 	}
 	
-	// Format the log event
-	message := fs.formatEvent(event)
+	var message string
+	if fs.parsedTemplate != nil {
+		// Use template-based formatting
+		message = fs.parsedTemplate.Render(event)
+	} else {
+		// Use default formatting
+		message = fs.formatEvent(event)
+	}
 	
 	// Write to file
 	if _, err := fs.file.WriteString(message + "\n"); err != nil {

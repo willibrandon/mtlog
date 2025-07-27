@@ -64,6 +64,12 @@ Implemented SimpleSink interface for zero-allocation simple logging.
    - ExtractPropertyNames works with already-parsed templates
    - Removed redundant parsing in property extraction
 
+5. **Source Context Caching**
+   - Caches source context by program counter
+   - Eliminates repeated runtime stack walking
+   - Thread-safe with RWMutex
+   - Significant performance improvement for source context enrichment
+
 ### Comparison with Other Loggers
 
 | Logger | Simple Log | Allocations | Notes |
