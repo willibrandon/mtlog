@@ -46,6 +46,6 @@ func enableForHandle(handle uintptr) {
 	
 	// Enable virtual terminal processing
 	mode |= enableVirtualTerminalProcessing
-	procSetConsoleMode.Call(handle, uintptr(mode))
+	_, _, _ = procSetConsoleMode.Call(handle, uintptr(mode))
 }
 

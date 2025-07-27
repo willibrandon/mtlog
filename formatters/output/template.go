@@ -306,7 +306,7 @@ func formatNumeric(val interface{}, format string) string {
 	// Handle padding formats like "000" or "D3"
 	if strings.HasPrefix(format, "D") {
 		width := 0
-		fmt.Sscanf(format[1:], "%d", &width)
+		_, _ = fmt.Sscanf(format[1:], "%d", &width)
 		return fmt.Sprintf("%0*d", width, val)
 	}
 	
@@ -335,7 +335,7 @@ func formatFloat(val interface{}, format string) string {
 	if strings.HasPrefix(format, "F") {
 		precision := 2
 		if len(format) > 1 {
-			fmt.Sscanf(format[1:], "%d", &precision)
+			_, _ = fmt.Sscanf(format[1:], "%d", &precision)
 		}
 		return fmt.Sprintf("%.*f", precision, f)
 	}
@@ -344,7 +344,7 @@ func formatFloat(val interface{}, format string) string {
 	if format == "P" || strings.HasPrefix(format, "P") {
 		precision := 0
 		if len(format) > 1 {
-			fmt.Sscanf(format[1:], "%d", &precision)
+			_, _ = fmt.Sscanf(format[1:], "%d", &precision)
 		}
 		return fmt.Sprintf("%.*f%%", precision, f*100)
 	}

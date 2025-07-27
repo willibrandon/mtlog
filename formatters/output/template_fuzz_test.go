@@ -146,10 +146,7 @@ func FuzzParseOutputTemplate(f *testing.F) {
 		rendered := template.Render(event)
 		
 		// Rendered result should be a string (even if empty)
-		if rendered == "" && input != "" && len(template.Tokens) > 0 {
-			// Empty output from non-empty template might indicate an issue
-			// but could also be valid if all tokens are invalid
-		}
+		_ = rendered // Mark as used to satisfy linter
 	})
 }
 
@@ -188,9 +185,7 @@ func FuzzTimeFormatting(f *testing.F) {
 		formatted := formatTimestamp(now, format)
 		
 		// Result should always be a string
-		if formatted == "" && format != "" {
-			// Empty result might be valid for invalid formats
-		}
+		_ = formatted // Mark as used to satisfy linter
 	})
 }
 
