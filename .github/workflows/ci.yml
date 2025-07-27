@@ -76,13 +76,13 @@ jobs:
     - name: Run fuzz tests
       run: |
         # Parser fuzz tests
-        go test -fuzz=FuzzParseMessageTemplate -fuzztime=30s ./parser
-        go test -fuzz=FuzzExtractPropertyNames -fuzztime=30s ./parser
+        go test -fuzz=FuzzParseMessageTemplate -fuzztime=30s ./internal/parser
+        go test -fuzz=FuzzExtractPropertyNames -fuzztime=30s ./internal/parser
         
         # Output template fuzz tests
-        go test -fuzz=FuzzParseOutputTemplate -fuzztime=30s ./formatters/output
-        go test -fuzz=FuzzTimeFormatting -fuzztime=30s ./formatters/output
-        go test -fuzz=FuzzLevelFormatting -fuzztime=30s ./formatters/output
+        go test -fuzz=FuzzParseOutputTemplate -fuzztime=30s ./internal/formatters/output
+        go test -fuzz=FuzzTimeFormatting -fuzztime=30s ./internal/formatters/output
+        go test -fuzz=FuzzLevelFormatting -fuzztime=30s ./internal/formatters/output
 
   benchmark:
     name: Benchmark

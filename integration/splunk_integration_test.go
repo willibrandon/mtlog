@@ -183,6 +183,7 @@ func TestSplunkBatching(t *testing.T) {
 
 	splunkToken := os.Getenv("SPLUNK_TOKEN")
 	if splunkToken == "" {
+		// Default token for local docker-compose testing
 		splunkToken = "eb6baeef-eeb3-4a35-ab73-e17a12523b10"
 	}
 
@@ -255,6 +256,7 @@ func TestSplunkCustomFields(t *testing.T) {
 
 	splunkToken := os.Getenv("SPLUNK_TOKEN")
 	if splunkToken == "" {
+		// Default token for local docker-compose testing
 		splunkToken = "eb6baeef-eeb3-4a35-ab73-e17a12523b10"
 	}
 
@@ -448,6 +450,7 @@ func querySplunkEvents(splunkURL, token, testID string) ([]map[string]interface{
 	}
 	password := os.Getenv("SPLUNK_PASSWORD")
 	if password == "" {
+		// Default password for local docker-compose testing
 		password = "Admin123!"
 	}
 	req.SetBasicAuth(username, password)
