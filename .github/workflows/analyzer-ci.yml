@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15]
         go: ['1.23', '1.24']
     steps:
     - uses: actions/checkout@v4
@@ -25,6 +25,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go }}
+        cache: false
 
     - name: Test
       run: |
@@ -57,6 +58,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: false
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
@@ -74,6 +76,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: false
 
     - name: Test coverage
       run: |
