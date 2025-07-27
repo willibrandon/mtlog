@@ -42,7 +42,7 @@ go test -tags=integration ./...
 docker stop splunk-test && docker rm splunk-test
 ```
 
-### Real Integration Tests (No Mocks!)
+### Integration Tests
 
 ```go
 // seq_integration_test.go
