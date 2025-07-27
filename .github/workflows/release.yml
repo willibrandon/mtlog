@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history and tags
 
     - name: Extract version from tag
       id: version
@@ -23,13 +25,26 @@ jobs:
       id: changelog
       run: |
         VERSION="${{ steps.version.outputs.version }}"
+        # Strip the 'v' prefix for CHANGELOG.md lookup
+        VERSION_NO_V="${VERSION#v}"
         # Extract the section for this version from CHANGELOG.md
-        CHANGELOG=$(awk "/^## ${VERSION}/ {p=1; next} /^## / {p=0} p" CHANGELOG.md)
+        CHANGELOG=$(awk "/^## \[${VERSION_NO_V}\]/ {p=1; next} /^## \[/ {p=0} p" CHANGELOG.md)
         
         # Handle multi-line output
         echo "changelog<<EOF" >> $GITHUB_OUTPUT
         echo "$CHANGELOG" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Get previous tag
+      id: prev_tag
+      run: |
+        # Get the previous tag (excluding the current one)
+        PREV_TAG=$(git tag --sort=-version:refname | grep -v "${{ steps.version.outputs.version }}" | head -n1)
+        # If no previous tag, use initial commit
+        if [ -z "$PREV_TAG" ]; then
+          PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+        fi
+        echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
@@ -47,6 +62,6 @@ jobs:
           go get github.com/willibrandon/mtlog@${{ steps.version.outputs.version }}
           ```
           
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v0.0.1...${{ steps.version.outputs.version }}
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...${{ steps.version.outputs.version }}
         draft: false
         prerelease: false
