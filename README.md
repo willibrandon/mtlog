@@ -81,6 +81,10 @@ func NewLibraryLogger() (*mtlog.Logger, error) {
 }
 ```
 
+## Visual Example
+
+![mtlog with Literate theme](assets/literate-theme.png)
+
 ## Message Templates
 
 mtlog uses message templates that preserve structure throughout the logging pipeline:
