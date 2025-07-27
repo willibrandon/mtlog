@@ -65,7 +65,51 @@ golangci-lint run
 
 # Run benchmarks with specific focus
 go test -bench=BenchmarkSimpleString -benchmem -benchtime=10s .
+
+# Run mtlog-analyzer tests
+cd cmd/mtlog-analyzer && go test -v ./...
+
+# Run mtlog-analyzer on the project
+go vet -vettool=$(which mtlog-analyzer) ./...
 ```
+
+## mtlog-analyzer
+
+The project includes a static analysis tool that catches common mtlog mistakes at compile time:
+
+### Installation
+```bash
+go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+```
+
+### Features
+- Template/argument mismatch detection
+- Format specifier validation
+- Property naming conventions (PascalCase suggestions)
+- Duplicate property detection
+- Destructuring hints for complex types
+- Error logging pattern validation
+- Context key constant suggestions
+
+### Usage
+```bash
+# Run with go vet
+go vet -vettool=$(which mtlog-analyzer) ./...
+
+# Run standalone
+mtlog-analyzer ./...
+
+# With configuration flags
+mtlog-analyzer -strict -common-keys=tenant_id,org_id ./...
+```
+
+### Configuration Flags
+- `-strict` - Enable strict format specifier validation
+- `-common-keys` - Additional context keys to suggest as constants
+- `-disable` - Disable specific checks (template, naming, etc.)
+- `-ignore-dynamic-templates` - Suppress warnings for non-literal templates
+- `-strict-logger-types` - Only analyze exact mtlog types
+- `-downgrade-errors` - Downgrade errors to warnings for CI migration
 
 ## Project Structure
 
@@ -90,7 +134,9 @@ mtlog/
 ├── formatters/        # Log formatters (CLEF, JSON)
 ├── configuration/     # JSON/YAML configuration support
 ├── integration/       # Integration tests
-└── examples/          # Usage examples
+├── examples/          # Usage examples
+└── cmd/
+    └── mtlog-analyzer/  # Static analysis tool for mtlog usage
 ```
 
 ## Performance Achievements
@@ -157,6 +203,7 @@ GitHub Actions workflow includes:
 - ✓ logr.LogSink adapter
 - ✓ Generic logger interface
 - ✓ Short method names
+- ✓ Static analyzer (mtlog-analyzer)
 
 ### Enrichers & Filters
 - ✓ Machine name enricher
