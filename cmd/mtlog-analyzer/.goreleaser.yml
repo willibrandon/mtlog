@@ -6,7 +6,7 @@ git:
   tag_sort: -version:refname
 
 gomod:
-  proxy: true
+  proxy: false
 
 before:
   hooks:
