@@ -42,3 +42,4 @@ jobs:
         workdir: cmd/mtlog-analyzer
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.version }}
