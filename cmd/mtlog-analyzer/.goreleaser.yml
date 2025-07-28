@@ -110,7 +110,7 @@ release:
 # Universal binaries for macOS
 universal_binaries:
   - id: mtlog-analyzer-darwin
-    builds:
+    ids:
       - mtlog-analyzer
     name_template: 'mtlog-analyzer_{{ .Version }}_Darwin_universal'
     replace: true
