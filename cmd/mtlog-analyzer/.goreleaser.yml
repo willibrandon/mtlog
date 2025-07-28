@@ -1,5 +1,7 @@
 version: 2
 
+project_name: mtlog-analyzer
+
 gomod:
   proxy: true
 
@@ -84,7 +86,7 @@ release:
   
   # Header for the release notes
   header: |
-    ## mtlog-analyzer {{ .Tag }}
+    ## mtlog-analyzer {{ .Version }}
 
     Static analysis tool for mtlog message templates.
 
