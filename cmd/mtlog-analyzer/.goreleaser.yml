@@ -2,9 +2,6 @@ version: 2
 
 project_name: mtlog-analyzer
 
-release:
-  name_template: "mtlog-analyzer {{ .Version }}"
-
 gomod:
   proxy: true
 
@@ -86,6 +83,8 @@ release:
   github:
     owner: willibrandon
     name: mtlog
+  
+  name_template: "mtlog-analyzer {{ .Version }}"
   
   # Header for the release notes
   header: |
