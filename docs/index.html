@@ -10,86 +10,305 @@
     <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
     <meta name="go-source" content="mtlog.dev https://github.com/willibrandon/mtlog https://github.com/willibrandon/mtlog/tree/main{/dir} https://github.com/willibrandon/mtlog/blob/main{/dir}/{file}#L{line}">
     
-    <!-- Temporary redirect to GitHub until full site is ready -->
-    <meta http-equiv="refresh" content="0; url=https://github.com/willibrandon/mtlog">
+    <!-- Open Graph -->
+    <meta property="og:title" content="mtlog - Message Template Logging for Go">
+    <meta property="og:description" content="Zero-allocation structured logging with message templates. 17.3ns per operation. 7.7x faster than zap.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mtlog.dev">
+    
+    <!-- Plausible Analytics -->
+    <script defer data-domain="mtlog.dev" src="https://plausible.io/js/script.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background: #0d1117;
-            color: #c9d1d9;
-        }
-        .container {
-            text-align: center;
-            padding: 2rem;
-        }
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+        /* Custom gradient text */
+        .gradient-text {
             background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        p {
-            font-size: 1.25rem;
-            color: #8b949e;
-            margin-bottom: 2rem;
+        
+        /* Performance bar animation */
+        @keyframes slideIn {
+            from { width: 0; }
+            to { width: var(--width); }
         }
-        .stats {
-            display: flex;
-            gap: 2rem;
-            justify-content: center;
-            margin-bottom: 2rem;
+        .perf-bar {
+            animation: slideIn 1s ease-out forwards;
         }
-        .stat {
-            text-align: center;
+        
+        /* Code block styling */
+        pre[class*="language-"] {
+            border-radius: 0.5rem;
+            margin: 0;
         }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #58a6ff;
-        }
-        .stat-label {
-            font-size: 0.875rem;
-            color: #8b949e;
-        }
-        a {
-            color: #58a6ff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>mtlog</h1>
-        <p>High-performance message template logging for Go</p>
-        
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value">17.3ns</div>
-                <div class="stat-label">per operation</div>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Header -->
+    <header class="border-b border-gray-800">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold gradient-text">mtlog</h1>
+            <nav class="flex gap-6">
+                <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">GitHub</a>
+                <a href="https://pkg.go.dev/mtlog.dev" class="text-gray-400 hover:text-white transition">Docs</a>
+                <a href="/quick-reference" class="text-gray-400 hover:text-white transition">Reference</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="py-20 px-4">
+        <div class="container mx-auto text-center max-w-4xl">
+            <h2 class="text-5xl md:text-6xl font-bold mb-6">
+                Message Template Logging for Go
+            </h2>
+            <p class="text-xl text-gray-400 mb-8">
+                High-performance structured logging with zero allocations.<br>
+                Inspired by Serilog, built for Go.
+            </p>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto mb-12">
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-blue-400">17.3ns</div>
+                    <div class="text-sm text-gray-500 mt-1">per operation</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-green-400">0</div>
+                    <div class="text-sm text-gray-500 mt-1">allocations</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-4xl font-bold text-purple-400">7.7x</div>
+                    <div class="text-sm text-gray-500 mt-1">faster than zap</div>
+                </div>
             </div>
-            <div class="stat">
-                <div class="stat-value">0</div>
-                <div class="stat-label">allocations</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value">7.7x</div>
-                <div class="stat-label">faster than zap</div>
+            
+            <!-- CTA -->
+            <div class="flex gap-4 justify-center">
+                <a href="#quick-start" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition">
+                    Get Started
+                </a>
+                <a href="https://github.com/willibrandon/mtlog" class="border border-gray-700 hover:border-gray-600 px-6 py-3 rounded-lg font-semibold transition">
+                    View on GitHub
+                </a>
             </div>
         </div>
-        
-        <p>Redirecting to GitHub...</p>
-        <p>If not redirected, <a href="https://github.com/willibrandon/mtlog">click here</a></p>
-    </div>
+    </section>
+
+    <!-- Features -->
+    <section class="py-16 px-4 border-t border-gray-800">
+        <div class="container mx-auto max-w-6xl">
+            <h3 class="text-3xl font-bold text-center mb-12">Why mtlog?</h3>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Message Templates -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-blue-400">Message Templates</h4>
+                    <pre class="mb-4"><code class="language-go">log.Information("User {UserId} logged in from {IP}", userId, ipAddress)
+log.Information("Order {@Order} created", order)
+log.Information("Processing time: {Duration:F2}ms", 123.456)</code></pre>
+                    <p class="text-gray-400 text-sm">
+                        Properties are extracted from templates and preserved throughout the pipeline.
+                        Templates serve as both human-readable messages and event types.
+                    </p>
+                </div>
+
+                <!-- Type-Safe Logging -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-green-400">Type-Safe ForType</h4>
+                    <pre class="mb-4"><code class="language-go">userLogger := mtlog.ForType[User](logger)
+userLogger.Information("User created")
+// SourceContext: "User"
+
+orderLogger := mtlog.ForType[OrderService](logger)
+// Automatic categorization by type</code></pre>
+                    <p class="text-gray-400 text-sm">
+                        Automatic source context from Go types. No more string constants.
+                        Perfect for service-oriented architectures.
+                    </p>
+                </div>
+
+                <!-- Zero Allocations -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-purple-400">Zero Allocations</h4>
+                    <pre class="mb-4"><code class="language-go">// Simple logging: 0 allocations
+log.Information("Application started")
+
+// Below minimum level: 0 allocations
+log.Debug("This won't allocate")</code></pre>
+                    <p class="text-gray-400 text-sm">
+                        Carefully optimized for the common path. Simple messages and filtered
+                        events allocate zero bytes.
+                    </p>
+                </div>
+
+                <!-- Rich Ecosystem -->
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-yellow-400">Ecosystem Compatible</h4>
+                    <pre class="mb-4"><code class="language-go">// Works with slog
+slogger := mtlog.NewSlogLogger(...)
+slog.SetDefault(slogger)
+
+// Works with logr (Kubernetes)
+logrLogger := mtlog.NewLogrLogger(...)</code></pre>
+                    <p class="text-gray-400 text-sm">
+                        Drop-in adapters for Go's standard slog and Kubernetes logr.
+                        Use mtlog's power with existing code.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Performance Comparison -->
+    <section class="py-16 px-4 border-t border-gray-800">
+        <div class="container mx-auto max-w-4xl">
+            <h3 class="text-3xl font-bold text-center mb-12">Performance</h3>
+            
+            <div class="space-y-6">
+                <!-- Simple String -->
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm text-gray-400">Simple string logging</span>
+                        <span class="text-sm text-gray-400">lower is better</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">mtlog</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-green-500 h-6 perf-bar" style="--width: 11%"></div>
+                            </div>
+                            <span class="text-sm font-mono">16.82 ns</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">zerolog</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-blue-500 h-6 perf-bar" style="--width: 24%"></div>
+                            </div>
+                            <span class="text-sm font-mono">36.46 ns</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">zap</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-orange-500 h-6 perf-bar" style="--width: 100%"></div>
+                            </div>
+                            <span class="text-sm font-mono">146.6 ns</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtered Out -->
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm text-gray-400">Below minimum level (filtered out)</span>
+                        <span class="text-sm text-gray-400">lower is better</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">mtlog</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-green-500 h-6 perf-bar" style="--width: 41%"></div>
+                            </div>
+                            <span class="text-sm font-mono">1.47 ns</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">zerolog</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-blue-500 h-6 perf-bar" style="--width: 48%"></div>
+                            </div>
+                            <span class="text-sm font-mono">1.71 ns</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="w-20 text-sm">zap</span>
+                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
+                                <div class="bg-orange-500 h-6 perf-bar" style="--width: 100%"></div>
+                            </div>
+                            <span class="text-sm font-mono">3.57 ns</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-center text-gray-500 text-sm mt-8">
+                Benchmarked on AMD Ryzen 9 9950X. See <a href="/performance" class="text-blue-400 hover:underline">full benchmarks</a>.
+            </p>
+        </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section id="quick-start" class="py-16 px-4 border-t border-gray-800">
+        <div class="container mx-auto max-w-4xl">
+            <h3 class="text-3xl font-bold text-center mb-12">Quick Start</h3>
+            
+            <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                <pre><code class="language-bash">go get mtlog.dev</code></pre>
+            </div>
+            
+            <div class="bg-gray-800 rounded-lg p-4">
+                <pre><code class="language-go">package main
+
+import (
+    "mtlog.dev"
+    "mtlog.dev/core"
+)
+
+func main() {
+    // Create a logger with console output
+    log := mtlog.New(
+        mtlog.WithConsole(),
+        mtlog.WithMinimumLevel(core.InformationLevel),
+    )
+
+    // Simple logging
+    log.Information("Application started")
+    
+    // Message templates with properties
+    userId := 123
+    log.Information("User {UserId} logged in", userId)
+    
+    // Type-based logging
+    userLogger := mtlog.ForType[User](log)
+    userLogger.Information("User operation completed")
+}</code></pre>
+            </div>
+            
+            <div class="text-center mt-8">
+                <a href="https://github.com/willibrandon/mtlog#quick-start" class="text-blue-400 hover:underline">
+                    See more examples →
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 px-4">
+        <div class="container mx-auto text-center text-gray-500 text-sm">
+            <p>
+                Built with ❤️ by <a href="https://github.com/willibrandon" class="text-blue-400 hover:underline">willibrandon</a>
+            </p>
+            <p class="mt-2">
+                <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400">GitHub</a> •
+                <a href="https://pkg.go.dev/mtlog.dev" class="hover:text-gray-400 ml-4">Go Docs</a> •
+                <a href="/quick-reference" class="hover:text-gray-400 ml-4">Quick Reference</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
 </body>
 </html>
