@@ -4,10 +4,6 @@ project_name: mtlog-analyzer
 
 git:
   tag_sort: -version:refname
-  prerelease_suffix: "-"
-  tag_filter:
-    exclude:
-      - '^(?!analyzer/)'
 
 gomod:
   proxy: true
@@ -105,7 +101,7 @@ release:
 
     ### Using Go install
     ```bash
-    go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@{{ .Tag }}
+    go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@analyzer/{{ .Version }}
     ```
 
     ### Using binaries
@@ -116,7 +112,7 @@ release:
     mtlog-analyzer -h
     ```
 
-    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY }}/compare/{{ .PreviousTag }}...analyzer/{{ .Version }}
 
 # Universal binaries for macOS
 universal_binaries:
