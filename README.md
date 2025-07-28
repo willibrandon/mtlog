@@ -12,6 +12,8 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Message templates** with positional property extraction and format specifiers
 - **Go template syntax** support (`{{.Property}}`) alongside traditional syntax
 - **Output templates** for customizable log formatting
+- **ForType logging** with automatic SourceContext from Go types and intelligent caching
+- **LogContext scoped properties** that flow through operation contexts
 - **Source context enrichment** with intelligent caching for automatic logger categorization
 - **Pipeline architecture** for clean separation of concerns
 - **Type-safe generics** for better compile-time safety
@@ -202,6 +204,13 @@ log.ForContext("UserId", userId).Information("Processing request")
 // Source context for sub-loggers
 serviceLog := log.ForSourceContext("MyApp.Services.UserService")
 serviceLog.Information("User service started")
+
+// Type-based loggers with automatic SourceContext
+userLogger := mtlog.ForType[User](log)
+userLogger.Information("User operation") // SourceContext: "User"
+
+orderLogger := mtlog.ForType[OrderService](log)
+orderLogger.Information("Processing order") // SourceContext: "OrderService"
 ```
 
 ## LogContext - Scoped Properties
@@ -241,6 +250,142 @@ This is particularly useful for:
 - Maintaining context through async operations
 - Multi-tenant applications
 - Batch processing with job-specific context
+
+## ForType - Type-Based Logging
+
+ForType provides automatic SourceContext from Go types, making it easy to categorize logs by the types they relate to without manual string constants:
+
+```go
+// Automatic SourceContext from type names
+userLogger := mtlog.ForType[User](logger)
+userLogger.Information("User created") // SourceContext: "User"
+
+productLogger := mtlog.ForType[Product](logger)
+productLogger.Information("Product updated") // SourceContext: "Product"
+
+// Works with pointers (automatically dereferenced)
+mtlog.ForType[*User](logger).Information("User updated") // SourceContext: "User"
+
+// Service-based logging
+type UserService struct {
+    logger core.Logger
+}
+
+func NewUserService(baseLogger core.Logger) *UserService {
+    return &UserService{
+        logger: mtlog.ForType[UserService](baseLogger),
+    }
+}
+
+func (s *UserService) CreateUser(name string) {
+    s.logger.Information("Creating user {Name}", name)
+    // All logs from this service have SourceContext: "UserService"
+}
+```
+
+### Advanced Type Naming
+
+For more control over type names, use `ExtractTypeName` with `TypeNameOptions`:
+
+```go
+// Include package for disambiguation
+opts := mtlog.TypeNameOptions{
+    IncludePackage: true,
+    PackageDepth:   1, // Only immediate package
+}
+name := mtlog.ExtractTypeName[User](opts) // Result: "myapp.User"
+logger := baseLogger.ForContext("SourceContext", name)
+
+// Add prefixes for microservice identification
+opts = mtlog.TypeNameOptions{Prefix: "UserAPI."}
+name = mtlog.ExtractTypeName[User](opts) // Result: "UserAPI.User"
+
+// Simplify anonymous structs
+opts = mtlog.TypeNameOptions{SimplifyAnonymous: true}
+name = mtlog.ExtractTypeName[struct{ Name string }](opts) // Result: "AnonymousStruct"
+
+// Disable warnings for production
+opts = mtlog.TypeNameOptions{WarnOnUnknown: false}
+name = mtlog.ExtractTypeName[interface{}](opts) // Result: "Unknown" (no warning logged)
+
+// Combine multiple options
+opts = mtlog.TypeNameOptions{
+    IncludePackage:    true,
+    PackageDepth:      1,
+    Prefix:            "MyApp.",
+    Suffix:            ".Handler",
+    SimplifyAnonymous: true,
+}
+```
+
+### Performance & Caching
+
+ForType uses reflection with intelligent caching for optimal performance:
+
+- **~7% overhead** vs manual `ForSourceContext` (uncached)
+- **~1% overhead** with caching enabled (subsequent calls)
+- **Thread-safe** caching with `sync.Map`
+- **Zero allocations** for cached type names
+
+```go
+// Performance comparison
+ForType[User](logger).Information("User operation")           // ~7% slower than manual
+logger.ForSourceContext("User").Information("User operation") // Baseline performance
+
+// But subsequent ForType calls are nearly free due to caching
+
+// Cache statistics for monitoring
+stats := mtlog.GetTypeNameCacheStats()
+fmt.Printf("Cache hits: %d, misses: %d, evictions: %d, hit ratio: %.1f%%, size: %d/%d", 
+    stats.Hits, stats.Misses, stats.Evictions, stats.HitRatio, stats.Size, stats.MaxSize)
+
+// For testing scenarios requiring cache isolation
+mtlog.ResetTypeNameCache() // Clears cache and statistics
+```
+
+### Multi-Tenant Support
+
+For applications serving multiple tenants, ForType supports tenant-specific cache namespaces:
+
+```go
+// Multi-tenant type-based logging with separate cache namespaces
+func CreateTenantLogger(baseLogger core.Logger, tenantID string) core.Logger {
+    tenantPrefix := fmt.Sprintf("tenant:%s", tenantID)
+    return mtlog.ForTypeWithCacheKey[UserService](baseLogger, tenantPrefix)
+}
+
+// Each tenant gets separate cache entries
+acmeLogger := CreateTenantLogger(logger, "acme-corp")    // Cache key: tenant:acme-corp + UserService
+globexLogger := CreateTenantLogger(logger, "globex-inc") // Cache key: tenant:globex-inc + UserService
+
+acmeLogger.Information("Processing acme user")   // SourceContext: "UserService" (acme cache)
+globexLogger.Information("Processing globex user") // SourceContext: "UserService" (globex cache)
+
+// Custom type naming per tenant
+opts := mtlog.TypeNameOptions{Prefix: "AcmeCorp."}
+acmeName := mtlog.ExtractTypeNameWithCacheKey[User](opts, "tenant:acme")
+// Result: "AcmeCorp.User" (cached separately per tenant)
+```
+
+### Cache Configuration
+
+The type name cache can be configured via environment variables:
+
+```bash
+# Set cache size limit (default: 10,000 entries)
+export MTLOG_TYPE_NAME_CACHE_SIZE=50000  # For large applications
+export MTLOG_TYPE_NAME_CACHE_SIZE=1000   # For memory-constrained environments
+export MTLOG_TYPE_NAME_CACHE_SIZE=0      # Disable caching entirely
+```
+
+The cache uses LRU (Least Recently Used) eviction when the size limit is exceeded, ensuring memory usage stays bounded while keeping frequently used type names cached.
+
+This is particularly useful for:
+- Large applications with many service types
+- Type-safe logger categorization
+- Automatic SourceContext without string constants
+- Service-oriented architectures
+- Multi-tenant applications requiring cache isolation
 
 ## Filters
 
@@ -500,6 +645,8 @@ See the [examples](./examples) directory for complete examples:
 - [Basic logging](./examples/basic/main.go)
 - [Using enrichers](./examples/enrichers/main.go)
 - [Context logging](./examples/context/main.go)
+- [Type-based logging](./examples/fortype/main.go)
+- [LogContext scoped properties](./examples/logcontext/main.go)
 - [Advanced filtering](./examples/filtering/main.go)
 - [Destructuring](./examples/destructuring/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
@@ -579,6 +726,11 @@ export NO_COLOR=1                 # Disable colors (follows no-color.org)
 # Adjust source context cache size (default: 10000)
 export MTLOG_SOURCE_CTX_CACHE=50000  # Increase for large applications
 export MTLOG_SOURCE_CTX_CACHE=1000   # Decrease for memory-constrained environments
+
+# Adjust type name cache size (default: 10000)
+export MTLOG_TYPE_NAME_CACHE_SIZE=50000  # For applications with many types
+export MTLOG_TYPE_NAME_CACHE_SIZE=1000   # For memory-constrained environments
+export MTLOG_TYPE_NAME_CACHE_SIZE=0      # Disable type name caching
 ```
 
 ## Tools

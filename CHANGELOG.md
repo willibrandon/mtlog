@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ForType** - Type-based logging with automatic SourceContext
+  - `ForType[T]()` function for automatic SourceContext extraction from Go types using reflection
+  - `TypeNameOptions` struct for customizable type name formatting (package inclusion, depth, prefix/suffix)
+  - `ExtractTypeName[T]()` for custom logger creation with type-based naming
+  - Thread-safe LRU cache with configurable size limits via `MTLOG_TYPE_NAME_CACHE_SIZE` environment variable (default: 10,000 entries)
+  - Multi-tenant support with `ForTypeWithCacheKey()` and `ExtractTypeNameWithCacheKey()` for separate cache namespaces
+  - Performance: ~213ns/op uncached, ~148ns/op cached with ~1.4x speedup from caching
+  - Robust generic type handling including deeply nested generics, multiple type parameters, and complex built-in combinations
+  - Cache statistics with hits, misses, evictions, hit ratio, current size, and max size monitoring
+  - `SimplifyAnonymous` option for cleaner anonymous struct names
+  - `WarnOnUnknown` option for debugging interface types and unresolvable types
+  - Comprehensive test coverage (150+ tests) including edge cases, concurrency, and complex generics
+  - Complete documentation with multi-tenant examples and cache configuration
+
 - **LogContext** - Scoped property propagation through context
   - `PushProperty()` function for attaching properties to context that automatically flow through all log events
   - Thread-safe immutable implementation with property copying for concurrent access
