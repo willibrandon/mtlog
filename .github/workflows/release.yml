@@ -46,6 +46,18 @@ jobs:
         fi
         echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Build mtlog-analyzer
+      run: |
+        cd cmd/mtlog-analyzer
+        GOOS=linux GOARCH=amd64 go build -o ../../mtlog-analyzer-linux-amd64 .
+        GOOS=darwin GOARCH=amd64 go build -o ../../mtlog-analyzer-darwin-amd64 .
+        GOOS=windows GOARCH=amd64 go build -o ../../mtlog-analyzer-windows-amd64.exe .
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -58,10 +70,18 @@ jobs:
           
           ## Installation
           
+          ### mtlog Library
           ```bash
           go get github.com/willibrandon/mtlog@${{ steps.version.outputs.version }}
           ```
           
+          ### mtlog-analyzer Tool
+          Download the binary for your platform below.
+          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...${{ steps.version.outputs.version }}
+        files: |
+          mtlog-analyzer-linux-amd64
+          mtlog-analyzer-darwin-amd64
+          mtlog-analyzer-windows-amd64.exe
         draft: false
         prerelease: false
