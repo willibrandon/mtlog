@@ -2,6 +2,9 @@ version: 2
 
 project_name: mtlog-analyzer
 
+release:
+  name_template: "mtlog-analyzer {{ .Version }}"
+
 gomod:
   proxy: true
 
