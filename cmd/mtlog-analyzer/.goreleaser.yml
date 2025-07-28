@@ -2,6 +2,13 @@ version: 2
 
 project_name: mtlog-analyzer
 
+git:
+  tag_sort: -version:refname
+  prerelease_suffix: "-"
+  tag_filter:
+    exclude:
+      - '^(?!analyzer/)'
+
 gomod:
   proxy: true
 
