@@ -45,6 +45,19 @@
         pre[class*="language-"] {
             border-radius: 0.5rem;
             margin: 0;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        
+        /* Prevent horizontal scroll on feature grid */
+        .feature-grid pre {
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .feature-grid pre {
+                font-size: 0.75rem;
+            }
         }
         
         /* Smooth scroll */
@@ -133,11 +146,11 @@
         <div class="container mx-auto max-w-6xl">
             <h3 class="text-3xl font-bold text-center mb-12">Why mtlog?</h3>
             
-            <div class="grid md:grid-cols-2 gap-8">
+            <div class="grid md:grid-cols-2 gap-8 feature-grid">
                 <!-- Message Templates -->
                 <div class="bg-gray-800 rounded-lg p-6">
                     <h4 class="text-xl font-semibold mb-4 text-blue-400">Message Templates</h4>
-                    <pre class="mb-4"><code class="language-go">log.Information("User {UserId} logged in from {IP}", userId, ipAddress)
+                    <pre class="mb-4"><code class="language-go">log.Information("User {UserId} logged in from {IP}", userId, ip)
 log.Information("Order {@Order} created", order)
 log.Information("Processing time: {Duration:F2}ms", 123.456)</code></pre>
                     <p class="text-gray-400 text-sm">
