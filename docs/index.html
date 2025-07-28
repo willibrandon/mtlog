@@ -75,6 +75,11 @@
             background-color: #f5f5f5;
             border: 1px solid #e5e5e5;
         }
+        
+        /* Fix contrast for performance stats in light mode */
+        body.light .bg-gray-100 span.font-mono {
+            color: #374151; /* gray-700 */
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
