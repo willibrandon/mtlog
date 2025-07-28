@@ -204,6 +204,44 @@ serviceLog := log.ForSourceContext("MyApp.Services.UserService")
 serviceLog.Information("User service started")
 ```
 
+## LogContext - Scoped Properties
+
+LogContext provides a way to attach properties to a context that will be automatically included in all log events created from loggers using that context. Properties follow a precedence order: event-specific properties (passed directly to log methods) override ForContext properties, which override LogContext properties (set via PushProperty).
+
+```go
+// Add properties to context that flow through all operations
+ctx := context.Background()
+ctx = mtlog.PushProperty(ctx, "RequestId", "req-12345")
+ctx = mtlog.PushProperty(ctx, "UserId", userId)
+ctx = mtlog.PushProperty(ctx, "TenantId", "acme-corp")
+
+// Create a logger that includes context properties
+log := logger.WithContext(ctx)
+log.Information("Processing request") // Includes all pushed properties
+
+// Properties are inherited - child contexts get parent properties
+func processOrder(ctx context.Context, orderId string) {
+    // Add operation-specific properties
+    ctx = mtlog.PushProperty(ctx, "OrderId", orderId)
+    ctx = mtlog.PushProperty(ctx, "Operation", "ProcessOrder")
+    
+    log := logger.WithContext(ctx)
+    log.Information("Order processing started") // Includes all parent + new properties
+}
+
+// Property precedence example
+ctx = mtlog.PushProperty(ctx, "UserId", 123)
+logger.WithContext(ctx).Information("Test")                          // UserId=123
+logger.WithContext(ctx).ForContext("UserId", 456).Information("Test") // UserId=456 (ForContext overrides)
+logger.WithContext(ctx).Information("User {UserId}", 789)            // UserId=789 (event property overrides all)
+```
+
+This is particularly useful for:
+- Request tracing in web applications
+- Maintaining context through async operations
+- Multi-tenant applications
+- Batch processing with job-specific context
+
 ## Filters
 
 Control which events are logged with powerful filtering:

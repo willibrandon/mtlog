@@ -187,13 +187,44 @@ func (l *logger) ForSourceContext(sourceContext string) core.Logger {
 	return l.ForContext("SourceContext", sourceContext)
 }
 
-// WithContext creates a logger that enriches events with context values.
+// WithContext creates a logger that enriches events with context values from both 
+// standard context and LogContext.
+//
+// This method adds two enrichers to the logger:
+// 1. ContextEnricher - Extracts standard context values like trace IDs
+// 2. LogContextEnricher - Extracts properties added via PushProperty
+//
+// Property precedence (highest to lowest priority):
+// 1. Event-specific properties (passed directly to log methods like Information)
+// 2. ForContext properties (added via ForContext method)  
+// 3. LogContext properties (added via PushProperty)
+// 4. Standard context values
+//
+// This ensures that properties can be overridden at more specific scopes while
+// maintaining defaults from broader contexts.
+//
+// Example:
+//
+//	ctx := context.Background()
+//	ctx = mtlog.PushProperty(ctx, "UserId", 123)
+//	ctx = mtlog.PushProperty(ctx, "TenantId", "acme")
+//	
+//	// Both UserId and TenantId will be included
+//	logger.WithContext(ctx).Information("User action")
+//	
+//	// ForContext overrides LogContext
+//	logger.WithContext(ctx).ForContext("UserId", 456).Information("Override test")
+//	// Results in UserId=456, TenantId=acme
+//	
+//	// Event properties override everything
+//	logger.WithContext(ctx).Information("User {UserId} action", 789)
+//	// Results in UserId=789, TenantId=acme
 func (l *logger) WithContext(ctx context.Context) core.Logger {
-	// Create a new logger with the same configuration but additional context enricher
+	// Create a new logger with the same configuration but additional context enrichers
 	newConfig := &config{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
-		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+1),
+		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+2),
 		filters:      l.pipeline.filters,
 		destructurer: l.pipeline.destructurer,
 		sinks:        l.pipeline.sinks,
@@ -203,8 +234,9 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	// Copy existing enrichers
 	copy(newConfig.enrichers, l.pipeline.enrichers)
 	
-	// Add context enricher
+	// Add context enrichers
 	newConfig.enrichers[len(l.pipeline.enrichers)] = enrichers.NewContextEnricher(ctx)
+	newConfig.enrichers[len(l.pipeline.enrichers)+1] = enrichers.NewLogContextEnricher(ctx, getLogContextProperties)
 	
 	// Copy existing properties
 	l.mu.RLock()
