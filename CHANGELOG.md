@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **LogContext** - Scoped property propagation through context
+  - `PushProperty()` function for attaching properties to context that automatically flow through all log events
+  - Thread-safe immutable implementation with property copying for concurrent access
+  - Property inheritance through context hierarchy with proper precedence handling
+  - Property precedence: event-specific > ForContext > LogContext > standard context values
+  - `LogContextEnricher` integration with existing enrichment pipeline
+  - Comprehensive test coverage including edge cases, inheritance, and integration scenarios
+  - Performance benchmarks showing reasonable overhead (3.3x for single property, 4.2x for multiple properties)
+  - Deep nesting support (10+ levels) with predictable performance characteristics
+  - Complete documentation with examples and real-world usage patterns
+  - Working example demonstrating web service request tracing
+
 - **mtlog-analyzer** - Static analysis tool for mtlog usage
   - Detects template/argument mismatches
   - Validates format specifiers

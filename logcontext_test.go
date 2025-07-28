@@ -162,7 +162,7 @@ func TestPushPropertyNilContext(t *testing.T) {
 	}()
 	
 	// This should not panic
-	ctx := mtlog.PushProperty(nil, "Key", "Value")
+	ctx := mtlog.PushProperty(context.TODO(), "Key", "Value")
 	if ctx == nil {
 		t.Error("PushProperty should return a valid context even with nil input")
 	}
