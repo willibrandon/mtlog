@@ -150,9 +150,9 @@
                 <!-- Message Templates -->
                 <div class="bg-gray-800 rounded-lg p-6">
                     <h4 class="text-xl font-semibold mb-4 text-blue-400">Message Templates</h4>
-                    <pre class="mb-4"><code class="language-go">log.Information("User {UserId} logged in from {IP}", userId, ip)
-log.Information("Order {@Order} created", order)
-log.Information("Processing time: {Duration:F2}ms", 123.456)</code></pre>
+                    <pre class="mb-4"><code class="language-go">log.Info("User {UserId} logged in from {IP}", userId, ip)
+log.Info("Order {@Order} created", order)
+log.Info("Processing time: {Duration:F2}ms", 123.456)</code></pre>
                     <p class="text-gray-400 text-sm">
                         Properties are extracted from templates and preserved throughout the pipeline.
                         Templates serve as both human-readable messages and event types.
@@ -163,7 +163,7 @@ log.Information("Processing time: {Duration:F2}ms", 123.456)</code></pre>
                 <div class="bg-gray-800 rounded-lg p-6">
                     <h4 class="text-xl font-semibold mb-4 text-green-400">Type-Safe ForType</h4>
                     <pre class="mb-4"><code class="language-go">userLogger := mtlog.ForType[User](logger)
-userLogger.Information("User created")
+userLogger.Info("User created")
 // SourceContext: "User"
 
 orderLogger := mtlog.ForType[OrderService](logger)
@@ -178,7 +178,7 @@ orderLogger := mtlog.ForType[OrderService](logger)
                 <div class="bg-gray-800 rounded-lg p-6">
                     <h4 class="text-xl font-semibold mb-4 text-purple-400">Zero Allocations</h4>
                     <pre class="mb-4"><code class="language-go">// Simple logging: 0 allocations
-log.Information("Application started")
+log.Info("Application started")
 
 // Below minimum level: 0 allocations
 log.Debug("This won't allocate")</code></pre>
@@ -272,15 +272,15 @@ func main() {
     )
 
     // Simple logging
-    log.Information("Application started")
+    log.Info("Application started")
     
     // Message templates with properties
     userId := 123
-    log.Information("User {UserId} logged in", userId)
+    log.Info("User {UserId} logged in", userId)
     
     // Type-based logging
     userLogger := mtlog.ForType[User](log)
-    userLogger.Information("User operation completed")
+    userLogger.Info("User operation completed")
 }</code></pre>
             </div>
             
