@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mtlog - Message Template Logging for Go</title>
-    <meta name="description" content="High-performance structured logging library for Go with zero allocations, message templates, and Serilog-inspired pipeline architecture.">
+    <meta name="description" content="Serilog-inspired structured logging for Go with message templates, rich formatting, and native Seq support.">
     
     <!-- Go import vanity URL -->
     <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
@@ -77,6 +77,7 @@
                     <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">GitHub</a>
                     <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">Docs</a>
                     <a href="/quick-reference" class="text-gray-400 hover:text-white transition">Reference</a>
+                    <a href="https://github.com/willibrandon/mtlog/blob/main/LICENSE" class="text-gray-400 hover:text-white transition">MIT</a>
                 </nav>
                 <!-- Theme Switcher -->
                 <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme">
@@ -98,8 +99,8 @@
                 Message Template Logging for Go
             </h2>
             <p class="text-xl text-gray-400 mb-8">
-                High-performance structured logging with zero allocations.<br>
-                Inspired by Serilog, built for Go.
+                Serilog-inspired structured logging with message templates,<br>
+                rich formatting, and native Seq support.
             </p>
             
             <!-- Stats -->
@@ -225,6 +226,9 @@ logrLogger := mtlog.NewLogrLogger(...)</code></pre>
             <div class="text-center">
                 <p class="text-gray-400 mb-4">
                     Carefully optimized for the common path with zero allocations for simple operations.
+                </p>
+                <p class="text-gray-500 text-sm mb-4">
+                    Benchmarked with <code class="text-gray-400">go test -bench . -benchmem</code> on AMD Ryzen 9 9950X, Go 1.23
                 </p>
                 <a href="https://github.com/willibrandon/mtlog#performance" class="text-blue-400 hover:underline">
                     View detailed benchmarks →
