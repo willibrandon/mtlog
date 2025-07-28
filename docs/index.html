@@ -80,6 +80,15 @@
         body.light .bg-gray-100 span.font-mono {
             color: #374151; /* gray-700 */
         }
+        
+        /* Ensure proper contrast in dark mode for iOS/Safari */
+        .bg-gray-800 span.font-mono {
+            color: #f3f4f6; /* gray-100 */
+        }
+        
+        body.light .bg-gray-100 span.font-mono {
+            color: #374151 !important; /* gray-700 with !important for iOS */
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
@@ -118,17 +127,17 @@
             </p>
             
             <!-- Stats -->
-            <div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto mb-12">
+            <div class="grid grid-cols-3 gap-4 sm:gap-8 max-w-2xl mx-auto mb-12">
                 <div class="text-center">
-                    <div class="text-4xl font-bold text-blue-400">17.3ns</div>
+                    <div class="text-3xl sm:text-4xl font-bold text-blue-400">17.3ns</div>
                     <div class="text-sm text-gray-600 dark:text-gray-500 mt-1">per operation</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-4xl font-bold text-green-400">0</div>
+                    <div class="text-3xl sm:text-4xl font-bold text-green-400">0</div>
                     <div class="text-sm text-gray-600 dark:text-gray-500 mt-1">allocations</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-4xl font-bold text-purple-400">Pipeline</div>
+                    <div class="text-2xl sm:text-4xl font-bold text-purple-400">Pipeline</div>
                     <div class="text-sm text-gray-600 dark:text-gray-500 mt-1">architecture</div>
                 </div>
             </div>
