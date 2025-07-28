@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mtlog - Quick Reference</title>
+    <meta name="description" content="Quick reference guide for mtlog - Message Template Logging for Go">
+    
+    <!-- Go import vanity URL -->
+    <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
+    <meta name="go-source" content="mtlog.dev https://github.com/willibrandon/mtlog https://github.com/willibrandon/mtlog/tree/main{/dir} https://github.com/willibrandon/mtlog/blob/main{/dir}/{file}#L{line}">
+    
+    <!-- Plausible Analytics -->
+    <script defer data-domain="mtlog.dev" src="https://plausible.io/js/script.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <link id="prism-theme-dark" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" disabled />
+    <link id="prism-theme-light" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    
+    <style>
+        /* Custom gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Theme transition */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Light theme adjustments */
+        body.light pre[class*="language-"] {
+            background-color: #f5f5f5;
+            border: 1px solid #e5e5e5;
+        }
+        
+        /* Code block styling */
+        pre[class*="language-"] {
+            border-radius: 0.5rem;
+            margin: 0;
+            font-size: 0.875rem;
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Sticky sidebar */
+        .sticky-sidebar {
+            position: sticky;
+            top: 5rem;
+            max-height: calc(100vh - 6rem);
+            overflow-y: auto;
+        }
+        
+        /* Active nav link */
+        .nav-link.active {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Header -->
+    <header class="border-b border-gray-800 sticky top-0 bg-gray-900 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <a href="/" class="text-2xl font-bold gradient-text">mtlog</a>
+                <h1 class="text-xl text-gray-400">Quick Reference</h1>
+            </div>
+            <div class="flex items-center gap-6">
+                <nav class="flex gap-6">
+                    <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">GitHub</a>
+                    <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">Go Docs</a>
+                </nav>
+                <!-- Theme Switcher -->
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme">
+                    <svg class="w-5 h-5 hidden dark-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg class="w-5 h-5 light-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex gap-8">
+            <!-- Sidebar Navigation -->
+            <aside class="w-64 hidden lg:block">
+                <nav class="sticky-sidebar">
+                    <h3 class="font-semibold mb-4 text-gray-400">On this page</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#basic-setup" class="nav-link text-gray-400 hover:text-white">Basic Setup</a></li>
+                        <li><a href="#logging-methods" class="nav-link text-gray-400 hover:text-white">Logging Methods</a></li>
+                        <li><a href="#message-templates" class="nav-link text-gray-400 hover:text-white">Message Templates</a></li>
+                        <li><a href="#output-templates" class="nav-link text-gray-400 hover:text-white">Output Templates</a></li>
+                        <li><a href="#enrichers" class="nav-link text-gray-400 hover:text-white">Enrichers</a></li>
+                        <li><a href="#filters" class="nav-link text-gray-400 hover:text-white">Filters</a></li>
+                        <li><a href="#sinks" class="nav-link text-gray-400 hover:text-white">Sinks</a></li>
+                        <li><a href="#fortype" class="nav-link text-gray-400 hover:text-white">ForType</a></li>
+                        <li><a href="#logcontext" class="nav-link text-gray-400 hover:text-white">LogContext</a></li>
+                        <li><a href="#dynamic-levels" class="nav-link text-gray-400 hover:text-white">Dynamic Levels</a></li>
+                        <li><a href="#ecosystem" class="nav-link text-gray-400 hover:text-white">Ecosystem</a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 max-w-4xl">
+                <div class="prose prose-invert max-w-none">
+                    <p class="text-lg text-gray-400 mb-8">A quick reference for all mtlog features and common usage patterns.</p>
+
+                    <!-- Basic Setup -->
+                    <section id="basic-setup" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Basic Setup</h2>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/core"
+)
+
+// Simple logger
+logger := mtlog.New(mtlog.WithConsole())
+
+// Production logger
+logger := mtlog.New(
+    mtlog.WithConsoleTheme("dark"),
+    mtlog.WithSeq("http://localhost:5341", "api-key"),
+    mtlog.WithMinimumLevel(core.InformationLevel),
+)</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Logging Methods -->
+                    <section id="logging-methods" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Logging Methods</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-2">Traditional Methods</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">logger.Verbose("Verbose message")
+logger.Debug("Debug: {Value}", value)
+logger.Information("Info: {User} {Action}", user, action)
+logger.Warning("Warning: {Count} items", count)
+logger.Error("Error: {Error}", err)
+logger.Fatal("Fatal: {Reason}", reason)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Generic Methods (Type-Safe)</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">logger.VerboseT("Verbose message")
+logger.DebugT("Debug: {Value}", value)
+logger.InformationT("Info: {User} {Action}", user, action)
+logger.WarningT("Warning: {Count} items", count)
+logger.ErrorT("Error: {Error}", err)
+logger.FatalT("Fatal: {Reason}", reason)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Short Methods</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">logger.V("Verbose")
+logger.D("Debug: {Value}", value)
+logger.I("Info: {Message}", msg)
+logger.W("Warning: {Issue}", issue)
+logger.E("Error: {Error}", err)
+logger.F("Fatal: {Reason}", reason)</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Message Templates -->
+                    <section id="message-templates" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Message Templates</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-2">Template Syntaxes</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Traditional syntax
+log.Information("User {UserId} logged in from {IP}", userId, ipAddress)
+
+// Go template syntax
+log.Information("User {{.UserId}} logged in from {{.IP}}", userId, ipAddress)
+
+// Mixed syntax
+log.Information("User {UserId} ({{.Username}}) from {IP}", userId, username, ipAddress)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Destructuring Hints</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// @ - destructure complex types
+log.Information("Order {@Order} created", order)
+
+// $ - force scalar rendering
+log.Information("Error occurred: {$Error}", err)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Format Specifiers</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Numbers
+log.Information("Count: {Count:000}", 42)        // 042
+log.Information("Price: ${Price:F2}", 123.456)   // $123.46
+log.Information("Usage: {Percent:P1}", 0.85)     // 85.0%
+
+// Custom alignment
+log.Information("Status: {Status,10}", "OK")     // "OK        "
+log.Information("Code: {Code,-5}", "ABC")        // "ABC  "</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Output Templates -->
+                    <section id="output-templates" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Output Templates</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-2">Console Templates</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Simple
+mtlog.WithConsoleTemplate("[{Level:u3}] {Message}")
+
+// With timestamp
+mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {Message}")
+
+// Full details
+mtlog.WithConsoleTemplate(
+    "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}")</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">File Templates</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">mtlog.WithFileTemplate("app.log", 
+    "[{Timestamp:o} {Level:u3}] {SourceContext} {Message}{NewLine}{Exception}")</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Enrichers -->
+                    <section id="enrichers" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Enrichers</h2>
+                        
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Built-in enrichers
+logger := mtlog.New(
+    mtlog.WithTimestamp(),
+    mtlog.WithMachineName(),
+    mtlog.WithProcessInfo(),
+    mtlog.WithEnvironmentVariables("APP_ENV", "VERSION"),
+    mtlog.WithThreadId(),
+    mtlog.WithCallersInfo(),
+    mtlog.WithSourceContext(),
+)
+
+// Custom enricher
+type UserEnricher struct{ userID int }
+
+func (e *UserEnricher) Enrich(event *core.LogEvent, factory core.LogEventPropertyFactory) {
+    event.AddPropertyIfAbsent(factory.CreateProperty("UserId", e.userID))
+}
+
+logger := mtlog.New(
+    mtlog.WithEnricher(&UserEnricher{userID: 123}),
+)</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Filters -->
+                    <section id="filters" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Filters</h2>
+                        
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Level filtering
+mtlog.WithMinimumLevel(core.WarningLevel)
+
+// Level overrides by source
+mtlog.WithMinimumLevelOverrides(map[string]core.LogEventLevel{
+    "myapp/services": core.DebugLevel,
+    "github.com/gin-gonic/gin": core.WarningLevel,
+})
+
+// Custom filter
+mtlog.WithFilter(filters.NewPredicateFilter(func(e *core.LogEvent) bool {
+    return !strings.Contains(e.MessageTemplate.Text, "health-check")
+}))
+
+// Rate limiting
+mtlog.WithFilter(filters.NewRateLimitFilter(100, time.Minute))
+
+// Sampling
+mtlog.WithFilter(filters.NewSamplingFilter(0.1)) // 10% of events</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Sinks -->
+                    <section id="sinks" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Sinks</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-2">Console</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Themes
+mtlog.WithConsoleTheme(sinks.LiterateTheme())
+mtlog.WithConsoleTheme(sinks.DarkTheme())
+mtlog.WithConsoleTheme(sinks.LightTheme())
+mtlog.WithConsoleTheme(sinks.NoColorTheme())</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">File</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Simple file
+mtlog.WithFileSink("app.log")
+
+// Rolling by size
+mtlog.WithRollingFile("app.log", 10*1024*1024) // 10MB
+
+// Rolling by time
+mtlog.WithRollingFileTime("app.log", time.Hour)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Seq</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Basic
+mtlog.WithSeq("http://localhost:5341")
+
+// With API key
+mtlog.WithSeq("http://localhost:5341", "your-api-key")
+
+// Dynamic level control
+levelOption, levelSwitch, controller := mtlog.WithSeqLevelControl(
+    "http://localhost:5341",
+    mtlog.SeqLevelControllerOptions{
+        CheckInterval: 30*time.Second,
+    },
+)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Async & Durable</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Async wrapper
+mtlog.WithAsync(mtlog.WithFileSink("app.log"))
+
+// Durable buffering
+mtlog.WithDurable(
+    mtlog.WithSeq("http://localhost:5341"),
+    sinks.WithDurableDirectory("./logs/buffer"),
+    sinks.WithDurableMaxSize(100*1024*1024),
+)</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- ForType -->
+                    <section id="fortype" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">ForType - Type-Based Logging</h2>
+                        
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Automatic SourceContext from types
+userLogger := mtlog.ForType[User](logger)
+userLogger.Information("User created") // SourceContext: "User"
+
+// Service pattern
+type UserService struct {
+    logger core.Logger
+}
+
+func NewUserService(base core.Logger) *UserService {
+    return &UserService{
+        logger: mtlog.ForType[UserService](base),
+    }
+}
+
+// Advanced options
+opts := mtlog.TypeNameOptions{
+    IncludePackage: true,
+    Prefix: "MyApp.",
+}
+name := mtlog.ExtractTypeName[User](opts) // "MyApp.mypackage.User"</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- LogContext -->
+                    <section id="logcontext" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">LogContext - Scoped Properties</h2>
+                        
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Add properties to context
+ctx := context.Background()
+ctx = mtlog.PushProperty(ctx, "RequestId", "req-123")
+ctx = mtlog.PushProperty(ctx, "UserId", userId)
+
+// Use with logger
+log := logger.WithContext(ctx)
+log.Information("Processing request") // Includes RequestId & UserId
+
+// Property precedence
+ctx = mtlog.PushProperty(ctx, "UserId", 123)
+logger.WithContext(ctx).Information("Test")                          // UserId=123
+logger.WithContext(ctx).ForContext("UserId", 456).Information("Test") // UserId=456
+logger.WithContext(ctx).Information("User {UserId}", 789)            // UserId=789</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Dynamic Levels -->
+                    <section id="dynamic-levels" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Dynamic Level Control</h2>
+                        
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Manual control
+levelSwitch := mtlog.NewLoggingLevelSwitch(core.InformationLevel)
+logger := mtlog.New(
+    mtlog.WithLevelSwitch(levelSwitch),
+    mtlog.WithConsole(),
+)
+
+// Change at runtime
+levelSwitch.SetLevel(core.DebugLevel)
+
+// Fluent interface
+levelSwitch.Debug().Information().Warning()
+
+// Check if enabled
+if levelSwitch.IsEnabled(core.VerboseLevel) {
+    // Expensive operation
+}</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Ecosystem -->
+                    <section id="ecosystem" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Ecosystem Compatibility</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-2">slog (Standard Library)</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Use mtlog as slog backend
+slogger := mtlog.NewSlogLogger(
+    mtlog.WithSeq("http://localhost:5341"),
+    mtlog.WithMinimumLevel(core.InformationLevel),
+)
+
+// Set as default
+slog.SetDefault(slogger)
+
+// Use slog API
+slog.Info("user logged in", "user_id", 123, "ip", "192.168.1.1")</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">logr (Kubernetes)</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Use mtlog as logr backend
+logrLogger := mtlog.NewLogrLogger(
+    mtlog.WithConsole(),
+    mtlog.WithMinimumLevel(core.DebugLevel),
+)
+
+// Use logr API
+logrLogger.Info("reconciling", "namespace", "default", "name", "my-app")
+logrLogger.Error(err, "failed to update resource")</code></pre>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 px-4 mt-16">
+        <div class="container mx-auto text-center text-gray-500 text-sm">
+            <p>
+                <a href="/" class="hover:text-gray-400">Home</a> •
+                <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">GitHub</a> •
+                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+    <!-- Theme Switcher & Navigation -->
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const darkIcon = themeToggle.querySelector('.dark-icon');
+        const lightIcon = themeToggle.querySelector('.light-icon');
+        const prismDark = document.getElementById('prism-theme-dark');
+        const prismLight = document.getElementById('prism-theme-light');
+
+        // Load saved theme or default to dark
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        function setTheme(theme) {
+            if (theme === 'light') {
+                body.classList.remove('bg-gray-900', 'text-gray-100');
+                body.classList.add('bg-white', 'text-gray-900', 'light');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                prismDark.disabled = true;
+                prismLight.disabled = false;
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-gray-900', 'border-gray-800');
+                header.classList.add('bg-white', 'border-gray-200');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-800').forEach(el => {
+                    el.classList.remove('bg-gray-800');
+                    el.classList.add('bg-gray-100');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-800');
+                footer.classList.add('border-gray-200');
+            } else {
+                body.classList.remove('bg-white', 'text-gray-900', 'light');
+                body.classList.add('bg-gray-900', 'text-gray-100');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+                prismDark.disabled = false;
+                prismLight.disabled = true;
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-white', 'border-gray-200');
+                header.classList.add('bg-gray-900', 'border-gray-800');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-100').forEach(el => {
+                    el.classList.remove('bg-gray-100');
+                    el.classList.add('bg-gray-800');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-200');
+                footer.classList.add('border-gray-800');
+            }
+            
+            // Re-highlight code
+            Prism.highlightAll();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.classList.contains('light') ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // Active navigation highlighting
+        const sections = document.querySelectorAll('section[id]');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function updateActiveLink() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveLink);
+        updateActiveLink();
+    </script>
+</body>
+</html>

@@ -12,7 +12,7 @@
     
     <!-- Open Graph -->
     <meta property="og:title" content="mtlog - Message Template Logging for Go">
-    <meta property="og:description" content="Zero-allocation structured logging with message templates. 17.3ns per operation. 7.7x faster than zap.">
+    <meta property="og:description" content="Zero-allocation structured logging with message templates. 17.3ns per operation. Serilog-inspired design for Go.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://mtlog.dev">
     
@@ -23,7 +23,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Prism.js for syntax highlighting -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link id="prism-theme-dark" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link id="prism-theme-light" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" disabled />
     
     <style>
         /* Custom gradient text */
@@ -53,6 +54,17 @@
         html {
             scroll-behavior: smooth;
         }
+        
+        /* Theme transition */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Light theme adjustments */
+        body.light pre[class*="language-"] {
+            background-color: #f5f5f5;
+            border: 1px solid #e5e5e5;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
@@ -60,11 +72,22 @@
     <header class="border-b border-gray-800">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-2xl font-bold gradient-text">mtlog</h1>
-            <nav class="flex gap-6">
-                <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">GitHub</a>
-                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">Docs</a>
-                <a href="/quick-reference" class="text-gray-400 hover:text-white transition">Reference</a>
-            </nav>
+            <div class="flex items-center gap-6">
+                <nav class="flex gap-6">
+                    <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">GitHub</a>
+                    <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-white transition">Docs</a>
+                    <a href="/quick-reference" class="text-gray-400 hover:text-white transition">Reference</a>
+                </nav>
+                <!-- Theme Switcher -->
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme">
+                    <svg class="w-5 h-5 hidden dark-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg class="w-5 h-5 light-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -90,8 +113,8 @@
                     <div class="text-sm text-gray-500 mt-1">allocations</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-4xl font-bold text-purple-400">7.7x</div>
-                    <div class="text-sm text-gray-500 mt-1">faster than zap</div>
+                    <div class="text-4xl font-bold text-purple-400">Serilog</div>
+                    <div class="text-sm text-gray-500 mt-1">inspired design</div>
                 </div>
             </div>
             
@@ -172,78 +195,41 @@ logrLogger := mtlog.NewLogrLogger(...)</code></pre>
         </div>
     </section>
 
-    <!-- Performance Comparison -->
+    <!-- Performance -->
     <section class="py-16 px-4 border-t border-gray-800">
         <div class="container mx-auto max-w-4xl">
-            <h3 class="text-3xl font-bold text-center mb-12">Performance</h3>
+            <h3 class="text-3xl font-bold text-center mb-12">Performance Characteristics</h3>
             
-            <div class="space-y-6">
-                <!-- Simple String -->
-                <div>
-                    <div class="flex justify-between mb-2">
-                        <span class="text-sm text-gray-400">Simple string logging</span>
-                        <span class="text-sm text-gray-400">lower is better</span>
-                    </div>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">mtlog</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-green-500 h-6 perf-bar" style="--width: 11%"></div>
-                            </div>
-                            <span class="text-sm font-mono">16.82 ns</span>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">zerolog</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-blue-500 h-6 perf-bar" style="--width: 24%"></div>
-                            </div>
-                            <span class="text-sm font-mono">36.46 ns</span>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">zap</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-orange-500 h-6 perf-bar" style="--width: 100%"></div>
-                            </div>
-                            <span class="text-sm font-mono">146.6 ns</span>
-                        </div>
-                    </div>
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-blue-400">Zero-Allocation Path</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li>• Simple string messages: <span class="text-white font-mono">0 allocs</span></li>
+                        <li>• Below minimum level: <span class="text-white font-mono">0 allocs</span></li>
+                        <li>• Dynamic level checks: <span class="text-white font-mono">0 allocs</span></li>
+                        <li>• Filtered events: <span class="text-white font-mono">0 allocs</span></li>
+                    </ul>
                 </div>
-
-                <!-- Filtered Out -->
-                <div>
-                    <div class="flex justify-between mb-2">
-                        <span class="text-sm text-gray-400">Below minimum level (filtered out)</span>
-                        <span class="text-sm text-gray-400">lower is better</span>
-                    </div>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">mtlog</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-green-500 h-6 perf-bar" style="--width: 41%"></div>
-                            </div>
-                            <span class="text-sm font-mono">1.47 ns</span>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">zerolog</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-blue-500 h-6 perf-bar" style="--width: 48%"></div>
-                            </div>
-                            <span class="text-sm font-mono">1.71 ns</span>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            <span class="w-20 text-sm">zap</span>
-                            <div class="flex-1 bg-gray-800 rounded overflow-hidden">
-                                <div class="bg-orange-500 h-6 perf-bar" style="--width: 100%"></div>
-                            </div>
-                            <span class="text-sm font-mono">3.57 ns</span>
-                        </div>
-                    </div>
+                
+                <div class="bg-gray-800 rounded-lg p-6">
+                    <h4 class="text-xl font-semibold mb-4 text-green-400">Operation Timing</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li>• Simple logging: <span class="text-white font-mono">17.3 ns/op</span></li>
+                        <li>• Level filtering: <span class="text-white font-mono">1.5 ns/op</span></li>
+                        <li>• With properties: <span class="text-white font-mono">~200 ns/op</span></li>
+                        <li>• ForType (cached): <span class="text-white font-mono">~148 ns/op</span></li>
+                    </ul>
                 </div>
             </div>
             
-            <p class="text-center text-gray-500 text-sm mt-8">
-                Benchmarked on AMD Ryzen 9 9950X. See <a href="/performance" class="text-blue-400 hover:underline">full benchmarks</a>.
-            </p>
+            <div class="text-center">
+                <p class="text-gray-400 mb-4">
+                    Carefully optimized for the common path with zero allocations for simple operations.
+                </p>
+                <a href="https://github.com/willibrandon/mtlog#performance" class="text-blue-400 hover:underline">
+                    View detailed benchmarks →
+                </a>
+            </div>
         </div>
     </section>
 
@@ -310,5 +296,80 @@ func main() {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+    <!-- Theme Switcher -->
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const darkIcon = themeToggle.querySelector('.dark-icon');
+        const lightIcon = themeToggle.querySelector('.light-icon');
+        const prismDark = document.getElementById('prism-theme-dark');
+        const prismLight = document.getElementById('prism-theme-light');
+
+        // Load saved theme or default to dark
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        function setTheme(theme) {
+            if (theme === 'light') {
+                body.classList.remove('bg-gray-900', 'text-gray-100');
+                body.classList.add('bg-white', 'text-gray-900', 'light');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                prismDark.disabled = true;
+                prismLight.disabled = false;
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-gray-900', 'border-gray-800');
+                header.classList.add('bg-white', 'border-gray-200');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-800').forEach(el => {
+                    el.classList.remove('bg-gray-800');
+                    el.classList.add('bg-gray-100');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-800');
+                footer.classList.add('border-gray-200');
+            } else {
+                body.classList.remove('bg-white', 'text-gray-900', 'light');
+                body.classList.add('bg-gray-900', 'text-gray-100');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+                prismDark.disabled = false;
+                prismLight.disabled = true;
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-white', 'border-gray-200');
+                header.classList.add('bg-gray-900', 'border-gray-800');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-100').forEach(el => {
+                    el.classList.remove('bg-gray-100');
+                    el.classList.add('bg-gray-800');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-200');
+                footer.classList.add('border-gray-800');
+            }
+            
+            // Re-highlight code
+            Prism.highlightAll();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.classList.contains('light') ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
 </body>
 </html>
