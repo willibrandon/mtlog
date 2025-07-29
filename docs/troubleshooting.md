@@ -369,5 +369,3 @@ func (s *MySink) Close() error {
     return closeErr
 }
 ```
-
-This helps users debug issues with your custom sink implementation.
