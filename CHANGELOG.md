@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-07-29
+
 ### Added
 - **SelfLog** - Internal diagnostics facility for debugging silent failures
   - Zero-cost when disabled with single atomic pointer check
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Environment variable support (`MTLOG_SELFLOG=stderr/stdout/file`)
   - Structured output format: `{timestamp} [{component}] {message}`
   - `IsEnabled()` guard to avoid formatting costs when disabled
-  - Performance: ~1.5ns/op when disabled, ~135ns/op to io.Discard
+  - Performance: 0.37ns/op when disabled (with guard), 148ns/op to io.Discard
   
 - **Comprehensive SelfLog Instrumentation**
   - All sinks report write/emit failures with contextual information
@@ -48,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Benchmarks confirming performance targets
 - Cross-platform compatibility (Windows path handling)
 
-## [0.4.0] - 2025-01-29
+## [0.4.0] - 2025-07-29
 
 ### Changed
 - **Dependency Management**
@@ -77,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated README, website, and examples to reflect the new import path
 - Added CI/CD support for testing adapter modules
 
-## [0.3.0] - 2025-01-28
+## [0.3.0] - 2025-07-28
 
 ### Added
 - **ForType** - Type-based logging with automatic SourceContext
@@ -119,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Can be used standalone or as a go vet tool
   - Comprehensive test coverage (88.6%)
 
-## [0.2.1] - 2025-01-27
+## [0.2.1] - 2025-07-27
 
 ### Changed
 - **Internal Organization**
@@ -136,7 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Updated testing documentation to reflect actual Splunk requirements
 
-## [0.2.0] - 2025-01-27
+## [0.2.0] - 2025-07-27
 
 ### Added
 - **Output Templates**
@@ -184,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source context cache now properly bounded with LRU eviction
 - All golangci-lint issues resolved for clean CI builds
 
-## [0.1.0] - 2025-01-23
+## [0.1.0] - 2025-7-23
 
 ### Added
 - **Core Features**
@@ -225,6 +227,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.5.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.5.0
 [0.4.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.4.0
 [0.3.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.3.0
 [0.2.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.2.1
