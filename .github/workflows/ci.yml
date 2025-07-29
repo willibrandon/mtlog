@@ -42,6 +42,11 @@ jobs:
         cd benchmarks
         go test -v ./...
 
+    - name: Test logr adapter module
+      run: |
+        cd adapters/logr
+        go test -v ./...
+
     - name: Test coverage
       run: go test -coverprofile=coverage.out ./...
       if: matrix.os == 'ubuntu-latest' && matrix.go == '1.23'

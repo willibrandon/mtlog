@@ -209,7 +209,8 @@ slogger := mtlog.NewSlogLogger(...)
 slog.SetDefault(slogger)
 
 // Works with logr (Kubernetes)
-logrLogger := mtlog.NewLogrLogger(...)</code></pre>
+import mtlogr "github.com/willibrandon/mtlog/adapters/logr"
+logrLogger := mtlogr.NewLogger(...)</code></pre>
                     <p class="text-gray-400 text-sm">
                         Drop-in adapters for Go's standard slog and Kubernetes logr.
                         Use mtlog's power with existing code.

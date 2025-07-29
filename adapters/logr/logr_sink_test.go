@@ -1,4 +1,4 @@
-package handler_test
+package logr_test
 
 import (
 	"errors"
@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/willibrandon/mtlog"
+	mtlogr "github.com/willibrandon/mtlog/adapters/logr"
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/internal/handler"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -20,7 +20,7 @@ func TestLogrSink(t *testing.T) {
 	)
 
 	// Create logr logger with our sink
-	logrLogger := logr.New(handler.NewLogrSink(logger))
+	logrLogger := logr.New(mtlogr.NewLogrSink(logger))
 
 	// Test basic logging at different V-levels
 	logrLogger.V(0).Info("info message", "key", "value")
@@ -70,7 +70,7 @@ func TestLogrSinkWithValues(t *testing.T) {
 	logger := mtlog.New(mtlog.WithSink(memSink))
 
 	// Create logr logger with persistent values
-	logrLogger := logr.New(handler.NewLogrSink(logger)).WithValues(
+	logrLogger := logr.New(mtlogr.NewLogrSink(logger)).WithValues(
 		"service", "test-service",
 		"version", "1.0.0",
 	)
@@ -101,7 +101,7 @@ func TestLogrSinkWithName(t *testing.T) {
 	logger := mtlog.New(mtlog.WithSink(memSink))
 
 	// Create logr logger with name hierarchy
-	logrLogger := logr.New(handler.NewLogrSink(logger)).
+	logrLogger := logr.New(mtlogr.NewLogrSink(logger)).
 		WithName("controller").
 		WithName("reconciler")
 
@@ -120,7 +120,7 @@ func TestLogrSinkWithName(t *testing.T) {
 
 func TestLogrSinkEnabled(t *testing.T) {
 	logger := mtlog.New(mtlog.WithMinimumLevel(core.InformationLevel))
-	logrLogger := logr.New(handler.NewLogrSink(logger))
+	logrLogger := logr.New(mtlogr.NewLogrSink(logger))
 
 	tests := []struct {
 		vLevel  int
@@ -141,7 +141,7 @@ func TestLogrSinkEnabled(t *testing.T) {
 func TestLogrSinkOddKeyValues(t *testing.T) {
 	memSink := sinks.NewMemorySink()
 	logger := mtlog.New(mtlog.WithSink(memSink))
-	logrLogger := logr.New(handler.NewLogrSink(logger))
+	logrLogger := logr.New(mtlogr.NewLogrSink(logger))
 
 	// Test with odd number of key/values
 	logrLogger.Info("test", "key1", "value1", "key2")
@@ -165,7 +165,7 @@ func TestLogrSinkOddKeyValues(t *testing.T) {
 func TestNewLogrLogger(t *testing.T) {
 	// Test the convenience function
 	memSink := sinks.NewMemorySink()
-	logrLogger := mtlog.NewLogrLogger(
+	logrLogger := mtlogr.NewLogger(
 		mtlog.WithSink(memSink),
 		mtlog.WithMinimumLevel(core.InformationLevel),
 	)

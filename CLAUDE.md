@@ -240,7 +240,9 @@ slog.SetDefault(slogger)
 
 ### With logr
 ```go
-logrLogger := mtlog.NewLogrLogger(
+import mtlogr "github.com/willibrandon/mtlog/adapters/logr"
+
+logrLogger := mtlogr.NewLogger(
     mtlog.WithConsole(),
     mtlog.WithProperty("app", "myapp"),
 )

@@ -7,12 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-01-29
+
 ### Changed
 - **Dependency Management**
   - Moved benchmarks to separate module (`benchmarks/`) to isolate zap and zerolog dependencies
+  - Moved logr integration to separate module (`adapters/logr/`) to avoid forcing go-logr dependency
   - Users no longer need to download benchmark-only dependencies when using mtlog
   - Fixed zero-allocation benchmarks by implementing `EmitSimple` in benchmark discardSink
-  - Main module now only depends on go-logr/logr (required for logr integration)
+  - Main module now has zero external dependencies
+
+### Breaking Changes
+- **logr Integration**
+  - `mtlog.NewLogrLogger()` has been moved to the separate `github.com/willibrandon/mtlog/adapters/logr` module
+  - Import the adapter module and use `mtlogr.NewLogger()` instead
+  - Example migration:
+    ```go
+    // Before:
+    logrLogger := mtlog.NewLogrLogger(...)
+    
+    // After:
+    import mtlogr "github.com/willibrandon/mtlog/adapters/logr"
+    logrLogger := mtlogr.NewLogger(...)
+    ```
+
+### Documentation
+- Added comprehensive Go documentation for the logr adapter module
+- Updated README, website, and examples to reflect the new import path
+- Added CI/CD support for testing adapter modules
 
 ## [0.3.0] - 2025-01-28
 
@@ -162,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.4.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.4.0
 [0.3.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.3.0
 [0.2.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.2.1
 [0.2.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.2.0

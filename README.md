@@ -690,7 +690,9 @@ mtlog integrates with the Kubernetes ecosystem via logr:
 
 ```go
 // Use mtlog as a backend for logr
-logrLogger := mtlog.NewLogrLogger(
+import mtlogr "github.com/willibrandon/mtlog/adapters/logr"
+
+logrLogger := mtlogr.NewLogger(
     mtlog.WithConsole(),
     mtlog.WithMinimumLevel(core.DebugLevel),
 )
