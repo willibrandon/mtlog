@@ -1,4 +1,4 @@
-package mtlog
+package benchmarks
 
 import (
 	"io"
@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	
+	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/sinks"
 )
@@ -16,7 +17,7 @@ import (
 // Benchmark simple string logging (no allocations target)
 func BenchmarkSimpleString(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(WithSink(&discardSink{}))
+		logger := mtlog.New(mtlog.WithSink(&discardSink{}))
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -59,7 +60,7 @@ func BenchmarkSimpleString(b *testing.B) {
 // Benchmark logging with 2 properties
 func BenchmarkTwoProperties(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(WithSink(&discardSink{}))
+		logger := mtlog.New(mtlog.WithSink(&discardSink{}))
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -109,7 +110,7 @@ func BenchmarkTwoProperties(b *testing.B) {
 // Benchmark logging with 10 properties
 func BenchmarkTenProperties(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(WithSink(&discardSink{}))
+		logger := mtlog.New(mtlog.WithSink(&discardSink{}))
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -164,7 +165,7 @@ func BenchmarkTenProperties(b *testing.B) {
 // Benchmark logging with context (enriched logger)
 func BenchmarkWithContext(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(WithSink(&discardSink{}))
+		logger := mtlog.New(mtlog.WithSink(&discardSink{}))
 		contextLogger := logger.ForContext("Environment", "Production").
 			ForContext("Service", "API").
 			ForContext("Version", "1.0.0")
@@ -226,9 +227,9 @@ func BenchmarkComplexObject(b *testing.B) {
 	}
 	
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(
-			WithSink(&discardSink{}),
-			WithDestructuring(),
+		logger := mtlog.New(
+			mtlog.WithSink(&discardSink{}),
+			mtlog.WithDestructuring(),
 		)
 		b.ResetTimer()
 		b.ReportAllocs()
@@ -265,9 +266,9 @@ func BenchmarkComplexObject(b *testing.B) {
 // Benchmark logging below minimum level (should be very fast)
 func BenchmarkFilteredOut(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(
-			WithSink(&discardSink{}),
-			WithMinimumLevel(core.InformationLevel),
+		logger := mtlog.New(
+			mtlog.WithSink(&discardSink{}),
+			mtlog.WithMinimumLevel(core.InformationLevel),
 		)
 		b.ResetTimer()
 		b.ReportAllocs()
@@ -310,7 +311,7 @@ func BenchmarkFilteredOut(b *testing.B) {
 // Benchmark with console output formatting
 func BenchmarkConsoleOutput(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
-		logger := New(WithSink(sinks.NewConsoleSinkWithWriter(io.Discard)))
+		logger := mtlog.New(mtlog.WithSink(sinks.NewConsoleSinkWithWriter(io.Discard)))
 		b.ResetTimer()
 		b.ReportAllocs()
 		

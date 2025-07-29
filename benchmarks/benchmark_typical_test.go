@@ -1,4 +1,4 @@
-package mtlog_test
+package benchmarks
 
 import (
 	"context"
@@ -20,6 +20,7 @@ type discardSink struct{}
 
 func (d *discardSink) Emit(event *core.LogEvent) {}
 func (d *discardSink) Close() error              { return nil }
+func (d *discardSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, message string) {}
 
 // Typical application structs
 type User struct {
@@ -83,7 +84,7 @@ func BenchmarkTypicalWebRequest(b *testing.B) {
 	})
 	
 	b.Run("zap", func(b *testing.B) {
-		logger := newZapLogger(io.Discard)
+		logger := newZapLoggerTypical(io.Discard)
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -154,7 +155,7 @@ func BenchmarkTypicalError(b *testing.B) {
 	})
 	
 	b.Run("zap", func(b *testing.B) {
-		logger := newZapLogger(io.Discard)
+		logger := newZapLoggerTypical(io.Discard)
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -215,7 +216,7 @@ func BenchmarkTypicalDebugWithContext(b *testing.B) {
 	})
 	
 	b.Run("zap", func(b *testing.B) {
-		logger := newZapLogger(io.Discard)
+		logger := newZapLoggerTypical(io.Discard)
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -271,7 +272,7 @@ func BenchmarkTypicalBatchOperation(b *testing.B) {
 	})
 	
 	b.Run("zap", func(b *testing.B) {
-		logger := newZapLogger(io.Discard)
+		logger := newZapLoggerTypical(io.Discard)
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -334,7 +335,7 @@ func BenchmarkTypicalMetrics(b *testing.B) {
 	})
 	
 	b.Run("zap", func(b *testing.B) {
-		logger := newZapLogger(io.Discard)
+		logger := newZapLoggerTypical(io.Discard)
 		b.ResetTimer()
 		b.ReportAllocs()
 		
@@ -371,7 +372,7 @@ func BenchmarkTypicalMetrics(b *testing.B) {
 }
 
 // Helper function to create zap logger
-func newZapLogger(w io.Writer) *zap.Logger {
+func newZapLoggerTypical(w io.Writer) *zap.Logger {
 	encoderCfg := zapcore.EncoderConfig{
 		MessageKey:     "msg",
 		LevelKey:       "level",

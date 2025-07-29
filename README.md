@@ -841,8 +841,8 @@ docker-compose -f docker/docker-compose.test.yml up -d
 go test -tags=integration ./...
 docker-compose -f docker/docker-compose.test.yml down
 
-# Run benchmarks
-go test -bench=. -benchmem ./...
+# Run benchmarks (in benchmarks/ folder)
+cd benchmarks && go test -bench=. -benchmem
 ```
 
 See [testing.md](./docs/testing.md) for detailed testing guide and manual container setup.
