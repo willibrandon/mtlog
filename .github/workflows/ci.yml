@@ -108,7 +108,8 @@ jobs:
 
     - name: Run benchmarks
       run: |
-        go test -bench=BenchmarkSimpleString -benchmem -benchtime=10s . | tee benchmark.txt
+        cd benchmarks
+        go test -run=^$ -bench=. -benchmem -benchtime=10s . | tee ../benchmark.txt
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
