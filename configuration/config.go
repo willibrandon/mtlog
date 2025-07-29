@@ -7,6 +7,7 @@ import (
 	"strings"
 	
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // LoggerConfiguration represents the JSON configuration for mtlog.
@@ -83,6 +84,9 @@ func ParseLevel(levelStr string) (core.LogEventLevel, error) {
 	case "fatal", "ftl":
 		return core.FatalLevel, nil
 	default:
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown log level '%s', defaulting to Information", levelStr)
+		}
 		return core.InformationLevel, fmt.Errorf("unknown log level: %s", levelStr)
 	}
 }
@@ -92,6 +96,10 @@ func GetString(args map[string]interface{}, key string, defaultValue string) str
 	if v, ok := args[key]; ok {
 		if s, ok := v.(string); ok {
 			return s
+		}
+		// Warn about type mismatch
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] expected string for '%s', got %T, using default '%s'", key, v, defaultValue)
 		}
 	}
 	return defaultValue
@@ -110,6 +118,15 @@ func GetInt(args map[string]interface{}, key string, defaultValue int) int {
 			var i int
 			if _, err := fmt.Sscanf(val, "%d", &i); err == nil {
 				return i
+			}
+			// Warn about parse failure
+			if selflog.IsEnabled() {
+				selflog.Printf("[configuration] failed to parse '%s' as int for '%s', using default %d", val, key, defaultValue)
+			}
+		default:
+			// Warn about type mismatch
+			if selflog.IsEnabled() {
+				selflog.Printf("[configuration] expected numeric value for '%s', got %T, using default %d", key, v, defaultValue)
 			}
 		}
 	}

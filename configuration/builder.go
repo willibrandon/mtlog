@@ -10,6 +10,7 @@ import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/internal/filters"
+	"github.com/willibrandon/mtlog/selflog"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -152,6 +153,9 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 func (lb *LoggerBuilder) createSink(config SinkConfiguration) (core.LogEventSink, error) {
 	factory, ok := lb.sinkFactories[config.Name]
 	if !ok {
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown sink type '%s', available sinks: %v", config.Name, lb.getAvailableSinkNames())
+		}
 		return nil, fmt.Errorf("unknown sink: %s", config.Name)
 	}
 	
@@ -162,6 +166,9 @@ func (lb *LoggerBuilder) createSink(config SinkConfiguration) (core.LogEventSink
 func (lb *LoggerBuilder) createEnricherByName(name string) (core.LogEventEnricher, error) {
 	factory, ok := lb.enricherFactories[name]
 	if !ok {
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown enricher '%s', available enrichers: %v", name, lb.getAvailableEnricherNames())
+		}
 		return nil, fmt.Errorf("unknown enricher: %s", name)
 	}
 	
@@ -172,6 +179,9 @@ func (lb *LoggerBuilder) createEnricherByName(name string) (core.LogEventEnriche
 func (lb *LoggerBuilder) createEnricher(config EnricherConfiguration) (core.LogEventEnricher, error) {
 	factory, ok := lb.enricherFactories[config.Name]
 	if !ok {
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown enricher '%s', available enrichers: %v", config.Name, lb.getAvailableEnricherNames())
+		}
 		return nil, fmt.Errorf("unknown enricher: %s", config.Name)
 	}
 	
@@ -182,10 +192,40 @@ func (lb *LoggerBuilder) createEnricher(config EnricherConfiguration) (core.LogE
 func (lb *LoggerBuilder) createFilter(config FilterConfiguration) (core.LogEventFilter, error) {
 	factory, ok := lb.filterFactories[config.Name]
 	if !ok {
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown filter '%s', available filters: %v", config.Name, lb.getAvailableFilterNames())
+		}
 		return nil, fmt.Errorf("unknown filter: %s", config.Name)
 	}
 	
 	return factory(config.Args)
+}
+
+// getAvailableSinkNames returns a list of registered sink names
+func (lb *LoggerBuilder) getAvailableSinkNames() []string {
+	names := make([]string, 0, len(lb.sinkFactories))
+	for name := range lb.sinkFactories {
+		names = append(names, name)
+	}
+	return names
+}
+
+// getAvailableEnricherNames returns a list of registered enricher names
+func (lb *LoggerBuilder) getAvailableEnricherNames() []string {
+	names := make([]string, 0, len(lb.enricherFactories))
+	for name := range lb.enricherFactories {
+		names = append(names, name)
+	}
+	return names
+}
+
+// getAvailableFilterNames returns a list of registered filter names
+func (lb *LoggerBuilder) getAvailableFilterNames() []string {
+	names := make([]string, 0, len(lb.filterFactories))
+	for name := range lb.filterFactories {
+		names = append(names, name)
+	}
+	return names
 }
 
 // Default sink factories
@@ -204,6 +244,9 @@ func createConsoleSink(args map[string]interface{}) (core.LogEventSink, error) {
 	case "NoColor":
 		theme = sinks.NoColorTheme()
 	default:
+		if selflog.IsEnabled() {
+			selflog.Printf("[configuration] unknown console theme '%s', using Default theme", themeName)
+		}
 		theme = sinks.DefaultTheme()
 	}
 	

@@ -13,6 +13,7 @@ import (
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // SeqSink writes log events to Seq
@@ -33,6 +34,7 @@ type SeqSink struct {
 	stopCh  chan struct{}
 	flushCh chan struct{}
 	wg      sync.WaitGroup
+	closed  sync.Once
 
 	// Options
 	useCompression bool
@@ -175,6 +177,9 @@ func (s *SeqSink) flush() error {
 	// Format events
 	payload, err := formatters.FormatForSeqIngestion(events)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[seq] failed to format %d events: %v", len(events), err)
+		}
 		return fmt.Errorf("failed to format events: %w", err)
 	}
 
@@ -187,6 +192,9 @@ func (s *SeqSink) flush() error {
 		if err := s.sendToSeq(payload); err == nil {
 			return nil
 		} else if attempt == s.retryCount {
+			if selflog.IsEnabled() {
+				selflog.Printf("[seq] failed to send %d events after %d attempts: %v", len(events), s.retryCount+1, err)
+			}
 			return fmt.Errorf("failed to send to Seq after %d attempts: %w", s.retryCount+1, err)
 		}
 	}
@@ -206,9 +214,15 @@ func (s *SeqSink) sendToSeq(payload []byte) error {
 		var buf bytes.Buffer
 		gz := gzip.NewWriter(&buf)
 		if _, err := gz.Write(payload); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[seq] gzip compression failed: %v", err)
+			}
 			return err
 		}
 		if err := gz.Close(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[seq] gzip close failed: %v", err)
+			}
 			return err
 		}
 		body = &buf
@@ -218,6 +232,9 @@ func (s *SeqSink) sendToSeq(payload []byte) error {
 	// Create request
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[seq] failed to create request: %v (url=%s)", err, url)
+		}
 		return err
 	}
 
@@ -229,6 +246,9 @@ func (s *SeqSink) sendToSeq(payload []byte) error {
 	// Send request
 	resp, err := s.client.Do(req)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[seq] HTTP request failed: %v (url=%s)", err, url)
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -253,18 +273,20 @@ func (s *SeqSink) sendToSeq(payload []byte) error {
 
 // Close flushes remaining events and stops the sink
 func (s *SeqSink) Close() error {
-	// Stop timer
-	if s.timer != nil {
-		s.timer.Stop()
-	}
+	var err error
+	s.closed.Do(func() {
+		// Stop timer
+		if s.timer != nil {
+			s.timer.Stop()
+		}
 
-	// Signal stop
-	close(s.stopCh)
+		// Signal stop
+		close(s.stopCh)
 
-	// Wait for background flusher
-	s.wg.Wait()
-
-	return nil
+		// Wait for background flusher
+		s.wg.Wait()
+	})
+	return err
 }
 
 // SeqHealthCheck checks if Seq is healthy

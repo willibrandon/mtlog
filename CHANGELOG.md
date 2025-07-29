@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **SelfLog** - Internal diagnostics facility for debugging silent failures
+  - Zero-cost when disabled with single atomic pointer check
+  - Flexible output to any `io.Writer` or custom function
+  - Thread-safe with `Sync()` wrapper for concurrent writes
+  - Environment variable support (`MTLOG_SELFLOG=stderr/stdout/file`)
+  - Structured output format: `{timestamp} [{component}] {message}`
+  - `IsEnabled()` guard to avoid formatting costs when disabled
+  - Performance: ~1.5ns/op when disabled, ~135ns/op to io.Discard
+  
+- **Comprehensive SelfLog Instrumentation**
+  - All sinks report write/emit failures with contextual information
+  - Async sink: buffer overflow, worker panics, dropped event counts
+  - Durable sink: persistence failures, buffer corruption
+  - Network sinks (Seq, Elasticsearch, Splunk): connection errors, HTTP failures
+  - File/Rolling sinks: permission errors, disk space issues
+  - Template validation: unclosed properties, empty names, invalid syntax
+  - Destructuring: panic recovery with type information
+  - Configuration: unknown types, parse failures, type mismatches
+  
+- **Idempotent Close Methods**
+  - ElasticsearchSink, SeqSink, and SplunkSink now use `sync.Once` for safe multiple calls
+  - Prevents double-close panics in complex shutdown scenarios
+  
+- **Template Validation**
+  - Runtime validation via `parser.ValidateTemplate()` 
+  - Detects unclosed properties, empty property names, spaces in names
+  - Validation errors logged through selflog for debugging
+  
+### Documentation
+- Added comprehensive troubleshooting guide (`docs/troubleshooting.md`)
+- SelfLog usage examples for debugging common issues
+- Custom sink implementation guidance with selflog integration
+- Performance troubleshooting tips and profiling guidance
+
+### Testing
+- Added selflog tests for all instrumented components (241 total tests)
+- Race condition tests for concurrent selflog usage
+- Benchmarks confirming performance targets
+- Cross-platform compatibility (Windows path handling)
+
 ## [0.4.0] - 2025-01-29
 
 ### Changed

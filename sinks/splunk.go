@@ -12,6 +12,7 @@ import (
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/parser"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // SplunkSink writes log events to Splunk HTTP Event Collector (HEC)
@@ -34,6 +35,7 @@ type SplunkSink struct {
 	stopCh     chan struct{}
 	flushCh    chan struct{}
 	wg         sync.WaitGroup
+	closed     sync.Once
 }
 
 // SplunkOption configures a Splunk sink
@@ -154,9 +156,12 @@ func (s *SplunkSink) Emit(event *core.LogEvent) {
 
 // Close closes the sink
 func (s *SplunkSink) Close() error {
-	close(s.stopCh)
-	s.wg.Wait()
-	return nil
+	var err error
+	s.closed.Do(func() {
+		close(s.stopCh)
+		s.wg.Wait()
+	})
+	return err
 }
 
 // worker handles batching and sending
@@ -217,6 +222,9 @@ func (s *SplunkSink) sendBatch(events []*core.LogEvent) {
 			buf.Write(data)
 			buf.WriteByte('\n')
 		} else {
+			if selflog.IsEnabled() {
+				selflog.Printf("[splunk] failed to marshal HEC event: %v", err)
+			}
 			// Fallback: create a simplified event if JSON marshaling fails
 			fallbackEvent := map[string]interface{}{
 				"time":  event.Timestamp.Unix(),
@@ -238,6 +246,9 @@ func (s *SplunkSink) sendBatch(events []*core.LogEvent) {
 		if s.sendRequest(buf.Bytes()) {
 			break
 		}
+		if i == 2 && selflog.IsEnabled() {
+			selflog.Printf("[splunk] failed to send batch of %d events after 3 attempts", len(events))
+		}
 		time.Sleep(time.Duration(i+1) * time.Second)
 	}
 }
@@ -246,6 +257,9 @@ func (s *SplunkSink) sendBatch(events []*core.LogEvent) {
 func (s *SplunkSink) sendRequest(body []byte) bool {
 	req, err := http.NewRequest("POST", s.url, bytes.NewReader(body))
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[splunk] failed to create request: %v (url=%s)", err, s.url)
+		}
 		return false
 	}
 
@@ -254,12 +268,23 @@ func (s *SplunkSink) sendRequest(body []byte) bool {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[splunk] HTTP request failed: %v (url=%s)", err, s.url)
+		}
 		return false
 	}
 	defer resp.Body.Close()
 
 	// Splunk HEC returns 2xx for success
-	return resp.StatusCode >= 200 && resp.StatusCode < 300
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return true
+	}
+	
+	// Log non-success status codes
+	if selflog.IsEnabled() {
+		selflog.Printf("[splunk] HTTP request failed with status %d (url=%s)", resp.StatusCode, s.url)
+	}
+	return false
 }
 
 // formatEvent formats a log event for Splunk HEC

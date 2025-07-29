@@ -8,6 +8,7 @@ import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/internal/parser"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // logger is the default implementation of core.Logger.
@@ -124,10 +125,17 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 		return
 	}
 	
+	// Validate template for selflog
+	if selflog.IsEnabled() {
+		if err := parser.ValidateTemplate(messageTemplate); err != nil {
+			selflog.Printf("[parser] template validation error: %v (template=%q)", err, messageTemplate)
+		}
+	}
+
 	// Parse the template with caching
 	tmpl, err := parser.ParseCached(messageTemplate)
 	if err != nil {
-		// Log parsing error and continue with raw template
+		// This shouldn't happen as the parser doesn't return errors, but keep for safety
 		tmpl = &parser.MessageTemplate{
 			Raw:    messageTemplate,
 			Tokens: []parser.MessageTemplateToken{&parser.TextToken{Text: messageTemplate}},

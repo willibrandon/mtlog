@@ -13,6 +13,7 @@ import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters/output"
 	"github.com/willibrandon/mtlog/internal/parser"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // ConsoleSink writes log events to the console.
@@ -148,6 +149,13 @@ func (cs *ConsoleSink) ShowProperties(show bool) {
 	cs.showProperties = show
 }
 
+// SetOutput sets the output writer for the console sink.
+func (cs *ConsoleSink) SetOutput(w io.Writer) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.output = w
+}
+
 // Emit writes the log event to the console.
 func (cs *ConsoleSink) Emit(event *core.LogEvent) {
 	cs.mu.Lock()
@@ -163,7 +171,11 @@ func (cs *ConsoleSink) Emit(event *core.LogEvent) {
 	}
 	
 	// Write to output
-	fmt.Fprintln(cs.output, message)
+	if _, err := fmt.Fprintln(cs.output, message); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[console] write failed: %v", err)
+		}
+	}
 }
 
 // Close releases any resources held by the sink.
@@ -177,6 +189,9 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 	// Parse template to render message
 	tmpl, err := parser.Parse(event.MessageTemplate)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[console] template parse error: %v (template=%q)", err, event.MessageTemplate)
+		}
 		// Fallback to raw template
 		tmpl = &parser.MessageTemplate{
 			Raw:    event.MessageTemplate,
@@ -247,7 +262,11 @@ func (cs *ConsoleSink) EmitSimple(timestamp time.Time, level core.LogEventLevel,
 	
 	// Use zero-allocation formatter
 	levelStr := formatLevel(level)
-	_ = writeSimple(cs.output, timestamp, levelStr, message)
+	if err := writeSimple(cs.output, timestamp, levelStr, message); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[console] write failed: %v", err)
+		}
+	}
 }
 
 // formatLevel converts a log level to its string representation.

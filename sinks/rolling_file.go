@@ -13,6 +13,7 @@ import (
 	
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // RollingInterval defines when to roll files based on time.
@@ -124,6 +125,9 @@ func (rfs *RollingFileSink) Emit(event *core.LogEvent) {
 	if rfs.shouldRoll() {
 		if err := rfs.roll(); err != nil {
 			// Log rolling failed, but continue logging
+			if selflog.IsEnabled() {
+				selflog.Printf("[rolling] failed to roll file: %v (path=%s)", err, rfs.options.FilePath)
+			}
 			fmt.Fprintf(os.Stderr, "Failed to roll log file: %v\n", err)
 		}
 	}
@@ -131,18 +135,27 @@ func (rfs *RollingFileSink) Emit(event *core.LogEvent) {
 	// Format the event
 	data, err := rfs.options.Formatter.Format(event)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] failed to format event: %v", err)
+		}
 		return
 	}
 	
 	// Write to file
 	n, err := rfs.writer.Write(data)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] write failed: %v (path=%s)", err, rfs.options.FilePath)
+		}
 		fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
 		return
 	}
 	
 	// Write newline
 	if _, err := rfs.writer.Write([]byte{'\n'}); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] write newline failed: %v (path=%s)", err, rfs.options.FilePath)
+		}
 		fmt.Fprintf(os.Stderr, "Failed to write newline to log file: %v\n", err)
 		return
 	}
@@ -172,6 +185,9 @@ func (rfs *RollingFileSink) Close() error {
 func (rfs *RollingFileSink) openFile() error {
 	file, err := os.OpenFile(rfs.options.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] failed to open file: %v (path=%s)", err, rfs.options.FilePath)
+		}
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	
@@ -179,6 +195,9 @@ func (rfs *RollingFileSink) openFile() error {
 	stat, err := file.Stat()
 	if err != nil {
 		file.Close()
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] failed to stat file: %v (path=%s)", err, rfs.options.FilePath)
+		}
 		return fmt.Errorf("failed to stat file: %w", err)
 	}
 	
@@ -209,12 +228,18 @@ func (rfs *RollingFileSink) roll() error {
 	// Flush and close current file
 	if rfs.writer != nil {
 		if err := rfs.writer.Flush(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[rolling] failed to flush writer: %v (path=%s)", err, rfs.options.FilePath)
+			}
 			return err
 		}
 	}
 	
 	if rfs.file != nil {
 		if err := rfs.file.Close(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[rolling] failed to close file: %v (path=%s)", err, rfs.options.FilePath)
+			}
 			return err
 		}
 	}
@@ -225,6 +250,9 @@ func (rfs *RollingFileSink) roll() error {
 	
 	// Rename current file
 	if err := os.Rename(rfs.options.FilePath, rolledPath); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[rolling] failed to rename file: %v (from=%s, to=%s)", err, rfs.options.FilePath, rolledPath)
+		}
 		return fmt.Errorf("failed to rename file: %w", err)
 	}
 	
@@ -232,6 +260,9 @@ func (rfs *RollingFileSink) roll() error {
 	if rfs.options.CompressRolledFiles {
 		if err := rfs.compressFile(rolledPath); err != nil {
 			// Compression failed, but file is already rolled
+			if selflog.IsEnabled() {
+				selflog.Printf("[rolling] failed to compress rolled file: %v (path=%s)", err, rolledPath)
+			}
 			fmt.Fprintf(os.Stderr, "Failed to compress rolled file: %v\n", err)
 		}
 	}
@@ -239,6 +270,9 @@ func (rfs *RollingFileSink) roll() error {
 	// Clean up old files
 	if rfs.options.RetainFileCount > 0 {
 		if err := rfs.cleanupOldFiles(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[rolling] failed to cleanup old files: %v", err)
+			}
 			fmt.Fprintf(os.Stderr, "Failed to cleanup old files: %v\n", err)
 		}
 	}

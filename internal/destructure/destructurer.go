@@ -6,6 +6,7 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // DefaultDestructurer is the default implementation of core.Destructurer.
@@ -54,15 +55,40 @@ func (d *DefaultDestructurer) RegisterScalarType(t reflect.Type) {
 }
 
 // TryDestructure attempts to destructure a value into a log-friendly representation.
-func (d *DefaultDestructurer) TryDestructure(value interface{}, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
+func (d *DefaultDestructurer) TryDestructure(value interface{}, propertyFactory core.LogEventPropertyFactory) (prop *core.LogEventProperty, ok bool) {
+	// Recover from panics during destructuring
+	defer func() {
+		if r := recover(); r != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[destructure] panic during destructuring: %v (type=%T)", r, value)
+			}
+			// Return the value as-is with type information
+			prop = propertyFactory.CreateProperty("", fmt.Sprintf("%T(%v)", value, value))
+			ok = true
+		}
+	}()
+
 	if value == nil {
 		return propertyFactory.CreateProperty("", nil), true
 	}
 	
 	// Check if the value implements LogValue interface
 	if lv, ok := value.(core.LogValue); ok {
-		// Recursively destructure the LogValue result
-		logValue := lv.LogValue()
+		// Protect against panics in LogValue implementation
+		var logValue interface{}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					if selflog.IsEnabled() {
+						selflog.Printf("[destructure] LogValue.LogValue() panicked: %v (type=%T)", r, value)
+					}
+					// Use the original value if LogValue panics
+					logValue = value
+				}
+			}()
+			logValue = lv.LogValue()
+		}()
+		
 		destructured := d.destructure(logValue, 0)
 		return propertyFactory.CreateProperty("", destructured), true
 	}
@@ -72,7 +98,18 @@ func (d *DefaultDestructurer) TryDestructure(value interface{}, propertyFactory 
 }
 
 // destructure recursively destructures a value.
-func (d *DefaultDestructurer) destructure(value interface{}, depth int) interface{} {
+func (d *DefaultDestructurer) destructure(value interface{}, depth int) (result interface{}) {
+	// Recover from panics during reflection operations
+	defer func() {
+		if r := recover(); r != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[destructure] panic during reflection: %v (type=%T, depth=%d)", r, value, depth)
+			}
+			// Return safe representation
+			result = fmt.Sprintf("%T(%v)", value, value)
+		}
+	}()
+
 	if value == nil {
 		return nil
 	}

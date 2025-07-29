@@ -10,6 +10,7 @@ import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters/output"
 	"github.com/willibrandon/mtlog/internal/parser"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // FileSink writes log events to a file.
@@ -85,8 +86,9 @@ func (fs *FileSink) Emit(event *core.LogEvent) {
 	
 	// Write to file
 	if _, err := fs.file.WriteString(message + "\n"); err != nil {
-		// Log to stderr if file write fails
-		fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] write failed: %v (path=%s)", err, fs.path)
+		}
 	}
 }
 
@@ -103,11 +105,17 @@ func (fs *FileSink) Close() error {
 	
 	// Sync to ensure all data is written
 	if err := fs.file.Sync(); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] sync failed: %v (path=%s)", err, fs.path)
+		}
 		return fmt.Errorf("failed to sync log file: %w", err)
 	}
 	
 	// Close the file
 	if err := fs.file.Close(); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] close failed: %v (path=%s)", err, fs.path)
+		}
 		return fmt.Errorf("failed to close log file: %w", err)
 	}
 	
@@ -119,12 +127,18 @@ func (fs *FileSink) open() error {
 	// Ensure directory exists
 	dir := filepath.Dir(fs.path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] failed to create directory: %v (path=%s)", err, dir)
+		}
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 	
 	// Open file with append mode
 	file, err := os.OpenFile(fs.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] failed to open file: %v (path=%s)", err, fs.path)
+		}
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
 	
@@ -139,6 +153,9 @@ func (fs *FileSink) formatEvent(event *core.LogEvent) string {
 	// Parse template to render message
 	tmpl, err := parser.Parse(event.MessageTemplate)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[file] template parse error: %v (template=%q)", err, event.MessageTemplate)
+		}
 		// Fallback to raw template
 		tmpl = &parser.MessageTemplate{
 			Raw:    event.MessageTemplate,

@@ -2,6 +2,7 @@ package sinks
 
 import (
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // TypedSink is a generic sink that can handle specific event types
@@ -44,8 +45,11 @@ func (s *TypedBatchingSink[T]) EmitTyped(event *core.LogEvent, data T) error {
 
 // Flush sends all batched events
 func (s *TypedBatchingSink[T]) Flush() error {
-	for _, te := range s.batch {
+	for i, te := range s.batch {
 		if err := s.innerSink.EmitTyped(te.Event, te.Data); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[typed-batching] failed to emit typed event %d/%d: %v", i+1, len(s.batch), err)
+			}
 			return err
 		}
 	}
@@ -56,6 +60,9 @@ func (s *TypedBatchingSink[T]) Flush() error {
 // Close flushes and closes the sink
 func (s *TypedBatchingSink[T]) Close() error {
 	if err := s.Flush(); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[typed-batching] failed to flush on close: %v", err)
+		}
 		return err
 	}
 	return s.innerSink.Close()
@@ -78,7 +85,12 @@ func NewFilteredSink[T any](innerSink TypedSink[T], predicate func(*core.LogEven
 // EmitTyped emits only if predicate returns true
 func (s *FilteredSink[T]) EmitTyped(event *core.LogEvent, data T) error {
 	if s.predicate(event, data) {
-		return s.innerSink.EmitTyped(event, data)
+		if err := s.innerSink.EmitTyped(event, data); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[typed-filtered] failed to emit typed event: %v", err)
+			}
+			return err
+		}
 	}
 	return nil
 }

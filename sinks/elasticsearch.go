@@ -11,6 +11,7 @@ import (
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/parser"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // ElasticsearchSink writes log events to Elasticsearch
@@ -33,6 +34,7 @@ type ElasticsearchSink struct {
 	stopCh  chan struct{}
 	flushCh chan struct{}
 	wg      sync.WaitGroup
+	closed  sync.Once
 
 	// Options
 	useDataStreams bool
@@ -141,9 +143,12 @@ func (es *ElasticsearchSink) Emit(event *core.LogEvent) {
 
 // Close closes the sink
 func (es *ElasticsearchSink) Close() error {
-	close(es.stopCh)
-	es.wg.Wait()
-	return nil
+	var err error
+	es.closed.Do(func() {
+		close(es.stopCh)
+		es.wg.Wait()
+	})
+	return err
 }
 
 // worker handles batching and sending
@@ -213,12 +218,18 @@ func (es *ElasticsearchSink) sendBatch(events []*core.LogEvent) {
 		}
 		
 		if err := json.NewEncoder(&buf).Encode(action); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[elasticsearch] failed to encode bulk action: %v", err)
+			}
 			continue
 		}
 
 		// Write document
 		doc := es.formatEvent(event)
 		if err := json.NewEncoder(&buf).Encode(doc); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[elasticsearch] failed to encode document: %v", err)
+			}
 			continue
 		}
 	}
@@ -229,6 +240,9 @@ func (es *ElasticsearchSink) sendBatch(events []*core.LogEvent) {
 	for i := 0; i < 3; i++ {
 		if es.sendBulkRequest(bulkData) {
 			break
+		}
+		if i == 2 && selflog.IsEnabled() {
+			selflog.Printf("[elasticsearch] failed to send batch of %d events after 3 attempts", len(events))
 		}
 		time.Sleep(time.Duration(i+1) * time.Second)
 	}
@@ -242,6 +256,9 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 		
 		req, err := http.NewRequest("POST", bulkURL, bytes.NewReader(body))
 		if err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[elasticsearch] failed to create bulk request: %v (url=%s)", err, bulkURL)
+			}
 			continue
 		}
 
@@ -256,6 +273,9 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 
 		resp, err := es.client.Do(req)
 		if err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[elasticsearch] HTTP request failed: %v (url=%s)", err, bulkURL)
+			}
 			continue
 		}
 		defer resp.Body.Close()
@@ -291,6 +311,11 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 						
 						if errorInfo != nil {
 							// Individual document error - could log or handle
+							if selflog.IsEnabled() {
+								errType := errorInfo["type"]
+								errReason := errorInfo["reason"]
+								selflog.Printf("[elasticsearch] bulk item error: type=%v, reason=%v", errType, errReason)
+							}
 							// In production, you might want to retry failed documents
 							// For now, increment a counter or log the error
 							continue // Skip to next item

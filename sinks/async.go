@@ -8,6 +8,7 @@ import (
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // AsyncOptions configures the async sink wrapper.
@@ -116,6 +117,12 @@ func (as *AsyncSink) Emit(event *core.LogEvent) {
 		case OverflowDrop:
 			// Drop this event
 			as.dropped.Add(1)
+			if selflog.IsEnabled() {
+				dropped := as.dropped.Load()
+				if dropped == 1 || dropped%1000 == 0 { // Log first drop and every 1000th
+					selflog.Printf("[async] buffer full, dropped %d events total", dropped)
+				}
+			}
 			
 		case OverflowDropOldest:
 			// Try to remove the oldest event
@@ -168,6 +175,18 @@ func (as *AsyncSink) Close() error {
 // worker is the background goroutine that processes events.
 func (as *AsyncSink) worker() {
 	defer as.wg.Done()
+	
+	// Recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[async] worker panic: %v", r)
+			}
+			if as.options.OnError != nil {
+				as.options.OnError(fmt.Errorf("worker panic: %v", r))
+			}
+		}
+	}()
 	
 	// Batch for collecting events
 	var batch []*core.LogEvent
@@ -248,6 +267,9 @@ func (as *AsyncSink) emitSingle(event *core.LogEvent) {
 	defer func() {
 		if r := recover(); r != nil {
 			as.errors.Add(1)
+			if selflog.IsEnabled() {
+				selflog.Printf("[async] wrapped sink panic: %v", r)
+			}
 			if as.options.OnError != nil {
 				as.options.OnError(fmt.Errorf("panic in wrapped sink: %v", r))
 			}
@@ -267,6 +289,9 @@ func (as *AsyncSink) flushBatch(batch []*core.LogEvent) {
 		defer func() {
 			if r := recover(); r != nil {
 				as.errors.Add(uint64(len(batch)))
+				if selflog.IsEnabled() {
+					selflog.Printf("[async] wrapped sink batch panic: %v (batch_size=%d)", r, len(batch))
+				}
 				if as.options.OnError != nil {
 					as.options.OnError(fmt.Errorf("panic in wrapped sink batch emit: %v", r))
 				}

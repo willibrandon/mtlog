@@ -18,6 +18,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Pipeline architecture** for clean separation of concerns
 - **Type-safe generics** for better compile-time safety
 - **LogValue interface** for safe logging of sensitive data
+- **SelfLog diagnostics** for debugging silent failures and configuration issues
 - **7.7x faster** than zap for simple string logging
 - **Standard library compatibility** via slog.Handler adapter (Go 1.21+)
 - **Kubernetes ecosystem** support via logr.LogSink adapter
@@ -831,6 +832,7 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 - **[Configuration](./docs/configuration.md)** - JSON-based configuration
 - **[Performance](./docs/performance.md)** - Benchmarks and optimization
 - **[Testing](./docs/testing.md)** - Container-based integration testing
+- **[Troubleshooting](./docs/troubleshooting.md)** - Debugging guide with selflog
 
 ## Testing
 

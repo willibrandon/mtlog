@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // DurableOptions configures the durable buffer sink.
@@ -255,6 +256,9 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 	defer func() {
 		if r := recover(); r != nil {
 			// Sink panicked, consider it unhealthy
+			if selflog.IsEnabled() {
+				selflog.Printf("[durable] wrapped sink panicked: %v", r)
+			}
 			ds.sinkHealthy.Store(false)
 		}
 	}()
@@ -283,6 +287,9 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 		defer func() {
 			if r := recover(); r != nil {
 				// Sink panicked, mark as unhealthy
+				if selflog.IsEnabled() {
+					selflog.Printf("[durable] wrapped sink panicked: %v", r)
+				}
 				ds.sinkHealthy.Store(false)
 				if ds.options.OnError != nil {
 					ds.options.OnError(fmt.Errorf("sink panicked: %v", r))
@@ -417,6 +424,9 @@ func (ds *DurableSink) bufferEvent(event *core.LogEvent) error {
 	// Check if we need to rotate the buffer file
 	if ds.currentSize.Load() >= ds.options.MaxBufferSize {
 		if err := ds.rotateBufferFile(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[durable] failed to rotate buffer file: %v", err)
+			}
 			return fmt.Errorf("failed to rotate buffer file: %w", err)
 		}
 	}
@@ -428,6 +438,9 @@ func (ds *DurableSink) bufferEvent(event *core.LogEvent) error {
 	}
 	
 	if err := ds.encoder.Encode(bufferedEvent); err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[durable] failed to encode event: %v", err)
+		}
 		return fmt.Errorf("failed to encode event: %w", err)
 	}
 	
@@ -634,6 +647,9 @@ func (ds *DurableSink) getBufferFiles() ([]string, error) {
 func (ds *DurableSink) processBufferFile(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
+		if selflog.IsEnabled() {
+			selflog.Printf("[durable] failed to open buffer file: %v (path=%s)", err, filename)
+		}
 		return err
 	}
 	defer file.Close()
@@ -644,6 +660,10 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 	for scanner.Scan() {
 		var bufferedEvent BufferedLogEvent
 		if err := json.Unmarshal(scanner.Bytes(), &bufferedEvent); err != nil {
+			// Log malformed events sparingly
+			if selflog.IsEnabled() {
+				selflog.Printf("[durable] skipping malformed event in buffer: %v", err)
+			}
 			continue // Skip malformed events
 		}
 		
@@ -651,6 +671,9 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 		
 		if len(batch) >= ds.options.BatchSize {
 			if !ds.deliverBatch(batch) {
+				if selflog.IsEnabled() {
+					selflog.Printf("[durable] batch delivery failed for %d events", len(batch))
+				}
 				return fmt.Errorf("batch delivery failed")
 			}
 			batch = batch[:0]
@@ -660,6 +683,9 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 	// Deliver remaining events
 	if len(batch) > 0 {
 		if !ds.deliverBatch(batch) {
+			if selflog.IsEnabled() {
+				selflog.Printf("[durable] final batch delivery failed for %d events", len(batch))
+			}
 			return fmt.Errorf("final batch delivery failed")
 		}
 	}
