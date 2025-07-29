@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dependency Management**
+  - Moved benchmarks to separate module (`benchmarks/`) to isolate zap and zerolog dependencies
+  - Users no longer need to download benchmark-only dependencies when using mtlog
+  - Fixed zero-allocation benchmarks by implementing `EmitSimple` in benchmark discardSink
+  - Main module now only depends on go-logr/logr (required for logr integration)
+
 ## [0.3.0] - 2025-01-28
 
 ### Added
