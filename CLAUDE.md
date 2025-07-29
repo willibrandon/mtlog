@@ -33,6 +33,13 @@ Message Template Parser → Enrichment → Filtering → Destructuring → Sinks
 - `LogEventSink` - Outputs events to destinations (Console, File, Seq, etc.)
 - `LoggingLevelSwitch` - Dynamic level control for runtime configuration
 
+### 5. SelfLog Diagnostics
+- Internal diagnostic facility for debugging silent failures
+- Zero-cost when disabled (0.37ns/op with guard check)
+- Outputs to any `io.Writer` or custom function
+- Environment variable support: `MTLOG_SELFLOG=stderr/stdout/file`
+- Reports sink failures, template errors, panic recovery, and configuration issues
+
 ## Development Commands
 
 ```bash
@@ -120,6 +127,7 @@ mtlog/
 ├── enrichers/         # Built-in enrichers (machine name, thread ID, etc.)
 ├── filters/           # Level, predicate, sampling, and rate limit filters
 ├── destructure/       # Type destructuring with LogValue support
+├── selflog/           # Internal diagnostics for debugging
 ├── sinks/             # Output destinations
 │   ├── async.go       # Async sink wrapper with batching
 │   ├── console.go     # Console output with themes
@@ -168,11 +176,12 @@ GitHub Actions workflow includes:
 - Code coverage reporting
 
 ### Test Categories
-1. **Unit Tests** (330+ tests) - Fast, focused tests using MemorySink
+1. **Unit Tests** (570+ tests) - Fast, focused tests using MemorySink
 2. **Integration Tests** - Real service testing with Docker containers
 3. **Benchmarks** - Performance and allocation tracking
 4. **Fuzz Tests** - Parser robustness testing
 5. **Race Tests** - Concurrency safety verification
+6. **SelfLog Tests** - Internal diagnostics verification
 
 ## Key Features Implemented
 
@@ -204,6 +213,7 @@ GitHub Actions workflow includes:
 - ✓ Generic logger interface
 - ✓ Short method names
 - ✓ Static analyzer (mtlog-analyzer)
+- ✓ SelfLog diagnostics facility
 
 ### Enrichers & Filters
 - ✓ Machine name enricher
@@ -258,6 +268,25 @@ log := mtlog.New(
 
 // Change level at runtime
 levelSwitch.SetLevel(core.DebugLevel)
+```
+
+### Debugging with SelfLog
+```go
+// Enable for troubleshooting
+selflog.Enable(os.Stderr)
+defer selflog.Disable()
+
+// Or use environment variable
+// export MTLOG_SELFLOG=stderr
+
+// Custom sinks can use selflog
+func (s *MySink) Emit(event *core.LogEvent) {
+    if err := s.doEmit(event); err != nil {
+        if selflog.IsEnabled() {
+            selflog.Printf("[mysink] emit failed: %v", err)
+        }
+    }
+}
 ```
 
 ## Important Notes
