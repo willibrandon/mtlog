@@ -7,25 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-07-30
+
 ### Added
-- **OTEL Compatibility** - Support for dots in property names (#2)
+- **OTEL Compatibility** - Support for dots in property names (#4)
   - Enable OpenTelemetry-style property names like `{http.method}`, `{service.name}`, `{db.system}`
   - Validation prevents properties that are only dots (e.g., `{.}`, `{..}`)
   - Analyzer updated to skip PascalCase suggestions for dotted properties
   - Works with all features: format specifiers, capturing hints, Go template syntax
   - Example: `log.Information("HTTP {http.method} to {http.url} took {http.duration.ms:F2}ms", "GET", "/api", 123.45)`
 
-- **New Output Template Syntax** - `${...}` for built-in elements (#3)
+### Changed
+- **BREAKING: New Output Template Syntax** - `${...}` for built-in elements (#6)
   - Output templates now use `${...}` syntax for built-in elements to prevent ambiguity
   - Built-in elements: `${Timestamp}`, `${Level}`, `${Message}`, `${Exception}`, `${NewLine}`, `${Properties}`
   - User properties continue to use `{...}` syntax: `{UserId}`, `{RequestId}`, etc.
   - Prevents conflicts when logging properties with names like "Message" or "Level"
   - Example: `mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}")`
   - All format specifiers work with the new syntax: `${Timestamp:yyyy-MM-dd}`, `${Level:u3}`
+  - Migration required: Update all output templates in your configuration and code
 
-### Changed
-- **Breaking: Renamed 'destructuring' to 'capturing'** (#1)
-  - Based on feedback from Nicholas Blumhardt (Serilog creator)
+- **BREAKING: Renamed 'destructuring' to 'capturing'** (#5)
   - `Destructurer` interface → `Capturer` interface
   - `TryDestructure` method → `TryCapture` method
   - `WithDestructuring()` → `WithCapturing()`
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `examples/destructuring/` → `examples/capturing/`
   - All documentation and analyzer messages updated
   - This better reflects the operation: capturing structured data from objects
+  - Migration required: Update all references in your code
 
 ## [0.5.0] - 2025-07-29
 
@@ -254,6 +257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.6.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.6.0
 [0.5.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.5.0
 [0.4.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.4.0
 [0.3.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.3.0
