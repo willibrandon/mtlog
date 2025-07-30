@@ -15,11 +15,6 @@ type Token interface {
 	Render(event *core.LogEvent) string
 }
 
-// RenderContext holds the context for rendering with themes
-type RenderContext struct {
-	Theme    interface{} // Will be *sinks.ConsoleTheme but we avoid circular dependency
-	UseColor bool
-}
 
 // TextToken represents literal text in the template
 type TextToken struct {
@@ -65,7 +60,6 @@ type PropertyToken struct {
 	Format       string
 }
 
-
 func (t *PropertyToken) Render(event *core.LogEvent) string {
 	// Check event properties
 	if val, ok := event.Properties[t.PropertyName]; ok {
@@ -90,40 +84,6 @@ func (t *Template) Render(event *core.LogEvent) string {
 	return sb.String()
 }
 
-// RenderWithTheme renders the template with theme colors
-func (t *Template) RenderWithTheme(event *core.LogEvent, ctx *RenderContext) string {
-	var sb strings.Builder
-	for _, token := range t.Tokens {
-		text := token.Render(event)
-		
-		// Apply coloring based on token type and theme
-		if ctx.UseColor && ctx.Theme != nil {
-			switch tok := token.(type) {
-			case *BuiltInToken:
-				text = t.colorizeBuiltIn(tok.Name, text, event, ctx)
-			case *PropertyToken:
-				text = t.colorizeProperty(tok.PropertyName, text, event, ctx)
-			}
-		}
-		
-		sb.WriteString(text)
-	}
-	return sb.String()
-}
-
-// colorizeBuiltIn applies theme colors to built-in elements
-func (t *Template) colorizeBuiltIn(name string, text string, event *core.LogEvent, ctx *RenderContext) string {
-	// We'll need to pass color functions from the sink to avoid circular dependencies
-	// For now, return uncolored text
-	return text
-}
-
-// colorizeProperty applies theme colors to specific properties
-func (t *Template) colorizeProperty(propertyName string, text string, event *core.LogEvent, ctx *RenderContext) string {
-	// We'll need to pass color functions from the sink to avoid circular dependencies
-	// For now, return uncolored text
-	return text
-}
 
 // Parse parses an output template string
 func Parse(template string) (*Template, error) {
