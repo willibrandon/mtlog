@@ -229,7 +229,7 @@ func BenchmarkComplexObject(b *testing.B) {
 	b.Run("mtlog", func(b *testing.B) {
 		logger := mtlog.New(
 			mtlog.WithSink(&discardSink{}),
-			mtlog.WithDestructuring(),
+			mtlog.WithCapturing(),
 		)
 		b.ResetTimer()
 		b.ReportAllocs()

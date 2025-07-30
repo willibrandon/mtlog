@@ -34,7 +34,7 @@ var _ logr.LogSink = (*LogrSink)(nil)
 //	logrLogger := logr.New(mtlogr.NewLogrSink(mtlogLogger))
 //
 // All log events from logr will be processed through mtlog's pipeline,
-// including enrichment, filtering, destructuring, and output to configured sinks.
+// including enrichment, filtering, capturing, and output to configured sinks.
 func NewLogrSink(logger core.Logger) *LogrSink {
 	return &LogrSink{
 		logger: logger,

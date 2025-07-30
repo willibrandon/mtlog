@@ -90,11 +90,11 @@ func Parse(template string) (*MessageTemplate, error) {
 						if propertyContent == "" {
 							// Empty property name - use empty property token
 							tokens = append(tokens, &PropertyToken{
-								PropertyName:  "",
-								Destructuring: Default,
+								PropertyName: "",
+								Capturing:    Default,
 							})
 						} else {
-							// Parse property token (including destructuring hints)
+							// Parse property token (including capturing hints)
 							propToken := parsePropertyToken(propertyContent)
 							tokens = append(tokens, propToken)
 						}
@@ -104,16 +104,16 @@ func Parse(template string) (*MessageTemplate, error) {
 						continue
 					} else if len(content) > 0 && (content[0] == '@' || content[0] == '$') && len(content) > 1 && content[1] == '.' {
 						// Handle {{@.Property}} or {{$.Property}}
-						destructuring := Default
+						capturing := Default
 						if content[0] == '@' {
-							destructuring = Destructure
+							capturing = Capture
 						} else if content[0] == '$' {
-							destructuring = AsScalar
+							capturing = AsScalar
 						}
 						
 						propertyContent := content[2:] // Skip @. or $.
 						propToken := parsePropertyToken(propertyContent)
-						propToken.Destructuring = destructuring
+						propToken.Capturing = capturing
 						tokens = append(tokens, propToken)
 						
 						i = i + 2 + closeIdx + 2 // Skip past }}
@@ -186,19 +186,19 @@ func Parse(template string) (*MessageTemplate, error) {
 
 // parsePropertyToken parses the content of a property token.
 func parsePropertyToken(content string) *PropertyToken {
-	destructuring := Default
+	capturing := Default
 	propertyName := content
 	format := ""
 	alignment := 0
 	
-	// Check for destructuring prefix
+	// Check for capturing prefix
 	if len(content) > 0 {
 		switch content[0] {
 		case '@':
-			destructuring = Destructure
+			capturing = Capture
 			propertyName = content[1:]
 		case '$':
-			destructuring = AsScalar
+			capturing = AsScalar
 			propertyName = content[1:]
 		}
 	}
@@ -247,14 +247,14 @@ func parsePropertyToken(content string) *PropertyToken {
 	if !isValidPropertyName(propertyName) {
 		// Invalid property name - return as-is
 		return &PropertyToken{
-			PropertyName:  content,
-			Destructuring: Default,
+			PropertyName: content,
+			Capturing:    Default,
 		}
 	}
 	
 	return &PropertyToken{
-		PropertyName:  propertyName,
-		Destructuring: destructuring,
+		PropertyName: propertyName,
+		Capturing:    capturing,
 		Format:        format,
 		Alignment:     alignment,
 	}

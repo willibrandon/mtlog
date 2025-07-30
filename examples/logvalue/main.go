@@ -158,7 +158,7 @@ func (e LoggableErrorContext) LogValue() interface{} {
 func main() {
 	log := mtlog.New(
 		mtlog.WithConsoleProperties(),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 	)
 	
 	// Example 1: User with sensitive data

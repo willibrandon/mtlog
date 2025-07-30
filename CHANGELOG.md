@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **OTEL Compatibility** - Support for dots in property names (#2)
+  - Enable OpenTelemetry-style property names like `{http.method}`, `{service.name}`, `{db.system}`
+  - Validation prevents properties that are only dots (e.g., `{.}`, `{..}`)
+  - Analyzer updated to skip PascalCase suggestions for dotted properties
+  - Works with all features: format specifiers, capturing hints, Go template syntax
+  - Example: `log.Information("HTTP {http.method} to {http.url} took {http.duration.ms:F2}ms", "GET", "/api", 123.45)`
+
+### Changed
+- **Breaking: Renamed 'destructuring' to 'capturing'** (#1)
+  - Based on feedback from Nicholas Blumhardt (Serilog creator)
+  - `Destructurer` interface → `Capturer` interface
+  - `TryDestructure` method → `TryCapture` method
+  - `WithDestructuring()` → `WithCapturing()`
+  - `internal/destructure/` → `internal/capture/`
+  - `examples/destructuring/` → `examples/capturing/`
+  - All documentation and analyzer messages updated
+  - This better reflects the operation: capturing structured data from objects
+
 ## [0.5.0] - 2025-07-29
 
 ### Added
@@ -26,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Network sinks (Seq, Elasticsearch, Splunk): connection errors, HTTP failures
   - File/Rolling sinks: permission errors, disk space issues
   - Template validation: unclosed properties, empty names, invalid syntax
-  - Destructuring: panic recovery with type information
+  - Capturing: panic recovery with type information
   - Configuration: unknown types, parse failures, type mismatches
   
 - **Idempotent Close Methods**
@@ -113,7 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validates format specifiers
   - Suggests property naming conventions (PascalCase)
   - Detects duplicate properties
-  - Suggests destructuring hints for complex types
+  - Suggests capturing hints for complex types
   - Validates error logging patterns
   - Suggests constants for common context keys
   - Configuration flags: `-strict`, `-common-keys`, `-disable`, `-ignore-dynamic-templates`, `-strict-logger-types`, `-downgrade-errors`
@@ -125,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Internal Organization**
-  - Moved implementation packages (destructure, enrichers, filters, formatters, parser, handler) to `internal/` directory
+  - Moved implementation packages (capture, enrichers, filters, formatters, parser, handler) to `internal/` directory
   - Public API remains unchanged - all user-facing packages and interfaces are unaffected
   
 ### Fixed
@@ -214,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pipeline Components**
   - Rich enrichment with built-in and custom enrichers
   - Advanced filtering including rate limiting and sampling
-  - Type-safe destructuring with caching for performance
+  - Type-safe capturing with caching for performance
   - Dynamic level control with runtime adjustments
   - Configuration from JSON for flexible deployment
 

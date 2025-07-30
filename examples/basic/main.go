@@ -24,7 +24,7 @@ func main() {
 	log.Warning("Warning - user {UserId} has {AttemptCount} failed login attempts", userId, 3)
 	log.Error("Error - failed to process order {OrderId} for user {UserId}", "ORD-789", userId)
 	
-	// Test destructuring hints
+	// Test capturing hints
 	user := map[string]interface{}{
 		"id":    userId,
 		"name":  userName,

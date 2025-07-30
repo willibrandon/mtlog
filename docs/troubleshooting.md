@@ -89,7 +89,7 @@ Example output:
    - Invalid property names: `"Count {123}"`
 
 4. **Panic Recovery**
-   - Destructuring panics (infinite recursion, nil dereference)
+   - Capturing panics (infinite recursion, nil dereference)
    - LogValue implementation panics
    - Worker goroutine panics in async sinks
 
@@ -199,10 +199,10 @@ sink, _ := sinks.NewElasticsearchSink("http://localhost:9200",
    )
    ```
 
-2. **Slow Destructuring**
+2. **Slow Capturing**
    ```go
-   // Limit destructuring depth
-   destructurer := destructure.NewDestructurer(
+   // Limit capturing depth
+   capturer := capture.NewCapturer(
        2,    // Max depth (default: 3)
        100,  // Max string length
        50,   // Max collection items

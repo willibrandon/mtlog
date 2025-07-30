@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 2. Pipeline Architecture
 The logging pipeline follows this flow:
 ```
-Message Template Parser → Enrichment → Filtering → Destructuring → Sinks (Output)
+Message Template Parser → Enrichment → Filtering → Capturing → Sinks (Output)
 ```
 
 ### 3. Ecosystem Compatibility
@@ -30,7 +30,7 @@ Message Template Parser → Enrichment → Filtering → Destructuring → Sinks
 - `Logger` - Main logging interface with methods like `Information()`, `Error()`, etc.
 - `LogEventEnricher` - Adds contextual properties to log events
 - `LogEventFilter` - Determines which events proceed through pipeline
-- `Destructurer` - Converts complex types to log-appropriate representations
+- `Capturer` - Converts complex types to log-appropriate representations
 - `LogEventSink` - Outputs events to destinations (Console, File, Seq, etc.)
 - `LoggingLevelSwitch` - Dynamic level control for runtime configuration
 
@@ -95,7 +95,7 @@ go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
 - Format specifier validation
 - Property naming conventions (PascalCase suggestions)
 - Duplicate property detection
-- Destructuring hints for complex types
+- Capturing hints for complex types
 - Error logging pattern validation
 - Context key constant suggestions
 
@@ -127,7 +127,7 @@ mtlog/
 ├── parser/            # Message template parsing with format specifiers
 ├── enrichers/         # Built-in enrichers (machine name, thread ID, etc.)
 ├── filters/           # Level, predicate, sampling, and rate limit filters
-├── destructure/       # Type destructuring with LogValue support
+├── capture/           # Type capturing with LogValue support
 ├── selflog/           # Internal diagnostics for debugging
 ├── sinks/             # Output destinations
 │   ├── async.go       # Async sink wrapper with batching
@@ -191,7 +191,7 @@ GitHub Actions workflow includes:
 - ✓ Property extraction and rendering
 - ✓ Pipeline architecture
 - ✓ Context propagation
-- ✓ Structured destructuring
+- ✓ Structured capturing
 - ✓ LogValue protocol support
 
 ### Sinks

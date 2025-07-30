@@ -37,7 +37,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Rich enrichment** with built-in and custom enrichers
 - **Advanced filtering** including rate limiting and sampling
 - **Minimum level overrides** by source context patterns
-- **Type-safe destructuring** with caching for performance
+- **Type-safe capturing** with caching for performance
 - **Dynamic level control** with runtime adjustments
 - **Configuration from JSON** for flexible deployment
 
@@ -71,7 +71,7 @@ func main() {
     userId := 123
     log.Information("User {UserId} logged in", userId)
     
-    // Destructuring complex types
+    // Capturing complex types
     order := Order{ID: 456, Total: 99.95}
     log.Information("Processing {@Order}", order)
 }
@@ -107,8 +107,8 @@ log.Information("Service {service.name} in {service.namespace}", "api", "product
 // Mix both syntaxes as needed
 log.Information("User {UserId} ({{.Username}}) from {IP}", userId, username, ipAddress)
 
-// Destructuring hints:
-// @ - destructure complex types into properties
+// Capturing hints:
+// @ - capture complex types into properties
 log.Information("Order {@Order} created", order)
 
 // $ - force scalar rendering (stringify)
@@ -157,7 +157,7 @@ log := mtlog.New(
 The logging pipeline processes events through distinct stages:
 
 ```
-Message Template Parser → Enrichment → Filtering → Destructuring → Output
+Message Template Parser → Enrichment → Filtering → Capturing → Output
 ```
 
 ### Configuration with Functional Options
@@ -180,9 +180,9 @@ log := mtlog.New(
     mtlog.WithDynamicLevel(levelSwitch), // Runtime level control
     mtlog.WithFilter(customFilter),
     
-    // Destructuring
-    mtlog.WithDestructuring(),          // Enable @ hints
-    mtlog.WithDestructuringDepth(5),    // Max depth
+    // Capturing
+    mtlog.WithCapturing(),          // Enable @ hints
+    mtlog.WithCapturingDepth(5),    // Max depth
 )
 ```
 
@@ -654,7 +654,7 @@ See the [examples](./examples) directory for complete examples:
 - [Type-based logging](./examples/fortype/main.go)
 - [LogContext scoped properties](./examples/logcontext/main.go)
 - [Advanced filtering](./examples/filtering/main.go)
-- [Destructuring](./examples/destructuring/main.go)
+- [Capturing](./examples/capturing/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
 - [Console themes](./examples/themes/main.go)
 - [Output templates](./examples/output-templates/main.go)
@@ -759,7 +759,7 @@ The analyzer detects:
 - Template/argument count mismatches
 - Invalid property names (spaces, starting with numbers)
 - Duplicate properties in templates
-- Missing destructuring hints for complex types
+- Missing capturing hints for complex types
 - Error logging without error values
 
 Example catches:
@@ -818,11 +818,11 @@ log := mtlog.New(
 
 ### Type Registration
 
-Register types for special handling during destructuring:
+Register types for special handling during capturing:
 
 ```go
-destructurer := destructure.NewDefaultDestructurer()
-destructurer.RegisterScalarType(reflect.TypeOf(uuid.UUID{}))
+capturer := capture.NewDefaultCapturer()
+capturer.RegisterScalarType(reflect.TypeOf(uuid.UUID{}))
 ```
 
 ## Documentation

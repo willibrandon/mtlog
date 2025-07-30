@@ -35,7 +35,7 @@ func testAll() {
 	log.Information("Duration: {http.duration.ms:F2}ms", 123.456)
 	log.Information("Status code: {http.status.code:000}", 200)
 	
-	// Dotted properties with destructuring
+	// Dotted properties with capturing
 	userProfile := struct {
 		Name  string
 		Email string

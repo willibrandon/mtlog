@@ -9,7 +9,7 @@ A production-ready static analysis tool for mtlog that catches common mistakes a
 - **Format specifier validation** - Validates format specifiers like `{Count:000}` or `{Price:F2}`
 - **Property naming checks** - Warns about empty properties, spaces, or properties starting with numbers
 - **Duplicate property detection** - Catches when the same property appears multiple times
-- **Destructuring hints** - Suggests using `@` prefix for complex types
+- **Capturing hints** - Suggests using `@` prefix for complex types
 - **Error logging patterns** - Warns when using Error level without an actual error
 - **Context key suggestions** - Suggests constants for commonly used context keys
 
@@ -134,7 +134,7 @@ mtlog-analyzer -strict ./...
 mtlog-analyzer -common-keys=user_id,tenant_id,request_id ./...
 
 # Disable specific checks
-mtlog-analyzer -disable=naming,destructuring ./...
+mtlog-analyzer -disable=naming,capturing ./...
 
 # Ignore dynamic template warnings
 mtlog-analyzer -ignore-dynamic-templates ./...
@@ -158,7 +158,7 @@ Available check names for `-disable`:
 - `template` - Template/argument mismatch detection
 - `duplicate` - Duplicate property detection
 - `naming` - Property naming checks (including PascalCase suggestions)
-- `destructuring` - Destructuring hint suggestions
+- `capturing` - Capturing hint suggestions
 - `error` - Error logging pattern checks
 - `context` - Context key suggestions
 

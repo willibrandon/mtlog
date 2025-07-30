@@ -50,7 +50,7 @@ mtlog achieves its goal of zero-allocation logging for simple messages while mai
 | zap | 130.8 ns | 0 | 0 B |
 | **zerolog** | 35.25 ns | 0 | 0 B |
 
-### 5. Complex Object (Struct Destructuring)
+### 5. Complex Object (Struct Capturing)
 | Logger | Time/op | Allocations | Bytes/op |
 |--------|---------|-------------|----------|
 | mtlog | 422.8 ns | 11 | 913 B |
@@ -83,7 +83,7 @@ mtlog achieves its goal of zero-allocation logging for simple messages while mai
 
 ### Areas for Optimization
 1. **Property allocation** - Currently allocates for each property
-2. **Complex objects** - Reflection-based destructuring has overhead
+2. **Complex objects** - Reflection-based capturing has overhead
 3. **Template parsing** - Could benefit from more aggressive caching
 
 ### Design Trade-offs

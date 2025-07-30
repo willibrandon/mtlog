@@ -37,7 +37,7 @@ func BenchmarkParseMultipleProperties(b *testing.B) {
 	}
 }
 
-func BenchmarkParseWithDestructuring(b *testing.B) {
+func BenchmarkParseWithCapturing(b *testing.B) {
 	template := "Processing {@User} with {$Exception} at {Timestamp}"
 	
 	b.ResetTimer()

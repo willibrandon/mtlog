@@ -15,7 +15,7 @@ logger.Information("Order {OrderId:000} total: ${Amount:F2}", orderId, amount)
 - Compact and readable
 - Supports format specifiers with `:` separator
 - Supports alignment with `,` separator
-- Compatible with destructuring hints (`@` and `$`)
+- Compatible with capturing hints (`@` and `$`)
 
 ## Go Template Syntax
 
@@ -73,12 +73,12 @@ mtlog.WithFileTemplate("app.log", "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] {Messag
 // {Level:l}  - Full lowercase: information, warning, error
 ```
 
-## Destructuring Hints
+## Capturing Hints
 
-Both syntaxes support destructuring hints:
+Both syntaxes support capturing hints:
 
 ```go
-// @ - Destructure complex types
+// @ - Capture complex types
 logger.Information("Order {@Order} created", order)
 logger.Information("User {{@.User}} updated", user)
 

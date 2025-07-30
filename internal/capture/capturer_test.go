@@ -1,4 +1,4 @@
-package destructure
+package capture
 
 import (
 	"testing"
@@ -17,8 +17,8 @@ func (m *mockPropertyFactory) CreateProperty(name string, value interface{}) *co
 	}
 }
 
-func TestDestructureBasicTypes(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCaptureBasicTypes(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	tests := []struct {
@@ -36,9 +36,9 @@ func TestDestructureBasicTypes(t *testing.T) {
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prop, ok := d.TryDestructure(tt.input, factory)
+			prop, ok := d.TryCapture(tt.input, factory)
 			if !ok {
-				t.Fatal("TryDestructure failed")
+				t.Fatal("TryCapture failed")
 			}
 			
 			if prop.Value != tt.expected {
@@ -48,13 +48,13 @@ func TestDestructureBasicTypes(t *testing.T) {
 	}
 }
 
-func TestDestructureSlice(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCaptureSlice(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	// Test normal slice
 	slice := []int{1, 2, 3, 4, 5}
-	prop, _ := d.TryDestructure(slice, factory)
+	prop, _ := d.TryCapture(slice, factory)
 	
 	result, ok := prop.Value.([]interface{})
 	if !ok {
@@ -67,7 +67,7 @@ func TestDestructureSlice(t *testing.T) {
 	
 	// Test large slice (should be truncated)
 	largeSlice := make([]int, 200)
-	prop2, _ := d.TryDestructure(largeSlice, factory)
+	prop2, _ := d.TryCapture(largeSlice, factory)
 	
 	result2, ok := prop2.Value.([]interface{})
 	if !ok {
@@ -85,8 +85,8 @@ func TestDestructureSlice(t *testing.T) {
 	}
 }
 
-func TestDestructureMap(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCaptureMap(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	// Test normal map
@@ -96,7 +96,7 @@ func TestDestructureMap(t *testing.T) {
 		"c": 3,
 	}
 	
-	prop, _ := d.TryDestructure(m, factory)
+	prop, _ := d.TryCapture(m, factory)
 	result, ok := prop.Value.(map[string]interface{})
 	if !ok {
 		t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)
@@ -111,8 +111,8 @@ func TestDestructureMap(t *testing.T) {
 	}
 }
 
-func TestDestructureStruct(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCaptureStruct(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	type Address struct {
@@ -143,7 +143,7 @@ func TestDestructureStruct(t *testing.T) {
 		Tags: []string{"developer", "team-lead"},
 	}
 	
-	prop, _ := d.TryDestructure(person, factory)
+	prop, _ := d.TryCapture(person, factory)
 	result, ok := prop.Value.(map[string]interface{})
 	if !ok {
 		t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)
@@ -194,8 +194,8 @@ func TestDestructureStruct(t *testing.T) {
 	}
 }
 
-func TestDestructureDepthLimit(t *testing.T) {
-	d := NewDestructurer(3, 1000, 100) // Max depth of 3 (to reach the nested structs)
+func TestCaptureDepthLimit(t *testing.T) {
+	d := NewCapturer(3, 1000, 100) // Max depth of 3 (to reach the nested structs)
 	factory := &mockPropertyFactory{}
 	
 	type Nested struct {
@@ -217,7 +217,7 @@ func TestDestructureDepthLimit(t *testing.T) {
 		},
 	}
 	
-	prop, _ := d.TryDestructure(nested, factory)
+	prop, _ := d.TryCapture(nested, factory)
 	result := prop.Value.(map[string]interface{})
 	
 	// Check first level
@@ -248,12 +248,12 @@ func TestDestructureDepthLimit(t *testing.T) {
 	}
 }
 
-func TestDestructureTime(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCaptureTime(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	now := time.Date(2025, 1, 15, 10, 30, 45, 0, time.UTC)
-	prop, _ := d.TryDestructure(now, factory)
+	prop, _ := d.TryCapture(now, factory)
 	
 	// Time should be formatted as RFC3339
 	expected := "2025-01-15T10:30:45Z"
@@ -263,20 +263,20 @@ func TestDestructureTime(t *testing.T) {
 	
 	// Duration should remain as-is (registered as scalar)
 	duration := 5 * time.Minute
-	prop2, _ := d.TryDestructure(duration, factory)
+	prop2, _ := d.TryCapture(duration, factory)
 	
 	if prop2.Value != duration {
 		t.Errorf("Expected duration to remain as-is, got %v", prop2.Value)
 	}
 }
 
-func TestDestructurePointers(t *testing.T) {
-	d := NewDefaultDestructurer()
+func TestCapturePointers(t *testing.T) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	// Test nil pointer
 	var nilPtr *int
-	prop, _ := d.TryDestructure(nilPtr, factory)
+	prop, _ := d.TryCapture(nilPtr, factory)
 	if prop.Value != nil {
 		t.Errorf("Expected nil, got %v", prop.Value)
 	}
@@ -284,7 +284,7 @@ func TestDestructurePointers(t *testing.T) {
 	// Test non-nil pointer
 	val := 42
 	ptr := &val
-	prop2, _ := d.TryDestructure(ptr, factory)
+	prop2, _ := d.TryCapture(ptr, factory)
 	if prop2.Value != 42 {
 		t.Errorf("Expected 42, got %v", prop2.Value)
 	}

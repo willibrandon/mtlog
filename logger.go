@@ -54,7 +54,7 @@ func Build(opts ...Option) (*logger, error) {
 	}
 	
 	// Create the pipeline
-	p := newPipeline(cfg.enrichers, cfg.filters, cfg.destructurer, cfg.sinks)
+	p := newPipeline(cfg.enrichers, cfg.filters, cfg.capturer, cfg.sinks)
 	
 	return &logger{
 		minimumLevel: cfg.minimumLevel,
@@ -234,7 +234,7 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 		levelSwitch:  l.levelSwitch,
 		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+2),
 		filters:      l.pipeline.filters,
-		destructurer: l.pipeline.destructurer,
+		capturer: l.pipeline.capturer,
 		sinks:        l.pipeline.sinks,
 		properties:   make(map[string]interface{}),
 	}
@@ -254,7 +254,7 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	l.mu.RUnlock()
 	
 	// Create new pipeline
-	p := newPipeline(newConfig.enrichers, newConfig.filters, newConfig.destructurer, newConfig.sinks)
+	p := newPipeline(newConfig.enrichers, newConfig.filters, newConfig.capturer, newConfig.sinks)
 	
 	return &logger{
 		minimumLevel: l.minimumLevel,
@@ -269,12 +269,12 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []inte
 	// Extract property names from already parsed template
 	propNames := parser.ExtractPropertyNamesFromTemplate(tmpl)
 	
-	// Also check which properties need destructuring
-	destructureProps := make(map[string]bool)
+	// Also check which properties need capturing
+	captureProps := make(map[string]bool)
 	for _, token := range tmpl.Tokens {
 		if prop, ok := token.(*parser.PropertyToken); ok {
-			if prop.Destructuring == parser.Destructure {
-				destructureProps[prop.PropertyName] = true
+			if prop.Capturing == parser.Capture {
+				captureProps[prop.PropertyName] = true
 			}
 		}
 	}
@@ -284,10 +284,10 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []inte
 		if i < len(args) {
 			value := args[i]
 			
-			// Apply destructuring if needed and destructurer is available
-			if destructureProps[name] && l.pipeline.destructurer != nil {
+			// Apply capturing if needed and capturer is available
+			if captureProps[name] && l.pipeline.capturer != nil {
 				factory := &propertyFactory{}
-				if prop, ok := l.pipeline.destructurer.TryDestructure(value, factory); ok {
+				if prop, ok := l.pipeline.capturer.TryCapture(value, factory); ok {
 					value = prop.Value
 				}
 			}

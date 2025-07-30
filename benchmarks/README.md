@@ -18,7 +18,7 @@ go test -bench=. -benchmem
 - **Simple String**: Basic string logging without allocations
 - **With Properties**: Logging with structured fields
 - **Template Parsing**: Message template with multiple parameters
-- **Complex Object**: Logging with object destructuring
+- **Complex Object**: Logging with object capturing
 - **Filtered Out**: Performance when log level filters out the message
 - **Console Output**: Performance with formatted console output
 

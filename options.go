@@ -10,7 +10,7 @@ type config struct {
 	levelSwitch  *LoggingLevelSwitch
 	enrichers    []core.LogEventEnricher
 	filters      []core.LogEventFilter
-	destructurer core.Destructurer
+	capturer core.Capturer
 	sinks        []core.LogEventSink
 	properties   map[string]interface{}
 	err          error // First error encountered during configuration
@@ -48,10 +48,10 @@ func WithFilter(filter core.LogEventFilter) Option {
 	}
 }
 
-// WithDestructurer sets the destructurer for the pipeline.
-func WithDestructurer(destructurer core.Destructurer) Option {
+// WithCapturer sets the capturer for the pipeline.
+func WithCapturer(capturer core.Capturer) Option {
 	return func(c *config) {
-		c.destructurer = destructurer
+		c.capturer = capturer
 	}
 }
 

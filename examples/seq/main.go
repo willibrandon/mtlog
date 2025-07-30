@@ -92,7 +92,7 @@ func advancedExample() {
 		),
 		mtlog.WithConsoleProperties(),
 		mtlog.WithEnricher(&customEnricher{}),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 	)
 	
 	// Log some events
@@ -110,7 +110,7 @@ func structuredExample() {
 	log := mtlog.New(
 		mtlog.WithSeq("http://localhost:5341"),
 		mtlog.WithConsoleProperties(),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 		mtlog.WithTimestamp(),
 		mtlog.WithCallersInfo(),
 	)

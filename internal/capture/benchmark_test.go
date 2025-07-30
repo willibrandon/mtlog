@@ -1,4 +1,4 @@
-package destructure
+package capture
 
 import (
 	"testing"
@@ -58,8 +58,8 @@ func createBenchUser() BenchUser {
 	}
 }
 
-func BenchmarkDefaultDestructurer(b *testing.B) {
-	d := NewDefaultDestructurer()
+func BenchmarkDefaultCapturer(b *testing.B) {
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	user := createBenchUser()
 	
@@ -67,12 +67,12 @@ func BenchmarkDefaultDestructurer(b *testing.B) {
 	b.ReportAllocs()
 	
 	for i := 0; i < b.N; i++ {
-		d.TryDestructure(user, factory)
+		d.TryCapture(user, factory)
 	}
 }
 
-func BenchmarkCachedDestructurer(b *testing.B) {
-	d := NewCachedDestructurer()
+func BenchmarkCachedCapturer(b *testing.B) {
+	d := NewCachedCapturer()
 	factory := &mockPropertyFactory{}
 	user := createBenchUser()
 	
@@ -80,12 +80,12 @@ func BenchmarkCachedDestructurer(b *testing.B) {
 	b.ReportAllocs()
 	
 	for i := 0; i < b.N; i++ {
-		d.TryDestructure(user, factory)
+		d.TryCapture(user, factory)
 	}
 }
 
-func BenchmarkCachedDestructurerParallel(b *testing.B) {
-	d := NewCachedDestructurer()
+func BenchmarkCachedCapturerParallel(b *testing.B) {
+	d := NewCachedCapturer()
 	factory := &mockPropertyFactory{}
 	
 	b.ResetTimer()
@@ -94,13 +94,13 @@ func BenchmarkCachedDestructurerParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		user := createBenchUser()
 		for pb.Next() {
-			d.TryDestructure(user, factory)
+			d.TryCapture(user, factory)
 		}
 	})
 }
 
 // Benchmark different struct sizes
-func BenchmarkDestructurerBySize(b *testing.B) {
+func BenchmarkCapturerBySize(b *testing.B) {
 	// Small struct
 	type Small struct {
 		ID   int
@@ -163,56 +163,56 @@ func BenchmarkDestructurerBySize(b *testing.B) {
 	factory := &mockPropertyFactory{}
 	
 	b.Run("Small-Default", func(b *testing.B) {
-		d := NewDefaultDestructurer()
+		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(small, factory)
+			d.TryCapture(small, factory)
 		}
 	})
 	
 	b.Run("Small-Cached", func(b *testing.B) {
-		d := NewCachedDestructurer()
+		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(small, factory)
+			d.TryCapture(small, factory)
 		}
 	})
 	
 	b.Run("Medium-Default", func(b *testing.B) {
-		d := NewDefaultDestructurer()
+		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(medium, factory)
+			d.TryCapture(medium, factory)
 		}
 	})
 	
 	b.Run("Medium-Cached", func(b *testing.B) {
-		d := NewCachedDestructurer()
+		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(medium, factory)
+			d.TryCapture(medium, factory)
 		}
 	})
 	
 	b.Run("Large-Default", func(b *testing.B) {
-		d := NewDefaultDestructurer()
+		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(large, factory)
+			d.TryCapture(large, factory)
 		}
 	})
 	
 	b.Run("Large-Cached", func(b *testing.B) {
-		d := NewCachedDestructurer()
+		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			d.TryDestructure(large, factory)
+			d.TryCapture(large, factory)
 		}
 	})
 }

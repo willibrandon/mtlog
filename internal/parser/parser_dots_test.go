@@ -29,11 +29,11 @@ func TestParseWithDottedPropertyNames(t *testing.T) {
 			description: "Should handle multiple dots in property names",
 		},
 		{
-			name:        "dots with destructuring",
+			name:        "dots with capturing",
 			template:    "User {@user.profile} made request {$http.status.code}",
 			wantProps:   []string{"user.profile", "http.status.code"},
 			wantTokens:  4, // "User ", {@user.profile}, " made request ", {$http.status.code}
-			description: "Should handle dots with destructuring hints",
+			description: "Should handle dots with capturing hints",
 		},
 		{
 			name:        "dots with format specifiers",
@@ -64,11 +64,11 @@ func TestParseWithDottedPropertyNames(t *testing.T) {
 			description: "Should handle Go template syntax with dotted properties",
 		},
 		{
-			name:        "Go template with destructuring and dots",
+			name:        "Go template with capturing and dots",
 			template:    "Profile: {{@.user.profile.data}}",
 			wantProps:   []string{"user.profile.data"},
 			wantTokens:  2,
-			description: "Should handle Go template with destructuring and dots",
+			description: "Should handle Go template with capturing and dots",
 		},
 		{
 			name:        "mixed regular and dotted properties",
@@ -232,7 +232,7 @@ func TestValidateTemplateWithDots(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "dotted property with destructuring",
+			name:     "dotted property with capturing",
 			template: "User {@user.profile.data}",
 			wantErr:  false,
 		},

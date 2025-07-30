@@ -1,4 +1,4 @@
-package destructure
+package capture
 
 import (
 	"testing"
@@ -92,7 +92,7 @@ func (r APIResponse) LogValue() interface{} {
 }
 
 func TestLogValue(t *testing.T) {
-	d := NewDefaultDestructurer()
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	t.Run("User with sensitive data", func(t *testing.T) {
@@ -103,9 +103,9 @@ func TestLogValue(t *testing.T) {
 			Email:    "alice@example.com",
 		}
 		
-		prop, ok := d.TryDestructure(user, factory)
+		prop, ok := d.TryCapture(user, factory)
 		if !ok {
-			t.Fatal("TryDestructure failed")
+			t.Fatal("TryCapture failed")
 		}
 		
 		result, ok := prop.Value.(map[string]interface{})
@@ -139,9 +139,9 @@ func TestLogValue(t *testing.T) {
 			CVV:    "123",
 		}
 		
-		prop, _ := d.TryDestructure(card, factory)
+		prop, _ := d.TryCapture(card, factory)
 		
-		// The result should be a struct (map after destructuring)
+		// The result should be a struct (map after capturing)
 		result, ok := prop.Value.(map[string]interface{})
 		if !ok {
 			t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)
@@ -170,7 +170,7 @@ func TestLogValue(t *testing.T) {
 			},
 		}
 		
-		prop, _ := d.TryDestructure(resp, factory)
+		prop, _ := d.TryCapture(resp, factory)
 		result := prop.Value.(map[string]interface{})
 		
 		// Check body is truncated
@@ -198,11 +198,11 @@ func TestLogValue(t *testing.T) {
 	})
 }
 
-func TestLogValueWithCachedDestructurer(t *testing.T) {
-	d := NewCachedDestructurer()
+func TestLogValueWithCachedCapturer(t *testing.T) {
+	d := NewCachedCapturer()
 	factory := &mockPropertyFactory{}
 	
-	// Test that LogValue works with cached destructurer too
+	// Test that LogValue works with cached capturer too
 	user := User{
 		ID:       456,
 		Username: "bob",
@@ -212,7 +212,7 @@ func TestLogValueWithCachedDestructurer(t *testing.T) {
 	
 	// Run twice to ensure caching doesn't interfere
 	for i := 0; i < 2; i++ {
-		prop, _ := d.TryDestructure(user, factory)
+		prop, _ := d.TryCapture(user, factory)
 		result := prop.Value.(map[string]interface{})
 		
 		if _, exists := result["password"]; exists {
@@ -240,7 +240,7 @@ func (t Team) LogValue() interface{} {
 }
 
 func TestNestedLogValue(t *testing.T) {
-	d := NewDefaultDestructurer()
+	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
 	team := Team{
@@ -251,7 +251,7 @@ func TestNestedLogValue(t *testing.T) {
 		},
 	}
 	
-	prop, _ := d.TryDestructure(team, factory)
+	prop, _ := d.TryCapture(team, factory)
 	result := prop.Value.(map[string]interface{})
 	
 	if result["name"] != "Development" {
@@ -262,7 +262,7 @@ func TestNestedLogValue(t *testing.T) {
 		t.Errorf("Expected memberCount=2, got %v", result["memberCount"])
 	}
 	
-	// Check that members are destructured using their LogValue
+	// Check that members are captured using their LogValue
 	members := result["members"].([]interface{})
 	for i, member := range members {
 		m := member.(map[string]interface{})

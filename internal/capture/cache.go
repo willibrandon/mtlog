@@ -1,4 +1,4 @@
-package destructure
+package capture
 
 import (
 	"fmt"
@@ -115,40 +115,40 @@ func (tc *typeCache) createDescriptor(t reflect.Type) *typeDescriptor {
 // Global type cache instance
 var globalTypeCache = newTypeCache()
 
-// CachedDestructurer is a destructurer that caches type information.
-type CachedDestructurer struct {
-	*DefaultDestructurer
+// CachedCapturer is a capturer that caches type information.
+type CachedCapturer struct {
+	*DefaultCapturer
 	typeCache *typeCache
 }
 
-// NewCachedDestructurer creates a new cached destructurer.
-func NewCachedDestructurer() *CachedDestructurer {
-	return &CachedDestructurer{
-		DefaultDestructurer: NewDefaultDestructurer(),
+// NewCachedCapturer creates a new cached capturer.
+func NewCachedCapturer() *CachedCapturer {
+	return &CachedCapturer{
+		DefaultCapturer: NewDefaultCapturer(),
 		typeCache:          globalTypeCache,
 	}
 }
 
-// TryDestructure attempts to destructure a value using cached type information.
-func (d *CachedDestructurer) TryDestructure(value interface{}, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
+// TryCapture attempts to capture a value using cached type information.
+func (d *CachedCapturer) TryCapture(value interface{}, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
 	if value == nil {
 		return propertyFactory.CreateProperty("", nil), true
 	}
 	
 	// Check if the value implements LogValue interface
 	if lv, ok := value.(core.LogValue); ok {
-		// Recursively destructure the LogValue result
+		// Recursively capture the LogValue result
 		logValue := lv.LogValue()
-		destructured := d.destructure(logValue, 0)
-		return propertyFactory.CreateProperty("", destructured), true
+		captured := d.capture(logValue, 0)
+		return propertyFactory.CreateProperty("", captured), true
 	}
 	
-	destructured := d.destructure(value, 0)
-	return propertyFactory.CreateProperty("", destructured), true
+	captured := d.capture(value, 0)
+	return propertyFactory.CreateProperty("", captured), true
 }
 
-// destructureStructCached destructures a struct using cached type information.
-func (d *CachedDestructurer) destructureStructCached(v reflect.Value, depth int) interface{} {
+// captureStructCached captures a struct using cached type information.
+func (d *CachedCapturer) captureStructCached(v reflect.Value, depth int) interface{} {
 	t := v.Type()
 	desc := d.typeCache.getOrCreate(t)
 	
@@ -156,14 +156,14 @@ func (d *CachedDestructurer) destructureStructCached(v reflect.Value, depth int)
 	
 	for _, field := range desc.Fields {
 		fieldValue := v.Field(field.Index)
-		result[field.Name] = d.destructure(fieldValue.Interface(), depth+1)
+		result[field.Name] = d.capture(fieldValue.Interface(), depth+1)
 	}
 	
 	return result
 }
 
-// destructureSliceCached destructures a slice checking for LogValue on elements.
-func (d *CachedDestructurer) destructureSliceCached(v reflect.Value, depth int) interface{} {
+// captureSliceCached captures a slice checking for LogValue on elements.
+func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) interface{} {
 	length := v.Len()
 	if length == 0 {
 		return []interface{}{}
@@ -180,9 +180,9 @@ func (d *CachedDestructurer) destructureSliceCached(v reflect.Value, depth int) 
 		
 		// Check if element implements LogValue
 		if lv, ok := elem.(core.LogValue); ok {
-			result[i] = d.destructure(lv.LogValue(), depth+1)
+			result[i] = d.capture(lv.LogValue(), depth+1)
 		} else {
-			result[i] = d.destructure(elem, depth+1)
+			result[i] = d.capture(elem, depth+1)
 		}
 	}
 	
@@ -194,8 +194,8 @@ func (d *CachedDestructurer) destructureSliceCached(v reflect.Value, depth int) 
 	return result
 }
 
-// Override the destructure method to use caching
-func (d *CachedDestructurer) destructure(value interface{}, depth int) interface{} {
+// Override the capture method to use caching
+func (d *CachedCapturer) capture(value interface{}, depth int) interface{} {
 	if value == nil {
 		return nil
 	}
@@ -226,19 +226,19 @@ func (d *CachedDestructurer) destructure(value interface{}, depth int) interface
 		if v.IsNil() {
 			return nil
 		}
-		return d.destructure(v.Elem().Interface(), depth)
+		return d.capture(v.Elem().Interface(), depth)
 		
 	case reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
-		return d.destructure(v.Elem().Interface(), depth)
+		return d.capture(v.Elem().Interface(), depth)
 		
 	case reflect.Slice, reflect.Array:
-		return d.destructureSliceCached(v, depth)
+		return d.captureSliceCached(v, depth)
 		
 	case reflect.Map:
-		return d.destructureMap(v, depth)
+		return d.captureMap(v, depth)
 		
 	case reflect.Struct:
 		// Check if it's a known scalar type
@@ -251,8 +251,8 @@ func (d *CachedDestructurer) destructure(value interface{}, depth int) interface
 			return formatTime(value)
 		}
 		
-		// Use cached destructuring for structs
-		return d.destructureStructCached(v, depth)
+		// Use cached capturing for structs
+		return d.captureStructCached(v, depth)
 		
 	case reflect.Func, reflect.Chan:
 		return formatType(value)
