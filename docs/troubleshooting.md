@@ -297,7 +297,7 @@ sink, _ := sinks.NewElasticsearchSink("http://localhost:9200",
    // Use UTC in containers
    sink := sinks.NewConsoleSink()
    sink.SetFormatter(formatters.NewOutputTemplateFormatter(
-       "{Timestamp:2006-01-02T15:04:05.000Z07:00} [{Level:u3}] {Message}{NewLine}{Exception}",
+       "${Timestamp:2006-01-02T15:04:05.000Z07:00} [${Level:u3}] ${Message}${NewLine}${Exception}",
    ))
    ```
 

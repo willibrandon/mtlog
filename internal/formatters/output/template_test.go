@@ -21,13 +21,23 @@ func TestParseTemplate(t *testing.T) {
 		},
 		{
 			name:     "Single property",
-			template: "{Timestamp}",
+			template: "{UserId}",
 			tokens:   1,
 		},
 		{
-			name:     "Text with property",
-			template: "[{Timestamp}] {Message}",
-			tokens:   4, // "[", {Timestamp}, "] ", {Message}
+			name:     "Built-in element",
+			template: "${Message}",
+			tokens:   1,
+		},
+		{
+			name:     "Text with built-in",
+			template: "[${Timestamp}] ${Message}",
+			tokens:   4, // "[", ${Timestamp}, "] ", ${Message}
+		},
+		{
+			name:     "Mixed properties and built-ins",
+			template: "[${Timestamp}] User {UserId}: ${Message}",
+			tokens:   6, // "[", ${Timestamp}, "] User ", {UserId}, ": ", ${Message}
 		},
 		{
 			name:     "Property with format",
@@ -36,7 +46,7 @@ func TestParseTemplate(t *testing.T) {
 		},
 		{
 			name:     "Complex template",
-			template: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}{NewLine}",
+			template: "[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}${NewLine}",
 			tokens:   9,
 		},
 		{
@@ -48,6 +58,16 @@ func TestParseTemplate(t *testing.T) {
 			name:     "Unclosed property",
 			template: "{Unclosed",
 			wantErr:  true,
+		},
+		{
+			name:     "Unclosed built-in",
+			template: "${Unclosed",
+			wantErr:  true,
+		},
+		{
+			name:     "Built-in with format",
+			template: "${Level:u3} ${Timestamp:yyyy-MM-dd}",
+			tokens:   3,
 		},
 	}
 
@@ -65,7 +85,7 @@ func TestParseTemplate(t *testing.T) {
 	}
 }
 
-func TestPropertyTokenRender(t *testing.T) {
+func TestBuiltInTokenRender(t *testing.T) {
 	timestamp := time.Date(2024, 1, 2, 15, 4, 5, 0, time.UTC)
 	event := &core.LogEvent{
 		Timestamp:       timestamp,
@@ -82,112 +102,156 @@ func TestPropertyTokenRender(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		propertyName string
-		format       string
-		expected     string
+		name     string
+		builtIn  string
+		format   string
+		expected string
 	}{
 		// Timestamp formats
 		{
-			name:         "Timestamp default",
-			propertyName: "Timestamp",
-			format:       "",
-			expected:     "2024-01-02 15:04:05",
+			name:     "Timestamp default",
+			builtIn:  "Timestamp",
+			format:   "",
+			expected: "2024-01-02 15:04:05",
 		},
 		{
-			name:         "Timestamp HH:mm:ss",
-			propertyName: "Timestamp",
+			name:     "Timestamp HH:mm:ss",
+			builtIn:  "Timestamp",
 			format:       "HH:mm:ss",
 			expected:     "15:04:05",
 		},
 		{
 			name:         "Timestamp with date",
-			propertyName: "Timestamp",
+			builtIn: "Timestamp",
 			format:       "yyyy-MM-dd",
 			expected:     "2024-01-02",
 		},
 		// Level formats
 		{
 			name:         "Level uppercase 3",
-			propertyName: "Level",
+			builtIn: "Level",
 			format:       "u3",
 			expected:     "INF",
 		},
 		{
 			name:         "Level uppercase full",
-			propertyName: "Level",
+			builtIn: "Level",
 			format:       "u",
 			expected:     "INFORMATION",
 		},
 		{
 			name:         "Level lowercase",
-			propertyName: "Level",
+			builtIn: "Level",
 			format:       "l",
 			expected:     "information",
 		},
 		{
 			name:         "Level default",
-			propertyName: "Level",
+			builtIn: "Level",
 			format:       "",
 			expected:     "Information",
 		},
 		// Message rendering
 		{
 			name:         "Message",
-			propertyName: "Message",
+			builtIn: "Message",
 			format:       "",
 			expected:     "User 12345 logged in",
 		},
-		// Properties
+		// Special built-ins
 		{
-			name:         "String property",
-			propertyName: "SourceContext",
-			format:       "",
-			expected:     "TestContext",
+			name:     "NewLine",
+			builtIn:  "NewLine",
+			format:   "",
+			expected: "\n",
 		},
 		{
-			name:         "Integer property",
-			propertyName: "Count",
-			format:       "",
-			expected:     "42",
+			name:     "Properties",
+			builtIn:  "Properties",
+			format:   "",
+			expected: "Count=42 Percentage=0.85 Price=123.456 SourceContext=TestContext UserId=12345",
 		},
 		{
-			name:         "Integer with padding",
-			propertyName: "Count",
-			format:       "000",
-			expected:     "042",
+			name:     "Unknown built-in",
+			builtIn:  "Unknown",
+			format:   "",
+			expected: "${Unknown}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token := &BuiltInToken{
+				Name:   tt.builtIn,
+				Format: tt.format,
+			}
+			result := token.Render(event)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestPropertyTokenRender(t *testing.T) {
+	event := &core.LogEvent{
+		Properties: map[string]interface{}{
+			"UserId":        12345,
+			"SourceContext": "TestContext",
+			"Count":         42,
+			"Price":         123.456,
+			"Percentage":    0.85,
+		},
+	}
+
+	tests := []struct {
+		name     string
+		property string
+		format   string
+		expected string
+	}{
+		{
+			name:     "String property",
+			property: "SourceContext",
+			format:   "",
+			expected: "TestContext",
 		},
 		{
-			name:         "Float with fixed decimals",
-			propertyName: "Price",
-			format:       "F2",
-			expected:     "123.46",
+			name:     "Integer property",
+			property: "Count",
+			format:   "",
+			expected: "42",
 		},
 		{
-			name:         "Percentage",
-			propertyName: "Percentage",
-			format:       "P1",
-			expected:     "85.0%",
-		},
-		// Special properties
-		{
-			name:         "NewLine",
-			propertyName: "NewLine",
-			format:       "",
-			expected:     "\n",
+			name:     "Integer with padding",
+			property: "Count",
+			format:   "000",
+			expected: "042",
 		},
 		{
-			name:         "Missing property",
-			propertyName: "Missing",
-			format:       "",
-			expected:     "{Missing}",
+			name:     "Float with fixed decimals",
+			property: "Price",
+			format:   "F2",
+			expected: "123.46",
+		},
+		{
+			name:     "Percentage",
+			property: "Percentage",
+			format:   "P1",
+			expected: "85.0%",
+		},
+		{
+			name:     "Missing property",
+			property: "Missing",
+			format:   "",
+			expected: "{Missing}",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			token := &PropertyToken{
-				PropertyName: tt.propertyName,
+				PropertyName: tt.property,
 				Format:       tt.format,
 			}
 			result := token.Render(event)
@@ -210,7 +274,8 @@ func TestTemplateRender(t *testing.T) {
 		},
 	}
 
-	template := "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}{NewLine}"
+	// Test with new built-in syntax
+	template := "[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}${NewLine}"
 	tmpl, err := Parse(template)
 	if err != nil {
 		t.Fatalf("Failed to parse template: %v", err)

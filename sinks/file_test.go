@@ -214,7 +214,7 @@ func TestFileSinkWithTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "template.log")
 	
-	template := "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message}"
+	template := "[${Timestamp:yyyy-MM-dd HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}"
 	sink, err := NewFileSinkWithTemplate(logPath, template)
 	if err != nil {
 		t.Fatalf("Failed to create file sink with template: %v", err)
@@ -254,7 +254,7 @@ func TestFileSinkTemplateWithFormattedProperties(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "formatted.log")
 	
-	template := "{Timestamp:HH:mm:ss} [{Level:u3}] {Message}"
+	template := "${Timestamp:HH:mm:ss} [${Level:u3}] ${Message}"
 	sink, err := NewFileSinkWithTemplate(logPath, template)
 	if err != nil {
 		t.Fatalf("Failed to create file sink: %v", err)
@@ -299,7 +299,7 @@ func TestFileSinkTemplateWithNewLine(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "newline.log")
 	
-	template := "{Level}: {Message}{NewLine}Exception: {Exception}"
+	template := "${Level}: ${Message}${NewLine}Exception: ${Exception}"
 	sink, err := NewFileSinkWithTemplate(logPath, template)
 	if err != nil {
 		t.Fatalf("Failed to create file sink: %v", err)

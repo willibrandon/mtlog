@@ -59,18 +59,18 @@ logger.Information("Memory: {Usage:P1}", 0.855)    // "85.5%"
 
 ### Timestamps (in output templates)
 ```go
-mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {Message}")
+mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}")
 // Output: [15:04:05 INF] User logged in
 
-mtlog.WithFileTemplate("app.log", "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] {Message}")
+mtlog.WithFileTemplate("app.log", "[${Timestamp:yyyy-MM-dd HH:mm:ss.fff}] ${Message}")
 // Output: [2024-01-02 15:04:05.123] User logged in
 ```
 
 ### Log Levels (in output templates)
 ```go
-// {Level:u3} - Three-letter uppercase: INF, WRN, ERR
-// {Level:u}  - Full uppercase: INFORMATION, WARNING, ERROR
-// {Level:l}  - Full lowercase: information, warning, error
+// ${Level:u3} - Three-letter uppercase: INF, WRN, ERR
+// ${Level:u}  - Full uppercase: INFORMATION, WARNING, ERROR
+// ${Level:l}  - Full lowercase: information, warning, error
 ```
 
 ## Capturing Hints

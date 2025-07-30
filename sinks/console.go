@@ -301,8 +301,10 @@ func (cs *ConsoleSink) renderTemplateWithColors(event *core.LogEvent) string {
 		text := token.Render(event)
 		
 		// Apply coloring based on token type
-		if propToken, ok := token.(*output.PropertyToken); ok {
-			switch propToken.PropertyName {
+		switch tok := token.(type) {
+		case *output.BuiltInToken:
+			// Handle built-in elements
+			switch tok.Name {
 			case "Timestamp":
 				text = colorize(text, cs.theme.TimestampColor, cs.useColor)
 			case "Level":
@@ -310,13 +312,17 @@ func (cs *ConsoleSink) renderTemplateWithColors(event *core.LogEvent) string {
 				text = colorize(text, levelColor, cs.useColor)
 			case "Message":
 				// Parse and render message with property coloring
-				text = cs.renderMessageWithPropertyColors(event, propToken.Format)
+				text = cs.renderMessageWithPropertyColors(event, tok.Format)
+			}
+		case *output.PropertyToken:
+			// Handle user properties
+			switch tok.PropertyName {
 			case "SourceContext":
 				// SourceContext uses property color
 				text = colorize(text, cs.theme.PropertyValColor, cs.useColor)
 			default:
 				// Other properties - check for status codes if property might be one
-				if cs.isPotentialStatus(propToken.PropertyName) {
+				if cs.isPotentialStatus(tok.PropertyName) {
 					if statusColor := cs.getStatusCodeColor(text); statusColor != "" {
 						text = colorize(text, statusColor, cs.useColor)
 					} else {

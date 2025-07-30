@@ -89,7 +89,7 @@ func TestConsoleSinkClose(t *testing.T) {
 func TestConsoleSinkWithTemplate(t *testing.T) {
 	// Test custom output template
 	var buf bytes.Buffer
-	template := "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}"
+	template := "[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}"
 	
 	sink, err := NewConsoleSinkWithTemplate(template)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestConsoleSinkWithTemplate(t *testing.T) {
 func TestConsoleSinkTemplateWithColors(t *testing.T) {
 	// Test that template rendering applies colors correctly
 	var buf bytes.Buffer
-	template := "[{Timestamp:HH:mm:ss} {Level:u3}] {Message}"
+	template := "[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}"
 	
 	sink, err := NewConsoleSinkWithTemplateAndTheme(template, LiterateTheme())
 	if err != nil {
@@ -161,7 +161,7 @@ func TestConsoleSinkTemplateWithColors(t *testing.T) {
 func TestConsoleSinkTemplateWithMissingProperty(t *testing.T) {
 	// Test handling of missing properties in template
 	var buf bytes.Buffer
-	template := "[{Level:u3}] {SourceContext}: {Message}"
+	template := "[${Level:u3}] {SourceContext}: ${Message}"
 	
 	sink, err := NewConsoleSinkWithTemplate(template)
 	if err != nil {
@@ -190,7 +190,7 @@ func TestConsoleSinkTemplateWithMissingProperty(t *testing.T) {
 func TestConsoleSinkNoColorTheme(t *testing.T) {
 	// Test that NoColorTheme produces no ANSI codes
 	var buf bytes.Buffer
-	template := "[{Timestamp:HH:mm:ss} {Level:u3}] {Message}"
+	template := "[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}"
 	
 	sink, err := NewConsoleSinkWithTemplateAndTheme(template, NoColorTheme())
 	if err != nil {

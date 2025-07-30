@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,15 +30,14 @@ func (t *TextToken) Render(event *core.LogEvent) string {
 	return t.Text
 }
 
-// PropertyToken represents a property reference with optional format
-type PropertyToken struct {
-	PropertyName string
-	Format       string
+// BuiltInToken represents a built-in template element like ${Message}
+type BuiltInToken struct {
+	Name   string
+	Format string
 }
 
-
-func (t *PropertyToken) Render(event *core.LogEvent) string {
-	switch t.PropertyName {
+func (t *BuiltInToken) Render(event *core.LogEvent) string {
+	switch t.Name {
 	case "Timestamp":
 		return formatTimestamp(event.Timestamp, t.Format)
 	case "Level":
@@ -51,14 +51,28 @@ func (t *PropertyToken) Render(event *core.LogEvent) string {
 		return ""
 	case "NewLine":
 		return "\n"
+	case "Properties":
+		return formatProperties(event)
 	default:
-		// Check event properties
-		if val, ok := event.Properties[t.PropertyName]; ok {
-			return formatValue(val, t.Format)
-		}
-		// Property not found
-		return "{" + t.PropertyName + "}"
+		// Unknown built-in
+		return "${" + t.Name + "}"
 	}
+}
+
+// PropertyToken represents a property reference with optional format
+type PropertyToken struct {
+	PropertyName string
+	Format       string
+}
+
+
+func (t *PropertyToken) Render(event *core.LogEvent) string {
+	// Check event properties
+	if val, ok := event.Properties[t.PropertyName]; ok {
+		return formatValue(val, t.Format)
+	}
+	// Property not found
+	return "{" + t.PropertyName + "}"
 }
 
 // Template represents a parsed output template
@@ -84,14 +98,24 @@ func (t *Template) RenderWithTheme(event *core.LogEvent, ctx *RenderContext) str
 		
 		// Apply coloring based on token type and theme
 		if ctx.UseColor && ctx.Theme != nil {
-			if propToken, ok := token.(*PropertyToken); ok {
-				text = t.colorizeProperty(propToken.PropertyName, text, event, ctx)
+			switch tok := token.(type) {
+			case *BuiltInToken:
+				text = t.colorizeBuiltIn(tok.Name, text, event, ctx)
+			case *PropertyToken:
+				text = t.colorizeProperty(tok.PropertyName, text, event, ctx)
 			}
 		}
 		
 		sb.WriteString(text)
 	}
 	return sb.String()
+}
+
+// colorizeBuiltIn applies theme colors to built-in elements
+func (t *Template) colorizeBuiltIn(name string, text string, event *core.LogEvent, ctx *RenderContext) string {
+	// We'll need to pass color functions from the sink to avoid circular dependencies
+	// For now, return uncolored text
+	return text
 }
 
 // colorizeProperty applies theme colors to specific properties
@@ -108,6 +132,28 @@ func Parse(template string) (*Template, error) {
 	i := 0
 	
 	for i < len(runes) {
+		// Look for built-in syntax ${...}
+		if i+1 < len(runes) && runes[i] == '$' && runes[i+1] == '{' {
+			// Find the closing brace
+			start := i
+			i += 2 // Skip ${  
+			
+			for i < len(runes) && runes[i] != '}' {
+				i++
+			}
+			
+			if i >= len(runes) {
+				return nil, fmt.Errorf("unclosed built-in at position %d", start)
+			}
+			
+			// Parse the built-in
+			builtInStr := string(runes[start+2 : i])
+			builtIn := parseBuiltIn(builtInStr)
+			tokens = append(tokens, builtIn)
+			i++ // Skip closing }
+			continue
+		}
+		
 		// Look for property start
 		if runes[i] == '{' && i+1 < len(runes) && runes[i+1] == '{' {
 			// Escaped brace
@@ -140,9 +186,9 @@ func Parse(template string) (*Template, error) {
 			prop := parseProperty(propStr)
 			tokens = append(tokens, prop)
 		} else {
-			// Collect text until next property
+			// Collect text until next property or built-in
 			start := i
-			for i < len(runes) && runes[i] != '{' {
+			for i < len(runes) && runes[i] != '{' && !(i+1 < len(runes) && runes[i] == '$' && runes[i+1] == '{') {
 				i++
 			}
 			tokens = append(tokens, &TextToken{Text: string(runes[start:i])})
@@ -155,7 +201,21 @@ func Parse(template string) (*Template, error) {
 	}, nil
 }
 
-// parseProperty parses a property reference like "Level:u3" or "Timestamp:HH:mm:ss"
+// parseBuiltIn parses a built-in reference like "Level:u3" or "Timestamp:HH:mm:ss"
+func parseBuiltIn(str string) *BuiltInToken {
+	parts := strings.SplitN(str, ":", 2)
+	builtIn := &BuiltInToken{
+		Name: strings.TrimSpace(parts[0]),
+	}
+	
+	if len(parts) > 1 {
+		builtIn.Format = strings.TrimSpace(parts[1])
+	}
+	
+	return builtIn
+}
+
+// parseProperty parses a property reference like "UserId" or "Count:000"
 func parseProperty(str string) *PropertyToken {
 	parts := strings.SplitN(str, ":", 2)
 	prop := &PropertyToken{
@@ -364,4 +424,20 @@ func formatString(val string, format string) string {
 	default:
 		return val
 	}
+}
+
+// formatProperties formats all properties as key=value pairs
+func formatProperties(event *core.LogEvent) string {
+	if len(event.Properties) == 0 {
+		return ""
+	}
+	
+	var pairs []string
+	for k, v := range event.Properties {
+		pairs = append(pairs, fmt.Sprintf("%s=%v", k, v))
+	}
+	
+	// Sort for consistent output
+	sort.Strings(pairs)
+	return strings.Join(pairs, " ")
 }

@@ -20,12 +20,12 @@ func main() {
 	//   "WriteTo": [
 	//     {
 	//       "Name": "Console",
-	//       "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+	//       "outputTemplate": "[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message:lj}${NewLine}${Exception}"
 	//     },
 	//     {
 	//       "Name": "File",
 	//       "path": "logs/monitor-.log",
-	//       "outputTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+	//       "outputTemplate": "[${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} ${Level:u3}] {SourceContext}: ${Message:lj}${NewLine}${Exception}"
 	//     }
 	//   ],
 	//   "Enrich": [ "FromLogContext", "WithMachineName", "WithThreadId" ]
@@ -33,7 +33,7 @@ func main() {
 
 	// Create console sink with template and theme
 	consoleSink, err := sinks.NewConsoleSinkWithTemplateAndTheme(
-		"[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}",
+		"[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message:lj}",
 		sinks.LiterateTheme(), // Serilog Literate theme with ANSI 256 colors
 	)
 	if err != nil {
@@ -43,7 +43,7 @@ func main() {
 	logger := mtlog.New(
 		// Serilog-style output templates
 		mtlog.WithSink(consoleSink),
-		mtlog.WithFileTemplate("logs/monitor-.log", "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message:lj}"),
+		mtlog.WithFileTemplate("logs/monitor-.log", "[${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} ${Level:u3}] {SourceContext}: ${Message:lj}"),
 
 		// Enrichers equivalent to Serilog's "Enrich"
 		mtlog.WithMachineName(),
