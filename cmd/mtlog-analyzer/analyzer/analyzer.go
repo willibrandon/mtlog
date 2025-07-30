@@ -630,6 +630,11 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 		
 		// Suggest PascalCase for property names
 		if len(propName) > 0 && propName[0] >= 'a' && propName[0] <= 'z' {
+			// Skip OTEL-style dotted properties (they follow different conventions)
+			if strings.Contains(propName, ".") {
+				continue
+			}
+			
 			// Skip if we've already suggested a fix for this property
 			if suggested[propName] {
 				continue

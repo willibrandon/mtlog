@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Properties are extracted from templates and matched positionally to arguments
 - Templates serve as both human-readable messages and event types for grouping/analysis
 - Support for format specifiers like `{Count:000}` and `{Price:F2}`
+- OTEL-compatible dotted property names like `{http.method}`, `{service.name}`, `{db.system}`
 
 ### 2. Pipeline Architecture
 The logging pipeline follows this flow:

@@ -11,6 +11,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Zero-allocation logging** for simple messages (17.3 ns/op)
 - **Message templates** with positional property extraction and format specifiers
 - **Go template syntax** support (`{{.Property}}`) alongside traditional syntax
+- **OpenTelemetry compatibility** with support for dotted property names (`{http.method}`, `{service.name}`)
 - **Output templates** for customizable log formatting
 - **ForType logging** with automatic SourceContext from Go types and intelligent caching
 - **LogContext scoped properties** that flow through operation contexts
@@ -98,6 +99,10 @@ log.Information("User {UserId} logged in from {IP}", userId, ipAddress)
 
 // Go template syntax is also supported
 log.Information("User {{.UserId}} logged in from {{.IP}}", userId, ipAddress)
+
+// OTEL-style dotted properties for compatibility with OpenTelemetry conventions
+log.Information("HTTP {http.method} to {http.url} returned {http.status_code}", "GET", "/api", 200)
+log.Information("Service {service.name} in {service.namespace}", "api", "production")
 
 // Mix both syntaxes as needed
 log.Information("User {UserId} ({{.Username}}) from {IP}", userId, username, ipAddress)
