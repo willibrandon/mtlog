@@ -87,12 +87,19 @@ func validateProperty(prop string) error {
 	}
 
 	// Remove capturing hints
+	originalProp := propName
 	propName = strings.TrimPrefix(propName, "@")
 	propName = strings.TrimPrefix(propName, "$")
 	propName = strings.TrimSpace(propName)
 
 	if propName == "" {
-		return fmt.Errorf("empty property name after capturing hint")
+		hint := ""
+		if strings.HasPrefix(originalProp, "@") {
+			hint = "@"
+		} else if strings.HasPrefix(originalProp, "$") {
+			hint = "$"
+		}
+		return fmt.Errorf("empty property name after capturing hint '%s'", hint)
 	}
 
 	// Check for spaces in property name

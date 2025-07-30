@@ -59,7 +59,7 @@ func (p *PropertyToken) Render(properties map[string]interface{}) string {
 type CapturingHint int
 
 const (
-	// Default capturing uses ToString.
+	// Default capturing uses Go's default string conversion (e.g., fmt.Sprintf("%v", value)).
 	Default CapturingHint = iota
 	
 	// Stringify forces string conversion.
