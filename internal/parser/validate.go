@@ -100,6 +100,18 @@ func validateProperty(prop string) error {
 		return fmt.Errorf("property name contains spaces")
 	}
 
+	// Check if property is just dots with no actual name
+	allDots := true
+	for _, r := range propName {
+		if r != '.' {
+			allDots = false
+			break
+		}
+	}
+	if allDots {
+		return fmt.Errorf("property name cannot be only dots")
+	}
+
 	// Check if starts with number
 	if propName[0] >= '0' && propName[0] <= '9' {
 		return fmt.Errorf("property name starts with a number")

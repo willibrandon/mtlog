@@ -301,8 +301,8 @@ func isValidPropertyName(name string) bool {
 				return false
 			}
 		} else {
-			// Allow letters, digits, underscores, and hyphens (for Go template compatibility)
-			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
+			// Allow letters, digits, underscores, hyphens, and dots (for OTEL compatibility)
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' && r != '.' {
 				return false
 			}
 		}

@@ -186,7 +186,7 @@ func TestIsValidPropertyName(t *testing.T) {
 		{"starts with number", "123user", false},
 		{"contains space", "user name", false},
 		{"contains hyphen", "user-id", true}, // Allowed for Go compatibility
-		{"contains dot", "user.id", false},
+		{"contains dot", "user.id", true}, // Allowed for OTEL compatibility
 	}
 	
 	for _, tt := range tests {
