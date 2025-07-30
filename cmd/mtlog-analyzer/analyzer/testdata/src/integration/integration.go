@@ -61,7 +61,7 @@ func testPropertyNaming() {
 	log.Information("User {userId} logged in", 123) // want "suggestion: consider using PascalCase for property 'userId'"
 }
 
-func testDestructuringUsage() {
+func testCapturingUsage() {
 	type User struct {
 		ID   int
 		Name string

@@ -51,7 +51,7 @@ func FuzzParseMessageTemplate(f *testing.F) {
 		"{Value:X}",
 		"{Value:E3}",
 		
-		// Destructuring hints
+		// Capturing hints
 		"{@Object}",
 		"{$String}",
 		"{@User:json}",

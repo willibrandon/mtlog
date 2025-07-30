@@ -17,7 +17,7 @@ func (m *mockPropertyFactory) CreateProperty(name string, value interface{}) *co
 	}
 }
 
-func TestDestructureBasicTypes(t *testing.T) {
+func TestCaptureBasicTypes(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
@@ -48,7 +48,7 @@ func TestDestructureBasicTypes(t *testing.T) {
 	}
 }
 
-func TestDestructureSlice(t *testing.T) {
+func TestCaptureSlice(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
@@ -85,7 +85,7 @@ func TestDestructureSlice(t *testing.T) {
 	}
 }
 
-func TestDestructureMap(t *testing.T) {
+func TestCaptureMap(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
@@ -111,7 +111,7 @@ func TestDestructureMap(t *testing.T) {
 	}
 }
 
-func TestDestructureStruct(t *testing.T) {
+func TestCaptureStruct(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
@@ -194,7 +194,7 @@ func TestDestructureStruct(t *testing.T) {
 	}
 }
 
-func TestDestructureDepthLimit(t *testing.T) {
+func TestCaptureDepthLimit(t *testing.T) {
 	d := NewCapturer(3, 1000, 100) // Max depth of 3 (to reach the nested structs)
 	factory := &mockPropertyFactory{}
 	
@@ -248,7 +248,7 @@ func TestDestructureDepthLimit(t *testing.T) {
 	}
 }
 
-func TestDestructureTime(t *testing.T) {
+func TestCaptureTime(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	
@@ -270,7 +270,7 @@ func TestDestructureTime(t *testing.T) {
 	}
 }
 
-func TestDestructurePointers(t *testing.T) {
+func TestCapturePointers(t *testing.T) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	

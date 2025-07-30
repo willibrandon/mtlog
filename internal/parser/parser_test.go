@@ -29,7 +29,7 @@ func TestParse(t *testing.T) {
 			template: "Hello, {Name}!",
 			want: []MessageTemplateToken{
 				&TextToken{Text: "Hello, "},
-				&PropertyToken{PropertyName: "Name", Destructuring: Default},
+				&PropertyToken{PropertyName: "Name", Capturing: Default},
 				&TextToken{Text: "!"},
 			},
 		},
@@ -38,19 +38,19 @@ func TestParse(t *testing.T) {
 			template: "User {UserId} logged in from {IpAddress}",
 			want: []MessageTemplateToken{
 				&TextToken{Text: "User "},
-				&PropertyToken{PropertyName: "UserId", Destructuring: Default},
+				&PropertyToken{PropertyName: "UserId", Capturing: Default},
 				&TextToken{Text: " logged in from "},
-				&PropertyToken{PropertyName: "IpAddress", Destructuring: Default},
+				&PropertyToken{PropertyName: "IpAddress", Capturing: Default},
 			},
 		},
 		{
-			name:     "destructuring hints",
+			name:     "capturing hints",
 			template: "Processing {@User} with {$Exception}",
 			want: []MessageTemplateToken{
 				&TextToken{Text: "Processing "},
-				&PropertyToken{PropertyName: "User", Destructuring: Destructure},
+				&PropertyToken{PropertyName: "User", Capturing: Capture},
 				&TextToken{Text: " with "},
-				&PropertyToken{PropertyName: "Exception", Destructuring: AsScalar},
+				&PropertyToken{PropertyName: "Exception", Capturing: AsScalar},
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestParse(t *testing.T) {
 			template: "Hello {}!",
 			want: []MessageTemplateToken{
 				&TextToken{Text: "Hello "},
-				&PropertyToken{PropertyName: "", Destructuring: Default},
+				&PropertyToken{PropertyName: "", Capturing: Default},
 				&TextToken{Text: "!"},
 			},
 		},
@@ -85,7 +85,7 @@ func TestParse(t *testing.T) {
 			name:     "property at start",
 			template: "{Name} says hello",
 			want: []MessageTemplateToken{
-				&PropertyToken{PropertyName: "Name", Destructuring: Default},
+				&PropertyToken{PropertyName: "Name", Capturing: Default},
 				&TextToken{Text: " says hello"},
 			},
 		},
@@ -94,15 +94,15 @@ func TestParse(t *testing.T) {
 			template: "Hello, {Name}",
 			want: []MessageTemplateToken{
 				&TextToken{Text: "Hello, "},
-				&PropertyToken{PropertyName: "Name", Destructuring: Default},
+				&PropertyToken{PropertyName: "Name", Capturing: Default},
 			},
 		},
 		{
 			name:     "adjacent properties",
 			template: "{First}{Last}",
 			want: []MessageTemplateToken{
-				&PropertyToken{PropertyName: "First", Destructuring: Default},
-				&PropertyToken{PropertyName: "Last", Destructuring: Default},
+				&PropertyToken{PropertyName: "First", Capturing: Default},
+				&PropertyToken{PropertyName: "Last", Capturing: Default},
 			},
 		},
 	}
@@ -156,7 +156,7 @@ func TestExtractPropertyNames(t *testing.T) {
 			want:     []string{"Name"},
 		},
 		{
-			name:     "destructuring hints",
+			name:     "capturing hints",
 			template: "Processing {@User} with {$Exception}",
 			want:     []string{"User", "Exception"},
 		},
@@ -207,7 +207,7 @@ func tokensEqual(a, b MessageTemplateToken) bool {
 	case *PropertyToken:
 		tb, ok := b.(*PropertyToken)
 		return ok && ta.PropertyName == tb.PropertyName && 
-			ta.Destructuring == tb.Destructuring &&
+			ta.Capturing == tb.Capturing &&
 			ta.Format == tb.Format &&
 			ta.Alignment == tb.Alignment
 	default:

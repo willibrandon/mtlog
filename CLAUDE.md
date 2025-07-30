@@ -30,7 +30,7 @@ Message Template Parser → Enrichment → Filtering → Capturing → Sinks (Ou
 - `Logger` - Main logging interface with methods like `Information()`, `Error()`, etc.
 - `LogEventEnricher` - Adds contextual properties to log events
 - `LogEventFilter` - Determines which events proceed through pipeline
-- `Destructurer` - Converts complex types to log-appropriate representations
+- `Capturer` - Converts complex types to log-appropriate representations
 - `LogEventSink` - Outputs events to destinations (Console, File, Seq, etc.)
 - `LoggingLevelSwitch` - Dynamic level control for runtime configuration
 

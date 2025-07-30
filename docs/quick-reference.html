@@ -189,9 +189,9 @@ log.Information("User {{.UserId}} logged in from {{.IP}}", userId, ipAddress)
 log.Information("User {UserId} ({{.Username}}) from {IP}", userId, username, ipAddress)</code></pre>
                         </div>
 
-                        <h3 class="text-xl font-semibold mb-2">Destructuring Hints</h3>
+                        <h3 class="text-xl font-semibold mb-2">Capturing Hints</h3>
                         <div class="bg-gray-800 rounded-lg p-4 mb-4">
-                            <pre><code class="language-go">// @ - destructure complex types
+                            <pre><code class="language-go">// @ - capture complex types
 log.Information("Order {@Order} created", order)
 
 // $ - force scalar rendering

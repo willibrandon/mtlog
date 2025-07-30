@@ -269,11 +269,11 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []inte
 	// Extract property names from already parsed template
 	propNames := parser.ExtractPropertyNamesFromTemplate(tmpl)
 	
-	// Also check which properties need destructuring
+	// Also check which properties need capturing
 	captureProps := make(map[string]bool)
 	for _, token := range tmpl.Tokens {
 		if prop, ok := token.(*parser.PropertyToken); ok {
-			if prop.Destructuring == parser.Destructure {
+			if prop.Capturing == parser.Capture {
 				captureProps[prop.PropertyName] = true
 			}
 		}
@@ -284,7 +284,7 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []inte
 		if i < len(args) {
 			value := args[i]
 			
-			// Apply destructuring if needed and capturer is available
+			// Apply capturing if needed and capturer is available
 			if captureProps[name] && l.pipeline.capturer != nil {
 				factory := &propertyFactory{}
 				if prop, ok := l.pipeline.capturer.TryCapture(value, factory); ok {

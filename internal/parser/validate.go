@@ -86,13 +86,13 @@ func validateProperty(prop string) error {
 		propName = prop[:idx]
 	}
 
-	// Remove destructuring hints
+	// Remove capturing hints
 	propName = strings.TrimPrefix(propName, "@")
 	propName = strings.TrimPrefix(propName, "$")
 	propName = strings.TrimSpace(propName)
 
 	if propName == "" {
-		return fmt.Errorf("empty property name after destructuring hint")
+		return fmt.Errorf("empty property name after capturing hint")
 	}
 
 	// Check for spaces in property name

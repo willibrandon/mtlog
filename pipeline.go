@@ -39,7 +39,7 @@ func (p *pipeline) process(event *core.LogEvent, factory core.LogEventPropertyFa
 		}
 	}
 	
-	// Stage 3: Destructuring - handled during property extraction for @ hints
+	// Stage 3: Capturing - handled during property extraction for @ hints
 	// The capturer is made available to the logger but not applied here
 	
 	// Stage 4: Output - send to sinks
@@ -50,7 +50,7 @@ func (p *pipeline) process(event *core.LogEvent, factory core.LogEventPropertyFa
 
 // processSimple handles the fast path for simple string messages.
 func (p *pipeline) processSimple(timestamp time.Time, level core.LogEventLevel, message string) {
-	// Fast path bypasses enrichment, filtering, and destructuring
+	// Fast path bypasses enrichment, filtering, and capturing
 	for _, sink := range p.sinks {
 		if simpleSink, ok := sink.(core.SimpleSink); ok {
 			simpleSink.EmitSimple(timestamp, level, message)

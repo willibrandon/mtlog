@@ -49,7 +49,7 @@ func TestParsePropertyWithFormat(t *testing.T) {
 			expectedAlign: 8,
 		},
 		{
-			name:          "With destructuring and format",
+			name:          "With capturing and format",
 			propertyText:  "@User:json",
 			expectedName:  "User",
 			expectedFormat: "json",

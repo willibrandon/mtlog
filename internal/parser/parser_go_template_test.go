@@ -127,16 +127,16 @@ func TestGoTemplateEdgeCases(t *testing.T) {
 	}
 }
 
-func TestGoTemplateDestructuring(t *testing.T) {
+func TestGoTemplateCapturing(t *testing.T) {
 	tests := []struct {
 		name       string
 		template   string
 		properties map[string]interface{}
 		expected   string
-		checkType  string // To verify destructuring hint is parsed
+		checkType  string // To verify capturing hint is parsed
 	}{
 		{
-			name:       "Go template with @ destructuring",
+			name:       "Go template with @ capturing",
 			template:   "User {{@.User}} created",
 			properties: map[string]interface{}{"User": map[string]interface{}{"id": 1, "name": "Alice"}},
 			expected:   "User ",
@@ -158,20 +158,20 @@ func TestGoTemplateDestructuring(t *testing.T) {
 				t.Fatalf("Parse failed: %v", err)
 			}
 
-			// Check destructuring hint was parsed correctly
+			// Check capturing hint was parsed correctly
 			for _, token := range mt.Tokens {
 				if prop, ok := token.(*PropertyToken); ok {
-					if tt.checkType == "capture" && prop.Destructuring != Destructure {
-						t.Errorf("Expected destructuring hint, got %v", prop.Destructuring)
+					if tt.checkType == "capture" && prop.Capturing != Capture {
+						t.Errorf("Expected capturing hint, got %v", prop.Capturing)
 					}
-					if tt.checkType == "scalar" && prop.Destructuring != AsScalar {
-						t.Errorf("Expected scalar hint, got %v", prop.Destructuring)
+					if tt.checkType == "scalar" && prop.Capturing != AsScalar {
+						t.Errorf("Expected scalar hint, got %v", prop.Capturing)
 					}
 				}
 			}
 
 			result := mt.Render(tt.properties)
-			// For destructuring tests, just check that it starts with expected prefix
+			// For capturing tests, just check that it starts with expected prefix
 			if !strings.HasPrefix(result, tt.expected) {
 				t.Errorf("Expected result to start with %q, got %q", tt.expected, result)
 			}

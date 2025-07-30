@@ -251,7 +251,7 @@ func (d *CachedCapturer) capture(value interface{}, depth int) interface{} {
 			return formatTime(value)
 		}
 		
-		// Use cached destructuring for structs
+		// Use cached capturing for structs
 		return d.captureStructCached(v, depth)
 		
 	case reflect.Func, reflect.Chan:

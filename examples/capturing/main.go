@@ -32,7 +32,7 @@ type Address struct {
 }
 
 func main() {
-	// Example 1: Basic destructuring
+	// Example 1: Basic capturing
 	log1 := mtlog.New(
 		mtlog.WithConsoleProperties(),
 		mtlog.WithCapturing(),
@@ -65,7 +65,7 @@ func main() {
 	
 	log1.Information("User logged in: {@User}", user)
 	
-	// Example 2: Destructuring with limits
+	// Example 2: Capturing with limits
 	log2 := mtlog.New(
 		mtlog.WithConsoleProperties(),
 		mtlog.WithCustomCapturing(2, 50, 5), // Max depth 2, strings truncated at 50 chars, max 5 items in collections
@@ -90,15 +90,15 @@ func main() {
 	
 	log2.Information("Large data: {@Data}", largeData)
 	
-	// Example 3: Without destructuring (default behavior)
+	// Example 3: Without capturing (default behavior)
 	log3 := mtlog.New(
 		mtlog.WithConsoleProperties(),
-		// No destructuring - complex objects will use default Go formatting
+		// No capturing - complex objects will use default Go formatting
 	)
 	
-	log3.Information("User without destructuring: {@User}", user)
+	log3.Information("User without capturing: {@User}", user)
 	
-	// Example 4: Destructuring with errors and special types
+	// Example 4: Capturing with errors and special types
 	log4 := mtlog.New(
 		mtlog.WithConsoleProperties(),
 		mtlog.WithCapturing(),

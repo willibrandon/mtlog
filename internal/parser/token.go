@@ -29,8 +29,8 @@ type PropertyToken struct {
 	// PropertyName is the name of the property.
 	PropertyName string
 	
-	// Destructuring specifies how the property should be captured.
-	Destructuring DestructuringHint
+	// Capturing specifies how the property should be captured.
+	Capturing CapturingHint
 	
 	// Format specifies the format string, if any.
 	Format string
@@ -55,18 +55,18 @@ func (p *PropertyToken) Render(properties map[string]interface{}) string {
 	return "{" + p.PropertyName + "}"
 }
 
-// DestructuringHint specifies how a property should be captured.
-type DestructuringHint int
+// CapturingHint specifies how a property should be captured.
+type CapturingHint int
 
 const (
-	// Default destructuring uses ToString.
-	Default DestructuringHint = iota
+	// Default capturing uses ToString.
+	Default CapturingHint = iota
 	
 	// Stringify forces string conversion.
 	Stringify
 	
-	// Destructure captures object structure.
-	Destructure
+	// Capture captures object structure.
+	Capture
 	
 	// AsScalar treats as scalar value.
 	AsScalar

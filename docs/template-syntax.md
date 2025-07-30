@@ -78,7 +78,7 @@ mtlog.WithFileTemplate("app.log", "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] {Messag
 Both syntaxes support capturing hints:
 
 ```go
-// @ - Destructure complex types
+// @ - Capture complex types
 logger.Information("Order {@Order} created", order)
 logger.Information("User {{@.User}} updated", user)
 

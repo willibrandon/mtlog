@@ -202,7 +202,7 @@ sink, _ := sinks.NewElasticsearchSink("http://localhost:9200",
 2. **Slow Capturing**
    ```go
    // Limit capturing depth
-   destructurer := destructure.NewDestructurer(
+   capturer := capture.NewCapturer(
        2,    // Max depth (default: 3)
        100,  // Max string length
        50,   // Max collection items

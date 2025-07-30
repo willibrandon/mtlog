@@ -74,7 +74,7 @@ func (f *CLEFFormatter) renderMessage(event *core.LogEvent) (string, error) {
 				// Extract property name
 				propName := template[i+1 : j]
 				
-				// Remove destructuring hints
+				// Remove capturing hints
 				propName = strings.TrimPrefix(propName, "@")
 				propName = strings.TrimPrefix(propName, "$")
 				

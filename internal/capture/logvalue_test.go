@@ -141,7 +141,7 @@ func TestLogValue(t *testing.T) {
 		
 		prop, _ := d.TryCapture(card, factory)
 		
-		// The result should be a struct (map after destructuring)
+		// The result should be a struct (map after capturing)
 		result, ok := prop.Value.(map[string]interface{})
 		if !ok {
 			t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)

@@ -156,7 +156,7 @@ logger.InformationT("Progress: {Percent:P2}", 0.755)
 Capturing hints work with generics:
 
 ```go
-// Destructure complex types
+// Capture complex types
 order := Order{ID: "ORD-123", Total: 99.95, Items: 3}
 logger.InformationT("Processing {@Order}", order)
 
