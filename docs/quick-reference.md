@@ -75,14 +75,14 @@ logger.Information("Speed: {Value:F2} MB/s", 123.456)  // 123.46 MB/s
 logger.Information("CPU Usage: {Usage:P0}", 0.65)      // 65%
 
 // Timestamps (in output templates)
-// {Timestamp:HH:mm:ss} -> 15:04:05
-// {Timestamp:yyyy-MM-dd} -> 2024-01-02
-// {Timestamp:yyyy-MM-dd HH:mm:ss.fff} -> 2024-01-02 15:04:05.123
+// ${Timestamp:HH:mm:ss} -> 15:04:05
+// ${Timestamp:yyyy-MM-dd} -> 2024-01-02
+// ${Timestamp:yyyy-MM-dd HH:mm:ss.fff} -> 2024-01-02 15:04:05.123
 
 // Levels (in output templates)
-// {Level:u3} -> INF, WRN, ERR
-// {Level:u} -> INFORMATION, WARNING, ERROR
-// {Level:l} -> information, warning, error
+// ${Level:u3} -> INF, WRN, ERR
+// ${Level:u} -> INFORMATION, WARNING, ERROR
+// ${Level:l} -> information, warning, error
 ```
 
 ## Sinks
@@ -97,7 +97,7 @@ mtlog.WithConsoleTheme(sinks.LightTheme())      // Light theme
 mtlog.WithConsoleTheme(sinks.NoColorTheme())    // No colors
 
 // With output template
-mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}")
+mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}")
 ```
 
 ### File
@@ -108,7 +108,7 @@ mtlog.WithRollingFileTime("app.log", time.Hour)        // Time-based rolling
 
 // With output template
 mtlog.WithFileTemplate("app.log", 
-    "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}")
+    "[${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} ${Level:u3}] {SourceContext}: ${Message}${NewLine}${Exception}")
 ```
 
 ### Seq

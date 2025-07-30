@@ -9,7 +9,7 @@ import (
 func main() {
 	// Create console sink with template and Literate theme
 	consoleSink, err := sinks.NewConsoleSinkWithTemplateAndTheme(
-		"[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}",
+		"[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message:lj}",
 		sinks.LiterateTheme(),
 	)
 	if err != nil {

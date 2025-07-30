@@ -15,13 +15,13 @@ func FuzzParseOutputTemplate(f *testing.F) {
 	// Add seed corpus with various edge cases
 	testCases := []string{
 		// Basic templates
-		"[{Timestamp}] {Message}",
-		"{Level} - {Message}",
-		"[{Timestamp:HH:mm:ss} {Level:u3}] {Message}",
+		"[${Timestamp}] ${Message}",
+		"${Level} - ${Message}",
+		"[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}",
 		
 		// Serilog-style templates
-		"[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}",
-		"{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message}",
+		"[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message:lj}",
+		"${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [${Level:u3}] ${Message}",
 		
 		// Go template syntax
 		"{{.Timestamp}} {{.Level}} {{.Message}}",
@@ -29,8 +29,8 @@ func FuzzParseOutputTemplate(f *testing.F) {
 		"{{.Level}}: {{.Message}} [{{.SourceContext}}]",
 		
 		// Mixed syntax
-		"{Timestamp} {{.Level}} {Message}",
-		"[{{.Timestamp}}] {Level:u3} - {{.Message}}",
+		"${Timestamp} {{.Level}} ${Message}",
+		"[{{.Timestamp}}] ${Level:u3} - {{.Message}}",
 		
 		// Edge cases
 		"",
@@ -85,7 +85,7 @@ func FuzzParseOutputTemplate(f *testing.F) {
 		"{ }",
 		
 		// Complex nested
-		"[{Timestamp}] {{{Level}}} {Message}",
+		"[${Timestamp}] {{{Level}}} ${Message}",
 		"{{.Level}} in {{{SourceContext}}}",
 		
 		// Unicode
@@ -93,7 +93,7 @@ func FuzzParseOutputTemplate(f *testing.F) {
 		"📅 {Timestamp} 📊 {Level} 💬 {Message}",
 		
 		// Long templates
-		"[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] [{MachineName}] [{ThreadId}] [{SourceContext}] {Message:lj} {Properties}",
+		"[${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [${Level:u3}] [{MachineName}] [{ThreadId}] [{SourceContext}] ${Message:lj} ${Properties}",
 		
 		// Repeated properties
 		"{Level} {Level} {Level}",

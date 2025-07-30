@@ -8,7 +8,7 @@ import (
 func main() {
 	// Create a logger with Literate theme for nice output
 	sink, err := sinks.NewConsoleSinkWithTemplateAndTheme(
-		"[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}",
+		"[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}",
 		sinks.LiterateTheme(),
 	)
 	if err != nil {

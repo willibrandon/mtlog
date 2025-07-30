@@ -79,7 +79,7 @@ func main() {
 // For libraries that need error handling:
 func NewLibraryLogger() (*mtlog.Logger, error) {
     return mtlog.Build(
-        mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {Message}"),
+        mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}"),
         mtlog.WithMinimumLevel(core.DebugLevel),
     )
 }
@@ -122,35 +122,50 @@ log.Information("Order {OrderId:000} total: ${Amount:F2}", 42, 99.95)
 
 ## Output Templates
 
-Control how log events are formatted for output with customizable templates:
+Control how log events are formatted for output with customizable templates. Output templates use `${...}` syntax for built-in elements to distinguish them from message template properties:
 
 ```go
 // Console with custom output template
 log := mtlog.New(
-    mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message}"),
+    mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}"),
     mtlog.WithConsoleTheme(sinks.LiterateTheme()),
 )
 
 // File with detailed template
 log := mtlog.New(
     mtlog.WithFileTemplate("app.log", 
-        "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}"),
+        "[${Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} ${Level:u3}] {SourceContext}: ${Message}${NewLine}${Exception}"),
 )
 ```
 
 ### Template Properties
-- `{Timestamp}` - Event timestamp with optional format
-- `{Level}` - Log level with format options (u3, u, l)
-- `{Message}` - Rendered message from template
+- `${Timestamp}` - Event timestamp with optional format
+- `${Level}` - Log level with format options (u3, u, l)
+- `${Message}` - Rendered message from template
 - `{SourceContext}` - Logger context/category
-- `{Exception}` - Exception details if present
-- `{NewLine}` - Platform-specific line separator
+- `${Exception}` - Exception details if present
+- `${NewLine}` - Platform-specific line separator
 - Custom properties by name: `{RequestId}`, `{UserId}`, etc.
 
 ### Format Specifiers
 - **Timestamps**: `HH:mm:ss`, `yyyy-MM-dd`, `HH:mm:ss.fff`
 - **Levels**: `u3` (INF), `u` (INFORMATION), `l` (information)
 - **Numbers**: `000` (zero-pad), `F2` (2 decimals), `P1` (percentage)
+
+### Design Note: Why `${...}` for Built-ins?
+
+Unlike Serilog which uses `{...}` for both built-in elements and properties in output templates, mtlog uses `${...}` for built-ins. This design choice prevents ambiguity when user properties have the same names as built-in elements (e.g., a property named "Message" would conflict with the built-in {Message}).
+
+The `${...}` syntax provides clear disambiguation:
+- `${Message}`, `${Timestamp}`, `${Level}` - Built-in template elements
+- `{UserId}`, `{OrderId}`, `{Message}` - User properties from your log events
+
+This means you can safely log a property called "Message" without conflicts:
+```go
+log.Information("Processing {Message} from {Queue}", userMessage, queueName)
+// Output template: "[${Timestamp}] ${Level}: ${Message}"
+// Result: "[2024-01-15] INF: Processing Hello World from orders"
+```
 
 ## Pipeline Architecture
 

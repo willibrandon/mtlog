@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with all features: format specifiers, capturing hints, Go template syntax
   - Example: `log.Information("HTTP {http.method} to {http.url} took {http.duration.ms:F2}ms", "GET", "/api", 123.45)`
 
+- **New Output Template Syntax** - `${...}` for built-in elements (#3)
+  - Output templates now use `${...}` syntax for built-in elements to prevent ambiguity
+  - Built-in elements: `${Timestamp}`, `${Level}`, `${Message}`, `${Exception}`, `${NewLine}`, `${Properties}`
+  - User properties continue to use `{...}` syntax: `{UserId}`, `{RequestId}`, etc.
+  - Prevents conflicts when logging properties with names like "Message" or "Level"
+  - Example: `mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}")`
+  - All format specifiers work with the new syntax: `${Timestamp:yyyy-MM-dd}`, `${Level:u3}`
+
 ### Changed
 - **Breaking: Renamed 'destructuring' to 'capturing'** (#1)
   - Based on feedback from Nicholas Blumhardt (Serilog creator)
