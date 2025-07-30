@@ -218,20 +218,20 @@ log.Information("Code: {Code,-5}", "ABC")        // "ABC  "</code></pre>
                         <h3 class="text-xl font-semibold mb-2">Console Templates</h3>
                         <div class="bg-gray-800 rounded-lg p-4 mb-4">
                             <pre><code class="language-go">// Simple
-mtlog.WithConsoleTemplate("[{Level:u3}] {Message}")
+mtlog.WithConsoleTemplate("[${Level:u3}] ${Message}")
 
 // With timestamp
-mtlog.WithConsoleTemplate("[{Timestamp:HH:mm:ss} {Level:u3}] {Message}")
+mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] ${Message}")
 
 // Full details
 mtlog.WithConsoleTemplate(
-    "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {SourceContext}: {Message}{NewLine}{Exception}")</code></pre>
+    "[${Timestamp:yyyy-MM-dd HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}${NewLine}${Exception}")</code></pre>
                         </div>
 
                         <h3 class="text-xl font-semibold mb-2">File Templates</h3>
                         <div class="bg-gray-800 rounded-lg p-4 mb-4">
                             <pre><code class="language-go">mtlog.WithFileTemplate("app.log", 
-    "[{Timestamp:o} {Level:u3}] {SourceContext} {Message}{NewLine}{Exception}")</code></pre>
+    "[${Timestamp:o} ${Level:u3}] {SourceContext} ${Message}${NewLine}${Exception}")</code></pre>
                         </div>
                     </section>
 
