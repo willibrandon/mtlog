@@ -15,18 +15,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Support for format specifiers like `{Count:000}` and `{Price:F2}`
 - OTEL-compatible dotted property names like `{http.method}`, `{service.name}`, `{db.system}`
 
-### 2. Pipeline Architecture
+### 2. Output Templates (v0.6.0+)
+- Output templates use `${...}` syntax for built-in elements to avoid conflicts
+- Built-in elements: `${Timestamp}`, `${Level}`, `${Message}`, `${Exception}`, `${NewLine}`, `${Properties}`
+- User properties continue to use `{...}` syntax: `{UserId}`, `{RequestId}`, etc.
+- Example: `"[${Timestamp}] ${Level} ${Message} {UserId}"` - clearly distinguishes built-ins from user properties
+
+### 3. Pipeline Architecture
 The logging pipeline follows this flow:
 ```
 Message Template Parser → Enrichment → Filtering → Capturing → Sinks (Output)
 ```
 
-### 3. Ecosystem Compatibility
+### 4. Ecosystem Compatibility
 - **slog**: Full compatibility with Go's standard `log/slog` package via `slog.Handler` adapter
 - **logr**: Integration with Kubernetes ecosystem via `logr.LogSink` adapter
 - **Short Methods**: Convenience methods like `V()`, `D()`, `I()`, `W()`, `E()`, `F()`
 
-### 4. Core Interfaces
+### 5. Core Interfaces
 - `Logger` - Main logging interface with methods like `Information()`, `Error()`, etc.
 - `LogEventEnricher` - Adds contextual properties to log events
 - `LogEventFilter` - Determines which events proceed through pipeline
@@ -34,7 +40,7 @@ Message Template Parser → Enrichment → Filtering → Capturing → Sinks (Ou
 - `LogEventSink` - Outputs events to destinations (Console, File, Seq, etc.)
 - `LoggingLevelSwitch` - Dynamic level control for runtime configuration
 
-### 5. SelfLog Diagnostics
+### 6. SelfLog Diagnostics
 - Internal diagnostic facility for debugging silent failures
 - Zero-cost when disabled (0.37ns/op with guard check)
 - Outputs to any `io.Writer` or custom function
