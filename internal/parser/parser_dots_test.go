@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -268,13 +269,9 @@ func TestValidateTemplateWithDots(t *testing.T) {
 				t.Errorf("ValidateTemplate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err != nil && tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
+			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 				t.Errorf("ValidateTemplate() error = %v, want error containing %v", err, tt.errMsg)
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr || len(s) > len(substr) && contains(s[1:], substr)
 }
