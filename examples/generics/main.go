@@ -35,7 +35,7 @@ func main() {
 	// Example 1: Type-safe logger for Orders
 	orderLogger := mtlog.NewTyped[Order](
 		mtlog.WithConsoleProperties(),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 	)
 	
 	order := Order{

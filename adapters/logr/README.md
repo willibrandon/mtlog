@@ -34,7 +34,7 @@ logger.Error(err, "failed to update resource", "reason", "conflict")
 - **Full logr Compatibility**: Drop-in replacement for any logr backend
 - **Message Templates**: Leverage mtlog's powerful message template system
 - **Rich Sinks**: Output to Console, Seq, Elasticsearch, Splunk, and more
-- **Pipeline Architecture**: Add enrichers, filters, and destructurers
+- **Pipeline Architecture**: Add enrichers, filters, and capturers
 - **Performance**: Benefit from mtlog's optimized logging pipeline
 
 ## V-Level Mapping

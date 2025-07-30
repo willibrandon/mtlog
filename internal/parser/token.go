@@ -29,7 +29,7 @@ type PropertyToken struct {
 	// PropertyName is the name of the property.
 	PropertyName string
 	
-	// Destructuring specifies how the property should be destructured.
+	// Destructuring specifies how the property should be captured.
 	Destructuring DestructuringHint
 	
 	// Format specifies the format string, if any.
@@ -55,7 +55,7 @@ func (p *PropertyToken) Render(properties map[string]interface{}) string {
 	return "{" + p.PropertyName + "}"
 }
 
-// DestructuringHint specifies how a property should be destructured.
+// DestructuringHint specifies how a property should be captured.
 type DestructuringHint int
 
 const (

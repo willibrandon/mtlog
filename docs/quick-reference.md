@@ -57,7 +57,7 @@ logger.Information("User {{.UserId}} logged in", userId)
 logger.Information("User {UserId} ({{.Username}}) logged in", userId, username)
 ```
 
-### Destructuring Hints
+### Capturing Hints
 ```go
 // @ - destructure complex types
 logger.Information("User: {@User}", user)

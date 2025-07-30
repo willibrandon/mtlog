@@ -11,16 +11,16 @@ import (
 type pipeline struct {
 	enrichers    []core.LogEventEnricher
 	filters      []core.LogEventFilter
-	destructurer core.Destructurer
+	capturer core.Capturer
 	sinks        []core.LogEventSink
 }
 
 // newPipeline creates a new pipeline with the given stages.
-func newPipeline(enrichers []core.LogEventEnricher, filters []core.LogEventFilter, destructurer core.Destructurer, sinks []core.LogEventSink) *pipeline {
+func newPipeline(enrichers []core.LogEventEnricher, filters []core.LogEventFilter, capturer core.Capturer, sinks []core.LogEventSink) *pipeline {
 	return &pipeline{
 		enrichers:    enrichers,
 		filters:      filters,
-		destructurer: destructurer,
+		capturer: capturer,
 		sinks:        sinks,
 	}
 }
@@ -40,7 +40,7 @@ func (p *pipeline) process(event *core.LogEvent, factory core.LogEventPropertyFa
 	}
 	
 	// Stage 3: Destructuring - handled during property extraction for @ hints
-	// The destructurer is made available to the logger but not applied here
+	// The capturer is made available to the logger but not applied here
 	
 	// Stage 4: Output - send to sinks
 	for _, sink := range p.sinks {

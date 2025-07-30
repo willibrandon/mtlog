@@ -82,7 +82,7 @@ logger.InformationT("Rate: {Rate}", 3.14159)
 logger.InformationT("Name: {Name}", "Alice")
 logger.InformationT("Active: {Active}", true)
 
-// Complex types (with destructuring)
+// Complex types (with capturing)
 user := User{ID: 123, Name: "Bob"}
 logger.InformationT("User created: {@User}", user)
 
@@ -151,9 +151,9 @@ logger.InformationT("Count: {Items:N0}", 1000)
 logger.InformationT("Progress: {Percent:P2}", 0.755)
 ```
 
-### With Destructuring
+### With Capturing
 
-Destructuring hints work with generics:
+Capturing hints work with generics:
 
 ```go
 // Destructure complex types
@@ -393,7 +393,7 @@ func main() {
     logger.DebugT("Processing order {OrderId} for user {UserId} total {Total}",
         orderID, userID, total)
     
-    // Complex type destructuring
+    // Complex type capturing
     order := Order{
         ID:     orderID,
         UserID: userID,

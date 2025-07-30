@@ -35,7 +35,7 @@ func main() {
 	// Example 1: Basic destructuring
 	log1 := mtlog.New(
 		mtlog.WithConsoleProperties(),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 	)
 	
 	user := User{
@@ -68,7 +68,7 @@ func main() {
 	// Example 2: Destructuring with limits
 	log2 := mtlog.New(
 		mtlog.WithConsoleProperties(),
-		mtlog.WithCustomDestructuring(2, 50, 5), // Max depth 2, strings truncated at 50 chars, max 5 items in collections
+		mtlog.WithCustomCapturing(2, 50, 5), // Max depth 2, strings truncated at 50 chars, max 5 items in collections
 	)
 	
 	// Create a large dataset
@@ -82,7 +82,7 @@ func main() {
 		Nested: map[string]interface{}{
 			"level1": map[string]interface{}{
 				"level2": map[string]interface{}{
-					"level3": "This won't be fully destructured due to depth limit",
+					"level3": "This won't be fully captured due to depth limit",
 				},
 			},
 		},
@@ -101,7 +101,7 @@ func main() {
 	// Example 4: Destructuring with errors and special types
 	log4 := mtlog.New(
 		mtlog.WithConsoleProperties(),
-		mtlog.WithDestructuring(),
+		mtlog.WithCapturing(),
 	)
 	
 	type Response struct {
@@ -127,7 +127,7 @@ func main() {
 	
 	log4.Information("API response: {@Response}", resp)
 	
-	// Example 5: Circular references (destructurer should handle gracefully)
+	// Example 5: Circular references (capturer should handle gracefully)
 	type Node struct {
 		Value int
 		Next  *Node

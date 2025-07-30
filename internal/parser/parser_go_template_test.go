@@ -140,7 +140,7 @@ func TestGoTemplateDestructuring(t *testing.T) {
 			template:   "User {{@.User}} created",
 			properties: map[string]interface{}{"User": map[string]interface{}{"id": 1, "name": "Alice"}},
 			expected:   "User ",
-			checkType:  "destructure",
+			checkType:  "capture",
 		},
 		{
 			name:       "Go template with $ scalar",
@@ -161,7 +161,7 @@ func TestGoTemplateDestructuring(t *testing.T) {
 			// Check destructuring hint was parsed correctly
 			for _, token := range mt.Tokens {
 				if prop, ok := token.(*PropertyToken); ok {
-					if tt.checkType == "destructure" && prop.Destructuring != Destructure {
+					if tt.checkType == "capture" && prop.Destructuring != Destructure {
 						t.Errorf("Expected destructuring hint, got %v", prop.Destructuring)
 					}
 					if tt.checkType == "scalar" && prop.Destructuring != AsScalar {

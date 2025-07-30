@@ -77,14 +77,14 @@ func testDestructuringUsage() {
 	log.Information("Count is {@Count}", count) // want "warning: using @ prefix for basic type int, consider removing prefix"
 	
 	// Suggestion: complex type without @
-	log.Debug("User {User} logged in", user) // want "suggestion: consider using @ prefix for complex type integration.User to enable destructuring"
+	log.Debug("User {User} logged in", user) // want "suggestion: consider using @ prefix for complex type integration.User to enable capturing"
 	
 	// Valid: @ with complex type
 	log.Information("User {@User} logged in", user)
 	
 	// Slices and maps should suggest @ prefix
-	log.Information("Users: {Users}", users) // want "suggestion: consider using @ prefix for complex type \\[\\]integration.User to enable destructuring"
-	log.Information("User map: {UserMap}", userMap) // want "suggestion: consider using @ prefix for complex type map\\[string\\]integration.User to enable destructuring"
+	log.Information("Users: {Users}", users) // want "suggestion: consider using @ prefix for complex type \\[\\]integration.User to enable capturing"
+	log.Information("User map: {UserMap}", userMap) // want "suggestion: consider using @ prefix for complex type map\\[string\\]integration.User to enable capturing"
 }
 
 func testErrorLogging() {
@@ -149,13 +149,13 @@ func testEverything() {
 	err := fmt.Errorf("something went wrong")
 	log.Error("Failed to process request", err) // Good - has error
 	
-	// Test destructuring suggestions
+	// Test capturing suggestions
 	type User struct {
 		Name string
 		Age  int
 	}
 	user := User{Name: "Alice", Age: 30}
-	log.Information("User logged in: {User}", user) // want "suggestion: consider using @ prefix for complex type integration.User to enable destructuring"
+	log.Information("User logged in: {User}", user) // want "suggestion: consider using @ prefix for complex type integration.User to enable capturing"
 	
 	// Test format specifiers
 	log.Information("Progress: {Percent:P2}", 0.456) // Good

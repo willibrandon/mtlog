@@ -1,4 +1,4 @@
-package destructure_test
+package capture_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/internal/destructure"
+	"github.com/willibrandon/mtlog/internal/capture"
 	"github.com/willibrandon/mtlog/selflog"
 )
 
@@ -28,24 +28,24 @@ func (pf *propertyFactory) CreateProperty(name string, value interface{}) *core.
 	}
 }
 
-func TestDestructurerSelfLog(t *testing.T) {
+func TestCapturerSelfLog(t *testing.T) {
 	t.Run("LogValue panic recovery", func(t *testing.T) {
 		// Setup selflog capture
 		var selflogBuf bytes.Buffer
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		// Create destructurer
-		d := destructure.NewDefaultDestructurer()
+		// Create capturer
+		d := capture.NewDefaultCapturer()
 		factory := &propertyFactory{}
 
-		// Try to destructure a panicking LogValue
+		// Try to capture a panicking LogValue
 		value := panickingLogValue{}
-		prop, ok := d.TryDestructure(value, factory)
+		prop, ok := d.TryCapture(value, factory)
 
 		// Should recover and return true
 		if !ok {
-			t.Error("expected TryDestructure to return true after recovery")
+			t.Error("expected TryCapture to return true after recovery")
 		}
 		if prop == nil {
 			t.Error("expected non-nil property after recovery")
@@ -54,7 +54,7 @@ func TestDestructurerSelfLog(t *testing.T) {
 		// Check selflog output
 		output := selflogBuf.String()
 		t.Logf("selflog output: %q", output)
-		if !strings.Contains(output, "[destructure] LogValue.LogValue() panicked") {
+		if !strings.Contains(output, "[capture] LogValue.LogValue() panicked") {
 			t.Errorf("expected LogValue panic in selflog, got: %s", output)
 		}
 		if !strings.Contains(output, "LogValue panic!") {
@@ -68,18 +68,18 @@ func TestDestructurerSelfLog(t *testing.T) {
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		// Create destructurer
-		d := destructure.NewDefaultDestructurer()
+		// Create capturer
+		d := capture.NewDefaultCapturer()
 		factory := &propertyFactory{}
 
 		// Create a value that might cause reflection issues
 		// Using a nil interface with concrete type
 		var nilMap map[string]interface{}
-		prop, ok := d.TryDestructure(nilMap, factory)
+		prop, ok := d.TryCapture(nilMap, factory)
 
 		// Should handle nil map gracefully
 		if !ok {
-			t.Error("expected TryDestructure to return true")
+			t.Error("expected TryCapture to return true")
 		}
 		if prop == nil {
 			t.Error("expected non-nil property")
@@ -98,8 +98,8 @@ func TestDestructurerSelfLog(t *testing.T) {
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		// Create destructurer with very low depth to trigger depth limiting
-		d := destructure.NewDestructurer(1, 100, 10)
+		// Create capturer with very low depth to trigger depth limiting
+		d := capture.NewCapturer(1, 100, 10)
 		factory := &propertyFactory{}
 
 		// Create a deeply nested structure
@@ -108,11 +108,11 @@ func TestDestructurerSelfLog(t *testing.T) {
 		}
 		deepValue := &Nested{Value: &Nested{Value: &Nested{Value: "deep"}}}
 
-		prop, ok := d.TryDestructure(deepValue, factory)
+		prop, ok := d.TryCapture(deepValue, factory)
 
 		// Should handle deep structure without panic
 		if !ok {
-			t.Error("expected TryDestructure to return true")
+			t.Error("expected TryCapture to return true")
 		}
 		if prop == nil {
 			t.Error("expected non-nil property")
@@ -131,20 +131,20 @@ func TestDestructurerSelfLog(t *testing.T) {
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		// Create destructurer
-		d := destructure.NewDefaultDestructurer()
+		// Create capturer
+		d := capture.NewDefaultCapturer()
 		factory := &propertyFactory{}
 
 		// Create a closed channel which might cause issues
 		ch := make(chan int)
 		close(ch)
 
-		// Try to destructure closed channel
-		prop, ok := d.TryDestructure(ch, factory)
+		// Try to capture closed channel
+		prop, ok := d.TryCapture(ch, factory)
 
 		// Should handle without panic
 		if !ok {
-			t.Error("expected TryDestructure to return true")
+			t.Error("expected TryCapture to return true")
 		}
 		if prop == nil {
 			t.Error("expected non-nil property")
@@ -158,23 +158,23 @@ func TestDestructurerSelfLog(t *testing.T) {
 	})
 }
 
-// TestDestructurerPanicScenarios tests specific panic scenarios
-func TestDestructurerPanicScenarios(t *testing.T) {
+// TestCapturerPanicScenarios tests specific panic scenarios
+func TestCapturerPanicScenarios(t *testing.T) {
 	t.Run("nil pointer dereference protection", func(t *testing.T) {
 		// Setup selflog capture
 		var selflogBuf bytes.Buffer
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		d := destructure.NewDefaultDestructurer()
+		d := capture.NewDefaultCapturer()
 		factory := &propertyFactory{}
 
 		// Nil pointer
 		var nilPtr *struct{ Value string }
-		prop, ok := d.TryDestructure(nilPtr, factory)
+		prop, ok := d.TryCapture(nilPtr, factory)
 
 		if !ok {
-			t.Error("expected TryDestructure to return true for nil pointer")
+			t.Error("expected TryCapture to return true for nil pointer")
 		}
 		if prop == nil || prop.Value != nil {
 			t.Errorf("expected nil value for nil pointer, got: %v", prop)
@@ -193,7 +193,7 @@ func TestDestructurerPanicScenarios(t *testing.T) {
 		selflog.Enable(selflog.Sync(&selflogBuf))
 		defer selflog.Disable()
 
-		d := destructure.NewDefaultDestructurer()
+		d := capture.NewDefaultCapturer()
 		factory := &propertyFactory{}
 
 		// Create a type that panics in String() method
@@ -201,18 +201,18 @@ func TestDestructurerPanicScenarios(t *testing.T) {
 			value string
 		}
 		
-		// This type will be handled by destructuring without calling String()
+		// This type will be handled by capturing without calling String()
 		ps := &panickingStringer{value: "test"}
-		prop, ok := d.TryDestructure(ps, factory)
+		prop, ok := d.TryCapture(ps, factory)
 
 		if !ok {
-			t.Error("expected TryDestructure to return true")
+			t.Error("expected TryCapture to return true")
 		}
 		if prop == nil {
 			t.Error("expected non-nil property")
 		}
 
-		// Should destructure as a struct without panic
+		// Should capture as a struct without panic
 		output := selflogBuf.String()
 		if output != "" {
 			t.Errorf("expected no selflog output, got: %s", output)

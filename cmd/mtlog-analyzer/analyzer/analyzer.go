@@ -5,7 +5,7 @@
 //   - Invalid format specifiers
 //   - Duplicate property names
 //   - Poor property naming conventions
-//   - Missing destructuring hints for complex types
+//   - Missing capturing hints for complex types
 //   - Error logging without error values
 package analyzer
 
@@ -562,8 +562,8 @@ func runWithAllChecks(pass *analysis.Pass, call *ast.CallExpr, cache *templateCa
 	if !config.DisabledChecks["naming"] {
 		checkPropertyNamingWithConfig(pass, call, template, config)
 	}
-	if !config.DisabledChecks["destructuring"] {
-		checkDestructuringUsageWithConfig(pass, call, template, config)
+	if !config.DisabledChecks["capturing"] {
+		checkCapturingUsageWithConfig(pass, call, template, config)
 	}
 	if !config.DisabledChecks["error"] {
 		checkErrorLoggingWithConfig(pass, call, config)
@@ -579,7 +579,7 @@ func checkDuplicatePropertiesWithConfig(pass *analysis.Pass, call *ast.CallExpr,
 	for _, prop := range properties {
 		// Remove format specifier for comparison
 		propName := strings.SplitN(prop, ":", 2)[0]
-		// Remove destructuring hints
+		// Remove capturing hints
 		propName = strings.TrimPrefix(propName, "@")
 		propName = strings.TrimPrefix(propName, "$")
 		
@@ -602,7 +602,7 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 	for _, prop := range properties {
 		// Remove format specifier
 		propName := strings.SplitN(prop, ":", 2)[0]
-		// Remove destructuring hints
+		// Remove capturing hints
 		originalName := propName
 		propName = strings.TrimPrefix(propName, "@")
 		propName = strings.TrimPrefix(propName, "$")
@@ -672,8 +672,8 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 }
 
 
-// checkDestructuringUsageWithConfig checks for proper use of @ and $ prefixes
-func checkDestructuringUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, template string, config *Config) {
+// checkCapturingUsageWithConfig checks for proper use of @ and $ prefixes
+func checkCapturingUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, template string, config *Config) {
 	if len(call.Args) < 2 {
 		return
 	}
@@ -728,14 +728,14 @@ func checkDestructuringUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, 
 			// $ is for scalar rendering - make sure it's appropriate
 			if !isBasicType(argType) && !isStringer(argType) {
 				reportDiagnosticWithConfig(pass, arg.Pos(), SeverityWarning, config,
-					"using $ prefix for complex type %s, consider using @ for destructuring", argType)
+					"using $ prefix for complex type %s, consider using @ for capturing", argType)
 			}
 		} else {
 			// No prefix - suggest @ for complex types
 			if !isBasicType(argType) && !isTimeType(argType) && !isStringer(argType) && !isErrorType(argType) {
 				// Suggestion only
 				reportDiagnosticWithConfig(pass, arg.Pos(), SeveritySuggestion, config,
-					"consider using @ prefix for complex type %s to enable destructuring", argType)
+					"consider using @ prefix for complex type %s to enable capturing", argType)
 			}
 		}
 	}

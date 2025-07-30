@@ -2,7 +2,7 @@ package mtlog
 
 import (
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/internal/destructure"
+	"github.com/willibrandon/mtlog/internal/capture"
 	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/internal/filters"
 	"github.com/willibrandon/mtlog/sinks"
@@ -224,23 +224,23 @@ func WithMinimumLevelOverrides(defaultLevel core.LogEventLevel, overrides map[st
 	return WithFilter(filters.NewSourceContextLevelFilter(defaultLevel, overrides))
 }
 
-// Destructuring options
+// Capturing options
 
-// WithDestructuring adds the cached destructurer for better performance.
-func WithDestructuring() Option {
-	return WithDestructurer(destructure.NewCachedDestructurer())
+// WithCapturing adds the cached capturer for better performance.
+func WithCapturing() Option {
+	return WithCapturer(capture.NewCachedCapturer())
 }
 
-// WithDestructuringDepth adds destructuring with a specific max depth.
-func WithDestructuringDepth(maxDepth int) Option {
-	d := destructure.NewCachedDestructurer()
-	d.DefaultDestructurer = destructure.NewDestructurer(maxDepth, 1000, 100)
-	return WithDestructurer(d)
+// WithCapturingDepth adds capturing with a specific max depth.
+func WithCapturingDepth(maxDepth int) Option {
+	d := capture.NewCachedCapturer()
+	d.DefaultCapturer = capture.NewCapturer(maxDepth, 1000, 100)
+	return WithCapturer(d)
 }
 
-// WithCustomDestructuring adds a destructurer with custom limits.
-func WithCustomDestructuring(maxDepth, maxStringLength, maxCollectionCount int) Option {
-	return WithDestructurer(destructure.NewDestructurer(maxDepth, maxStringLength, maxCollectionCount))
+// WithCustomCapturing adds a capturer with custom limits.
+func WithCustomCapturing(maxDepth, maxStringLength, maxCollectionCount int) Option {
+	return WithCapturer(capture.NewCapturer(maxDepth, maxStringLength, maxCollectionCount))
 }
 
 // Level convenience options
