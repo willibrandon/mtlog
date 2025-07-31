@@ -30,9 +30,9 @@ func TestRollingFileSink(t *testing.T) {
 	// Write a log event
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "Test message {Number}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"Number": 1,
 		},
 	}
@@ -65,12 +65,12 @@ func TestRollingBySize(t *testing.T) {
 	defer sink.Close()
 
 	// Write multiple events to trigger rolling
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "This is a test message number {Number} with some padding to increase size",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -116,12 +116,12 @@ func TestRollingWithCompression(t *testing.T) {
 	defer sink.Close()
 
 	// Write events to trigger rolling
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Test message {Number} with padding to increase file size significantly",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -180,12 +180,12 @@ func TestRetentionPolicy(t *testing.T) {
 	defer sink.Close()
 
 	// Write many events to create multiple rolled files
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Message {Number} with padding",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -209,7 +209,7 @@ func TestRetentionPolicy(t *testing.T) {
 func TestTimeBasedRolling(t *testing.T) {
 	// This test is tricky because we can't wait for actual time to pass
 	// We'll test the roll time calculation instead
-	
+
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
@@ -275,14 +275,14 @@ func TestConcurrentWriting(t *testing.T) {
 
 	// Write concurrently from multiple goroutines
 	done := make(chan bool)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(id int) {
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				event := &core.LogEvent{
 					Timestamp:       time.Now(),
-					Level:          core.InformationLevel,
+					Level:           core.InformationLevel,
 					MessageTemplate: "Goroutine {ID} message {Number}",
-					Properties: map[string]interface{}{
+					Properties: map[string]any{
 						"ID":     id,
 						"Number": j,
 					},
@@ -294,7 +294,7 @@ func TestConcurrentWriting(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
@@ -397,18 +397,17 @@ func BenchmarkRollingFileSink(b *testing.B) {
 
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "Benchmark message {Number} with {Text}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"Number": 42,
 			"Text":   "some text value",
 		},
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sink.Emit(event)
 	}
 }

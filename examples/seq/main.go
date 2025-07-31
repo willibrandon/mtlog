@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
-	
+
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/sinks"
@@ -31,15 +31,15 @@ func main() {
 	// Example 1: Basic Seq integration
 	fmt.Println("=== Basic Seq Integration ===")
 	basicExample()
-	
+
 	// Example 2: Seq with API key and batching
 	fmt.Println("\n=== Seq with API Key ===")
 	apiKeyExample()
-	
+
 	// Example 3: Advanced Seq configuration
 	fmt.Println("\n=== Advanced Seq Configuration ===")
 	advancedExample()
-	
+
 	// Example 4: Structured logging to Seq
 	fmt.Println("\n=== Structured Logging to Seq ===")
 	structuredExample()
@@ -54,12 +54,12 @@ func basicExample() {
 		mtlog.WithMachineName(),
 		mtlog.WithTimestamp(),
 	)
-	
+
 	// Simple logging
 	log.Information("Application started")
 	log.Debug("Debug information: {DebugValue}", 42)
 	log.Warning("This is a warning with {Count} items", 5)
-	
+
 	// Ensure logs are flushed
 	time.Sleep(100 * time.Millisecond)
 }
@@ -73,7 +73,7 @@ func apiKeyExample() {
 		mtlog.WithProperty("Environment", "development"),
 		mtlog.WithMachineName(),
 	)
-	
+
 	// Log with context
 	requestLogger := log.ForContext("RequestId", "req-123")
 	requestLogger.Information("Processing request")
@@ -94,13 +94,13 @@ func advancedExample() {
 		mtlog.WithEnricher(&customEnricher{}),
 		mtlog.WithCapturing(),
 	)
-	
+
 	// Log some events
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		log.Information("Event {EventNumber} of {Total}", i+1, 10)
 		time.Sleep(50 * time.Millisecond)
 	}
-	
+
 	// Wait for batch to flush
 	time.Sleep(3 * time.Second)
 }
@@ -114,7 +114,7 @@ func structuredExample() {
 		mtlog.WithTimestamp(),
 		mtlog.WithCallersInfo(),
 	)
-	
+
 	// Create sample order
 	order := Order{
 		ID:         "ORD-12345",
@@ -137,36 +137,36 @@ func structuredExample() {
 			},
 		},
 	}
-	
+
 	// Log structured data - Seq will index all properties
 	log.Information("Order placed: {@Order}", order)
-	
+
 	// Log with multiple properties
 	log.Information("Processing order {OrderId} for customer {CustomerId} with {ItemCount} items",
 		order.ID, order.CustomerID, len(order.Items))
-	
+
 	// Error scenario
 	err := processOrder(order)
 	if err != nil {
 		log.Error("Failed to process order {OrderId}: {Error}",
 			order.ID, err)
 	}
-	
+
 	// Performance logging
 	start := time.Now()
 	// Simulate work
 	time.Sleep(150 * time.Millisecond)
 	duration := time.Since(start)
-	
+
 	log.Information("Order {OrderId} processed in {Duration}",
 		order.ID, duration)
-	
+
 	// Using different log levels
 	log.Verbose("Detailed order information: {@Order}", order)
 	log.Debug("Order status: {Status}", order.Status)
 	log.Warning("Order {OrderId} total {Total} exceeds threshold",
 		order.ID, order.Total)
-	
+
 	// Wait for final flush
 	time.Sleep(time.Second)
 }

@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -9,7 +10,7 @@ import (
 // It checks the condition every 10ms until it returns true or the timeout expires.
 func Eventually(t *testing.T, condition func() bool, timeout time.Duration, message string) {
 	t.Helper()
-	
+
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if condition() {
@@ -17,7 +18,7 @@ func Eventually(t *testing.T, condition func() bool, timeout time.Duration, mess
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	
+
 	if message != "" {
 		t.Fatal(message)
 	} else {
@@ -28,7 +29,7 @@ func Eventually(t *testing.T, condition func() bool, timeout time.Duration, mess
 // EventuallyEqual waits for a function to return the expected value.
 func EventuallyEqual[T comparable](t *testing.T, getter func() T, expected T, timeout time.Duration) {
 	t.Helper()
-	
+
 	Eventually(t, func() bool {
 		return getter() == expected
 	}, timeout, "")
@@ -73,10 +74,8 @@ func AssertEqual[T comparable](t *testing.T, actual, expected T, message string)
 // AssertContains fails the test if the slice doesn't contain the value.
 func AssertContains[T comparable](t *testing.T, slice []T, value T, message string) {
 	t.Helper()
-	for _, v := range slice {
-		if v == value {
-			return
-		}
+	if slices.Contains(slice, value) {
+		return
 	}
 	if message != "" {
 		t.Fatalf("%s: %v not found in slice", message, value)

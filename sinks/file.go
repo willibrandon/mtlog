@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-	
+
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters/output"
 	"github.com/willibrandon/mtlog/internal/parser"
@@ -37,11 +37,11 @@ func NewFileSinkWithOptions(path string, bufferSize int) (*FileSink, error) {
 		bufferSize: bufferSize,
 		buffer:     make([]byte, 0, bufferSize),
 	}
-	
+
 	if err := fs.open(); err != nil {
 		return nil, err
 	}
-	
+
 	return fs, nil
 }
 
@@ -58,11 +58,11 @@ func NewFileSinkWithTemplate(path string, template string) (*FileSink, error) {
 		template:       template,
 		parsedTemplate: parsedTemplate,
 	}
-	
+
 	if err := fs.open(); err != nil {
 		return nil, err
 	}
-	
+
 	return fs, nil
 }
 
@@ -70,11 +70,11 @@ func NewFileSinkWithTemplate(path string, template string) (*FileSink, error) {
 func (fs *FileSink) Emit(event *core.LogEvent) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	if !fs.isOpen {
 		return
 	}
-	
+
 	var message string
 	if fs.parsedTemplate != nil {
 		// Use template-based formatting
@@ -83,7 +83,7 @@ func (fs *FileSink) Emit(event *core.LogEvent) {
 		// Use default formatting
 		message = fs.formatEvent(event)
 	}
-	
+
 	// Write to file
 	if _, err := fs.file.WriteString(message + "\n"); err != nil {
 		if selflog.IsEnabled() {
@@ -96,13 +96,13 @@ func (fs *FileSink) Emit(event *core.LogEvent) {
 func (fs *FileSink) Close() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	if !fs.isOpen {
 		return nil
 	}
-	
+
 	fs.isOpen = false
-	
+
 	// Sync to ensure all data is written
 	if err := fs.file.Sync(); err != nil {
 		if selflog.IsEnabled() {
@@ -110,7 +110,7 @@ func (fs *FileSink) Close() error {
 		}
 		return fmt.Errorf("failed to sync log file: %w", err)
 	}
-	
+
 	// Close the file
 	if err := fs.file.Close(); err != nil {
 		if selflog.IsEnabled() {
@@ -118,7 +118,7 @@ func (fs *FileSink) Close() error {
 		}
 		return fmt.Errorf("failed to close log file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (fs *FileSink) open() error {
 		}
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
-	
+
 	// Open file with append mode
 	file, err := os.OpenFile(fs.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
@@ -141,10 +141,10 @@ func (fs *FileSink) open() error {
 		}
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
-	
+
 	fs.file = file
 	fs.isOpen = true
-	
+
 	return nil
 }
 
@@ -162,14 +162,14 @@ func (fs *FileSink) formatEvent(event *core.LogEvent) string {
 			Tokens: []parser.MessageTemplateToken{&parser.TextToken{Text: event.MessageTemplate}},
 		}
 	}
-	
+
 	// Render the message
 	message := tmpl.Render(event.Properties)
-	
+
 	// Format: TIMESTAMP [LEVEL] MESSAGE {PROPERTIES}
 	levelStr := formatLevel(event.Level)
 	timestamp := event.Timestamp.Format(time.RFC3339)
-	
+
 	// Add properties if any (excluding those already in the message)
 	var propsStr string
 	if len(event.Properties) > 0 {
@@ -179,20 +179,20 @@ func (fs *FileSink) formatEvent(event *core.LogEvent) string {
 		for _, name := range propNames {
 			propNamesSet[name] = true
 		}
-		
+
 		// Add additional properties
-		additionalProps := make(map[string]interface{})
+		additionalProps := make(map[string]any)
 		for k, v := range event.Properties {
 			if !propNamesSet[k] {
 				additionalProps[k] = v
 			}
 		}
-		
+
 		if len(additionalProps) > 0 {
 			propsStr = " " + formatProperties(additionalProps)
 		}
 	}
-	
+
 	return fmt.Sprintf("%s [%s] %s%s", timestamp, levelStr, message, propsStr)
 }
 
@@ -200,15 +200,15 @@ func (fs *FileSink) formatEvent(event *core.LogEvent) string {
 func (fs *FileSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, message string) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	if !fs.isOpen {
 		return
 	}
-	
+
 	// Format the simple message
 	levelStr := formatLevel(level)
 	timestampStr := timestamp.Format(time.RFC3339)
-	
+
 	// Write to file
 	if _, err := fmt.Fprintf(fs.file, "%s [%s] %s\n", timestampStr, levelStr, message); err != nil {
 		// Log to stderr if file write fails
@@ -217,11 +217,11 @@ func (fs *FileSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, me
 }
 
 // formatProperties formats additional properties as JSON-like string.
-func formatProperties(props map[string]interface{}) string {
+func formatProperties(props map[string]any) string {
 	if len(props) == 0 {
 		return ""
 	}
-	
+
 	result := "{"
 	first := true
 	for k, v := range props {
@@ -232,6 +232,6 @@ func formatProperties(props map[string]interface{}) string {
 		first = false
 	}
 	result += "}"
-	
+
 	return result
 }

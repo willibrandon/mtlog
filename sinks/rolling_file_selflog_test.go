@@ -10,9 +10,9 @@ import (
 
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/internal/formatters"
 	"github.com/willibrandon/mtlog/selflog"
 	"github.com/willibrandon/mtlog/sinks"
-	"github.com/willibrandon/mtlog/internal/formatters"
 )
 
 func TestRollingFileSinkSelfLog(t *testing.T) {
@@ -21,7 +21,7 @@ func TestRollingFileSinkSelfLog(t *testing.T) {
 		if os.PathSeparator == '\\' {
 			t.Skip("Skipping directory permission test on Windows")
 		}
-		
+
 		// Setup selflog capture
 		var selflogBuf bytes.Buffer
 		selflog.Enable(selflog.Sync(&selflogBuf))
@@ -46,7 +46,7 @@ func TestRollingFileSinkSelfLog(t *testing.T) {
 		logger := mtlog.New(mtlog.WithSink(sink))
 
 		// Write enough to fill the file
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			logger.Information("This is a test message to fill the log file {Number}", i)
 		}
 
@@ -77,7 +77,7 @@ func TestRollingFileSinkSelfLog(t *testing.T) {
 		logger = mtlog.New(mtlog.WithSink(sink))
 
 		// Write more to trigger failed roll
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			logger.Information("This should trigger a roll that fails due to read-only directory {Number}", i)
 		}
 

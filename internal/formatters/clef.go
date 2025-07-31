@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -23,20 +23,20 @@ func NewCLEFFormatter() *CLEFFormatter {
 
 // Format formats a log event in CLEF format
 func (f *CLEFFormatter) Format(event *core.LogEvent) ([]byte, error) {
-	clef := make(map[string]interface{})
-	
+	clef := make(map[string]any)
+
 	// Required CLEF fields
 	clef["@t"] = event.Timestamp.UTC().Format("2006-01-02T15:04:05.0000000Z")
 	clef["@mt"] = event.MessageTemplate
 	clef["@l"] = levelToCLEF(event.Level)
-	
+
 	// Add rendered message if enabled
 	if f.RenderMessage {
 		if rendered, err := f.renderMessage(event); err == nil {
 			clef["@m"] = rendered
 		}
 	}
-	
+
 	// Add properties
 	for k, v := range event.Properties {
 		// Skip properties that would conflict with CLEF reserved fields
@@ -44,14 +44,14 @@ func (f *CLEFFormatter) Format(event *core.LogEvent) ([]byte, error) {
 			clef[k] = v
 		}
 	}
-	
+
 	// Add exception if present
 	if err, ok := event.Properties["Exception"]; ok {
 		if exception, ok := err.(error); ok {
 			clef["@x"] = exception.Error()
 		}
 	}
-	
+
 	return json.Marshal(clef)
 }
 
@@ -59,7 +59,7 @@ func (f *CLEFFormatter) Format(event *core.LogEvent) ([]byte, error) {
 func (f *CLEFFormatter) renderMessage(event *core.LogEvent) (string, error) {
 	template := event.MessageTemplate
 	result := strings.Builder{}
-	
+
 	// Simple rendering - replace {PropertyName} with values
 	i := 0
 	for i < len(template) {
@@ -69,15 +69,15 @@ func (f *CLEFFormatter) renderMessage(event *core.LogEvent) (string, error) {
 			for j < len(template) && template[j] != '}' {
 				j++
 			}
-			
+
 			if j < len(template) {
 				// Extract property name
 				propName := template[i+1 : j]
-				
+
 				// Remove capturing hints
 				propName = strings.TrimPrefix(propName, "@")
 				propName = strings.TrimPrefix(propName, "$")
-				
+
 				// Look up property value
 				if val, ok := event.Properties[propName]; ok {
 					result.WriteString(fmt.Sprint(val))
@@ -85,16 +85,16 @@ func (f *CLEFFormatter) renderMessage(event *core.LogEvent) (string, error) {
 					// Keep the placeholder if no value found
 					result.WriteString(template[i : j+1])
 				}
-				
+
 				i = j + 1
 				continue
 			}
 		}
-		
+
 		result.WriteByte(template[i])
 		i++
 	}
-	
+
 	return result.String(), nil
 }
 
@@ -133,17 +133,17 @@ func NewCLEFBatchFormatter() *CLEFBatchFormatter {
 // FormatBatch formats multiple events as newline-delimited JSON
 func (f *CLEFBatchFormatter) FormatBatch(events []*core.LogEvent) ([]byte, error) {
 	var result []byte
-	
+
 	for _, event := range events {
 		formatted, err := f.formatter.Format(event)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		result = append(result, formatted...)
 		result = append(result, '\n')
 	}
-	
+
 	return result, nil
 }
 

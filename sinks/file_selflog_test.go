@@ -35,16 +35,16 @@ func TestFileSinkSelfLog(t *testing.T) {
 			Timestamp:       time.Now(),
 			Level:           core.InformationLevel,
 			MessageTemplate: "Test message",
-			Properties:      map[string]interface{}{},
+			Properties:      map[string]any{},
 		}
 		sink.Emit(event)
 
 		// Close once
 		sink.Close()
-		
+
 		// Try to emit after close - should be ignored due to isOpen check
 		sink.Emit(event)
-		
+
 		// Close again - should be safe due to isOpen check
 		err = sink.Close()
 		if err != nil {
@@ -61,7 +61,7 @@ func TestFileSinkSelfLog(t *testing.T) {
 		if os.PathSeparator == '\\' {
 			t.Skip("Skipping directory permission test on Windows")
 		}
-		
+
 		// Setup selflog capture
 		var selflogBuf bytes.Buffer
 		selflog.Enable(selflog.Sync(&selflogBuf))
@@ -73,7 +73,7 @@ func TestFileSinkSelfLog(t *testing.T) {
 		if err := os.Mkdir(readOnlyDir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		
+
 		// Make parent directory read-only
 		if err := os.Chmod(readOnlyDir, 0444); err != nil {
 			t.Skipf("cannot make directory read-only: %v", err)
@@ -95,8 +95,8 @@ func TestFileSinkSelfLog(t *testing.T) {
 		// Check selflog output
 		output := selflogBuf.String()
 		t.Logf("selflog output: %q", output)
-		if !strings.Contains(output, "[file] failed to create directory") && 
-		   !strings.Contains(output, "[file] failed to open file") {
+		if !strings.Contains(output, "[file] failed to create directory") &&
+			!strings.Contains(output, "[file] failed to open file") {
 			t.Errorf("expected directory or file open error in selflog, got: %s", output)
 		}
 	})

@@ -16,12 +16,12 @@ import (
 
 // ElasticsearchSink writes log events to Elasticsearch
 type ElasticsearchSink struct {
-	urls       []string
-	index      string
-	client     *http.Client
-	apiKey     string
-	username   string
-	password   string
+	urls     []string
+	index    string
+	client   *http.Client
+	apiKey   string
+	username string
+	password string
 
 	// Batching configuration
 	batchSize    int
@@ -196,7 +196,6 @@ func (es *ElasticsearchSink) sendBatch(events []*core.LogEvent) {
 		return
 	}
 
-
 	// Build bulk request body
 	var buf bytes.Buffer
 	for _, event := range events {
@@ -207,16 +206,16 @@ func (es *ElasticsearchSink) sendBatch(events []*core.LogEvent) {
 		} else {
 			actionType = "index"
 		}
-		
-		action := map[string]interface{}{
-			actionType: map[string]interface{}{
+
+		action := map[string]any{
+			actionType: map[string]any{
 				"_index": es.getIndexName(event.Timestamp),
 			},
 		}
 		if es.pipeline != "" {
-			action[actionType].(map[string]interface{})["pipeline"] = es.pipeline
+			action[actionType].(map[string]any)["pipeline"] = es.pipeline
 		}
-		
+
 		if err := json.NewEncoder(&buf).Encode(action); err != nil {
 			if selflog.IsEnabled() {
 				selflog.Printf("[elasticsearch] failed to encode bulk action: %v", err)
@@ -236,8 +235,8 @@ func (es *ElasticsearchSink) sendBatch(events []*core.LogEvent) {
 
 	// Send bulk request with retry logic
 	bulkData := buf.Bytes()
-	
-	for i := 0; i < 3; i++ {
+
+	for i := range 3 {
 		if es.sendBulkRequest(bulkData) {
 			break
 		}
@@ -253,7 +252,7 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 	// Try each URL in round-robin fashion
 	for _, url := range es.urls {
 		bulkURL := fmt.Sprintf("%s/_bulk", strings.TrimRight(url, "/"))
-		
+
 		req, err := http.NewRequest("POST", bulkURL, bytes.NewReader(body))
 		if err != nil {
 			if selflog.IsEnabled() {
@@ -263,7 +262,7 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 		}
 
 		req.Header.Set("Content-Type", "application/x-ndjson")
-		
+
 		// Set authentication
 		if es.apiKey != "" {
 			req.Header.Set("Authorization", "ApiKey "+es.apiKey)
@@ -284,31 +283,31 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Parse response to check for errors
 			var result struct {
-				Errors bool `json:"errors"`
-				Items  []map[string]interface{} `json:"items"`
+				Errors bool             `json:"errors"`
+				Items  []map[string]any `json:"items"`
 			}
-			
+
 			if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
 				// Log any individual errors (in production, you'd handle these appropriately)
 				if result.Errors {
 					for _, item := range result.Items {
 						// Check both index and create responses
-						var errorInfo map[string]interface{}
-						
+						var errorInfo map[string]any
+
 						if indexResp, ok := item["index"]; ok {
-							if indexItem, ok := indexResp.(map[string]interface{}); ok {
-								if indexError, ok := indexItem["error"].(map[string]interface{}); ok {
+							if indexItem, ok := indexResp.(map[string]any); ok {
+								if indexError, ok := indexItem["error"].(map[string]any); ok {
 									errorInfo = indexError
 								}
 							}
 						} else if createResp, ok := item["create"]; ok {
-							if createItem, ok := createResp.(map[string]interface{}); ok {
-								if createError, ok := createItem["error"].(map[string]interface{}); ok {
+							if createItem, ok := createResp.(map[string]any); ok {
+								if createError, ok := createItem["error"].(map[string]any); ok {
 									errorInfo = createError
 								}
 							}
 						}
-						
+
 						if errorInfo != nil {
 							// Individual document error - could log or handle
 							if selflog.IsEnabled() {
@@ -325,10 +324,10 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 			}
 			return true
 		}
-		
+
 		// Read error response for debugging (in production, you might log this)
 	}
-	
+
 	return false
 }
 
@@ -343,7 +342,7 @@ func (es *ElasticsearchSink) getIndexName(timestamp time.Time) string {
 }
 
 // formatEvent formats a log event for Elasticsearch
-func (es *ElasticsearchSink) formatEvent(event *core.LogEvent) map[string]interface{} {
+func (es *ElasticsearchSink) formatEvent(event *core.LogEvent) map[string]any {
 	// Parse template to render message
 	tmpl, err := parser.Parse(event.MessageTemplate)
 	if err != nil {
@@ -353,15 +352,15 @@ func (es *ElasticsearchSink) formatEvent(event *core.LogEvent) map[string]interf
 			Tokens: []parser.MessageTemplateToken{&parser.TextToken{Text: event.MessageTemplate}},
 		}
 	}
-	
+
 	// Render the message
 	message := tmpl.Render(event.Properties)
-	
-	doc := map[string]interface{}{
-		"@timestamp":       event.Timestamp.Format(time.RFC3339Nano),
-		"level":            levelToString(event.Level),
-		"message":          message,
-		"messageTemplate":  event.MessageTemplate,
+
+	doc := map[string]any{
+		"@timestamp":      event.Timestamp.Format(time.RFC3339Nano),
+		"level":           levelToString(event.Level),
+		"message":         message,
+		"messageTemplate": event.MessageTemplate,
 	}
 
 	// Add all properties
@@ -376,7 +375,7 @@ func (es *ElasticsearchSink) formatEvent(event *core.LogEvent) map[string]interf
 	// Add ECS (Elastic Common Schema) compatible fields
 	doc["log.level"] = strings.ToLower(levelToString(event.Level))
 	doc["event.created"] = event.Timestamp.Format(time.RFC3339Nano)
-	
+
 	// Add error fields if present
 	if err, ok := event.Properties["Error"]; ok {
 		if errStr, ok := err.(string); ok {

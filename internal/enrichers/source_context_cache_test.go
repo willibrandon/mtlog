@@ -21,7 +21,7 @@ func TestSourceContextCaching(t *testing.T) {
 
 	// First call - should detect and cache
 	event1 := &core.LogEvent{
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 	}
 	enricher.Enrich(event1, factory)
 
@@ -41,7 +41,7 @@ func TestSourceContextCaching(t *testing.T) {
 
 	// Second call - should use cache
 	event2 := &core.LogEvent{
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 	}
 	enricher.Enrich(event2, factory)
 
@@ -72,12 +72,12 @@ func TestSourceContextCacheConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make([]string, 100)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
 			event := &core.LogEvent{
-				Properties: make(map[string]interface{}),
+				Properties: make(map[string]any),
 			}
 			enricher.Enrich(event, factory)
 			if ctx, ok := event.Properties["SourceContext"]; ok {
@@ -112,7 +112,7 @@ func TestSourceContextExplicitOverridesCache(t *testing.T) {
 	factory := &mockPropertyFactory{}
 
 	event := &core.LogEvent{
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 	}
 	enricher.Enrich(event, factory)
 
@@ -132,7 +132,7 @@ func BenchmarkSourceContextWithCache(b *testing.B) {
 
 	// Warm up cache
 	warmupEvent := &core.LogEvent{
-		Properties: make(map[string]interface{}),
+		Properties: make(map[string]any),
 	}
 	enricher.Enrich(warmupEvent, factory)
 
@@ -140,7 +140,7 @@ func BenchmarkSourceContextWithCache(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			event := &core.LogEvent{
-				Properties: make(map[string]interface{}),
+				Properties: make(map[string]any),
 			}
 			enricher.Enrich(event, factory)
 		}
@@ -158,13 +158,13 @@ func BenchmarkSourceContextWithoutCache(b *testing.B) {
 			// Clear cache to simulate no caching
 			sourceContextCache.Lock()
 			sourceContextCache.m = make(map[uintptr]*lruEntry)
-	sourceContextCache.head = nil
-	sourceContextCache.tail = nil
-	sourceContextCache.size = 0
+			sourceContextCache.head = nil
+			sourceContextCache.tail = nil
+			sourceContextCache.size = 0
 			sourceContextCache.Unlock()
 
 			event := &core.LogEvent{
-				Properties: make(map[string]interface{}),
+				Properties: make(map[string]any),
 			}
 			enricher.Enrich(event, factory)
 		}

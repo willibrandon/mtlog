@@ -4,5 +4,5 @@ package core
 type Capturer interface {
 	// TryCapture attempts to capture a value into a log event property.
 	// Returns the property and true if successful, nil and false otherwise.
-	TryCapture(value interface{}, propertyFactory LogEventPropertyFactory) (*LogEventProperty, bool)
+	TryCapture(value any, propertyFactory LogEventPropertyFactory) (*LogEventProperty, bool)
 }

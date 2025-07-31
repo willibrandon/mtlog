@@ -23,18 +23,18 @@ type mockSink struct {
 
 func (m *mockSink) Emit(event *core.LogEvent) {
 	m.calls.Add(1)
-	
+
 	if m.delay > 0 {
 		time.Sleep(m.delay)
 	}
-	
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if m.failAt > 0 && len(m.events) >= m.failAt {
 		panic("mock sink failure")
 	}
-	
+
 	m.events = append(m.events, event)
 }
 
@@ -47,7 +47,7 @@ func (m *mockSink) EmitBatch(events []*core.LogEvent) {
 func (m *mockSink) GetEvents() []*core.LogEvent {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	result := make([]*core.LogEvent, len(m.events))
 	copy(result, m.events)
 	return result
@@ -65,12 +65,12 @@ func TestAsyncSinkBasic(t *testing.T) {
 	defer async.Close()
 
 	// Emit some events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Test message {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -80,7 +80,7 @@ func TestAsyncSinkBasic(t *testing.T) {
 	// Wait for processing
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	
+
 	if err := async.WaitForEmpty(ctx); err != nil {
 		t.Fatalf("Failed to wait for empty: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestAsyncSinkOverflowDrop(t *testing.T) {
 	mock := &mockSink{
 		delay: 50 * time.Millisecond, // Slow sink
 	}
-	
+
 	errorCount := 0
 	async := NewAsyncSink(mock, AsyncOptions{
 		BufferSize:       2,
@@ -108,12 +108,12 @@ func TestAsyncSinkOverflowDrop(t *testing.T) {
 	defer async.Close()
 
 	// Emit more events than buffer can hold
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -130,7 +130,7 @@ func TestAsyncSinkOverflowDrop(t *testing.T) {
 	if metrics.Dropped == 0 {
 		t.Error("Expected some events to be dropped")
 	}
-	
+
 	t.Logf("Processed: %d, Dropped: %d", metrics.Processed, metrics.Dropped)
 }
 
@@ -146,12 +146,12 @@ func TestAsyncSinkOverflowBlock(t *testing.T) {
 
 	// Emit events - should block when buffer is full
 	start := time.Now()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -176,12 +176,12 @@ func TestAsyncSinkBatching(t *testing.T) {
 	defer async.Close()
 
 	// Emit exactly one batch worth of events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -201,9 +201,9 @@ func TestAsyncSinkBatching(t *testing.T) {
 	for i := 5; i < 7; i++ {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -237,12 +237,12 @@ func TestAsyncSinkErrorHandling(t *testing.T) {
 	defer async.Close()
 
 	// Emit events
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -279,12 +279,12 @@ func TestAsyncSinkShutdown(t *testing.T) {
 	})
 
 	// Emit many events
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Event {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}
@@ -322,16 +322,16 @@ func TestAsyncSinkConcurrency(t *testing.T) {
 	eventsPerGoroutine := 100
 	goroutines := 10
 
-	for g := 0; g < goroutines; g++ {
+	for g := range goroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for i := 0; i < eventsPerGoroutine; i++ {
+			for i := range eventsPerGoroutine {
 				event := &core.LogEvent{
 					Timestamp:       time.Now(),
-					Level:          core.InformationLevel,
+					Level:           core.InformationLevel,
 					MessageTemplate: "Event from {Goroutine} number {Number}",
-					Properties: map[string]interface{}{
+					Properties: map[string]any{
 						"Goroutine": id,
 						"Number":    i,
 					},
@@ -342,7 +342,7 @@ func TestAsyncSinkConcurrency(t *testing.T) {
 	}
 
 	wg.Wait()
-	
+
 	// Close and check
 	if err := async.Close(); err != nil {
 		t.Errorf("Close failed: %v", err)
@@ -386,9 +386,9 @@ func BenchmarkAsyncSink(b *testing.B) {
 
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "Benchmark event {Number}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"Number": 42,
 		},
 	}
@@ -402,7 +402,7 @@ func BenchmarkAsyncSink(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				async.Emit(event)
 			}
 		})
@@ -434,12 +434,12 @@ func TestAsyncSinkWithRealSink(t *testing.T) {
 	defer async.Close()
 
 	// Log some events
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		event := &core.LogEvent{
 			Timestamp:       time.Now(),
-			Level:          core.InformationLevel,
+			Level:           core.InformationLevel,
 			MessageTemplate: "Async test message {Number}",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"Number": i,
 			},
 		}

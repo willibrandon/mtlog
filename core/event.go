@@ -6,16 +6,16 @@ import "time"
 type LogEvent struct {
 	// Timestamp is when the event occurred.
 	Timestamp time.Time
-	
+
 	// Level is the severity of the event.
 	Level LogEventLevel
-	
+
 	// MessageTemplate is the original message template with placeholders.
 	MessageTemplate string
-	
+
 	// Properties contains the event's properties extracted from the template.
-	Properties map[string]interface{}
-	
+	Properties map[string]any
+
 	// Exception associated with the event, if any.
 	Exception error
 }
@@ -28,6 +28,6 @@ func (e *LogEvent) AddPropertyIfAbsent(property *LogEventProperty) {
 }
 
 // AddProperty adds or overwrites a property in the event.
-func (e *LogEvent) AddProperty(name string, value interface{}) {
+func (e *LogEvent) AddProperty(name string, value any) {
 	e.Properties[name] = value
 }

@@ -49,7 +49,7 @@ func demoBasicAsync() {
 
 	// Log events - returns immediately
 	start := time.Now()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		logger.Information("Async log message {Number}", i)
 	}
 	fmt.Printf("Logged 10 messages in %v (non-blocking)\n", time.Since(start))
@@ -63,7 +63,7 @@ func demoBasicAsync() {
 func demoAsyncBatching() {
 	// Create logs directory
 	os.MkdirAll("logs", 0755)
-	
+
 	// Create a file sink for better batching demo
 	fileSink, err := sinks.NewFileSink("logs/async-batch.log")
 	if err != nil {
@@ -74,7 +74,7 @@ func demoAsyncBatching() {
 	// Wrap with async sink that batches events
 	asyncSink := sinks.NewAsyncSink(fileSink, sinks.AsyncOptions{
 		BufferSize:    1000,
-		BatchSize:     50,      // Batch up to 50 events
+		BatchSize:     50,                     // Batch up to 50 events
 		FlushInterval: 100 * time.Millisecond, // Or flush every 100ms
 	})
 	defer asyncSink.Close()
@@ -83,7 +83,7 @@ func demoAsyncBatching() {
 
 	// Generate many events quickly
 	fmt.Println("Generating 200 events...")
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		logger.Information("Batched event {EventId} at {Timestamp}", i, time.Now().Format("15:04:05.000"))
 	}
 
@@ -121,14 +121,14 @@ func demoOverflowStrategies() {
 
 		// Try to log 10 events quickly
 		start := time.Now()
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			logger.Information("Event {Number} with {Strategy}", i, s.name)
 		}
 		elapsed := time.Since(start)
 
 		// Get metrics before closing
 		metrics := asyncSink.GetMetrics()
-		
+
 		asyncSink.Close()
 
 		fmt.Printf("  Time: %v, Processed: %d, Dropped: %d\n",
@@ -151,8 +151,8 @@ func demoProductionAsync() {
 
 	// Wrap with async for high-performance logging
 	asyncSink := sinks.NewAsyncSink(fileSink, sinks.AsyncOptions{
-		BufferSize:       10000,              // Large buffer for bursts
-		BatchSize:        100,                // Batch writes
+		BufferSize:       10000, // Large buffer for bursts
+		BatchSize:        100,   // Batch writes
 		FlushInterval:    50 * time.Millisecond,
 		OverflowStrategy: sinks.OverflowDrop, // Drop rather than block in production
 		OnError: func(err error) {
@@ -167,20 +167,20 @@ func demoProductionAsync() {
 
 	// Simulate production logging patterns
 	fmt.Println("Simulating production load...")
-	
+
 	// Burst of events
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		logger.Information("Request {RequestId} processed", fmt.Sprintf("req-%06d", i))
 	}
 
 	// Normal operation
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		logger.Information("Health check passed")
 		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Error scenario
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		logger.Error("Database connection failed: {Error}", "timeout after 30s")
 	}
 
@@ -196,36 +196,36 @@ func demoProductionAsync() {
 func demoPerformanceComparison() {
 	// Create a null sink for pure performance testing
 	nullSink := &nullSink{}
-	
+
 	// Test direct logging
 	directLogger := mtlog.New(mtlog.WithSink(nullSink))
-	
+
 	start := time.Now()
-	for i := 0; i < 100000; i++ {
+	for i := range 100000 {
 		directLogger.Information("Direct log {Number}", i)
 	}
 	directTime := time.Since(start)
-	
+
 	// Test async logging
 	asyncSink := sinks.NewAsyncSink(nullSink, sinks.AsyncOptions{
 		BufferSize: 10000,
 		BatchSize:  100,
 	})
 	defer asyncSink.Close()
-	
+
 	asyncLogger := mtlog.New(mtlog.WithSink(asyncSink))
-	
+
 	start = time.Now()
-	for i := 0; i < 100000; i++ {
+	for i := range 100000 {
 		asyncLogger.Information("Async log {Number}", i)
 	}
 	asyncTime := time.Since(start)
-	
+
 	// Wait for async to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	asyncSink.WaitForEmpty(ctx)
-	
+
 	fmt.Printf("\nPerformance comparison (100k events):\n")
 	fmt.Printf("  Direct: %v (%.0f events/sec)\n", directTime, 100000/directTime.Seconds())
 	fmt.Printf("  Async: %v (%.0f events/sec)\n", asyncTime, 100000/asyncTime.Seconds())

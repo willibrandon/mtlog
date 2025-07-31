@@ -4,13 +4,13 @@ package core
 type LogEventProperty struct {
 	// Name is the property name.
 	Name string
-	
+
 	// Value is the property value.
-	Value interface{}
+	Value any
 }
 
 // LogEventPropertyFactory creates log event properties.
 type LogEventPropertyFactory interface {
 	// CreateProperty creates a new log event property.
-	CreateProperty(name string, value interface{}) *LogEventProperty
+	CreateProperty(name string, value any) *LogEventProperty
 }

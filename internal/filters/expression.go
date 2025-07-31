@@ -3,18 +3,18 @@ package filters
 import (
 	"regexp"
 	"strings"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
 // ExpressionFilter filters log events based on property values.
 type ExpressionFilter struct {
 	propertyName string
-	matcher      func(interface{}) bool
+	matcher      func(any) bool
 }
 
 // NewExpressionFilter creates a filter that matches based on a property value.
-func NewExpressionFilter(propertyName string, matcher func(interface{}) bool) *ExpressionFilter {
+func NewExpressionFilter(propertyName string, matcher func(any) bool) *ExpressionFilter {
 	return &ExpressionFilter{
 		propertyName: propertyName,
 		matcher:      matcher,
@@ -31,8 +31,8 @@ func (f *ExpressionFilter) IsEnabled(event *core.LogEvent) bool {
 }
 
 // MatchProperty creates a filter that matches when a property equals a specific value.
-func MatchProperty(propertyName string, expectedValue interface{}) core.LogEventFilter {
-	return NewExpressionFilter(propertyName, func(value interface{}) bool {
+func MatchProperty(propertyName string, expectedValue any) core.LogEventFilter {
+	return NewExpressionFilter(propertyName, func(value any) bool {
 		return value == expectedValue
 	})
 }
@@ -40,7 +40,7 @@ func MatchProperty(propertyName string, expectedValue interface{}) core.LogEvent
 // MatchPropertyRegex creates a filter that matches when a property matches a regex pattern.
 func MatchPropertyRegex(propertyName string, pattern string) core.LogEventFilter {
 	re := regexp.MustCompile(pattern)
-	return NewExpressionFilter(propertyName, func(value interface{}) bool {
+	return NewExpressionFilter(propertyName, func(value any) bool {
 		str, ok := value.(string)
 		if !ok {
 			return false
@@ -51,7 +51,7 @@ func MatchPropertyRegex(propertyName string, pattern string) core.LogEventFilter
 
 // MatchPropertyContains creates a filter that matches when a property contains a substring.
 func MatchPropertyContains(propertyName string, substring string) core.LogEventFilter {
-	return NewExpressionFilter(propertyName, func(value interface{}) bool {
+	return NewExpressionFilter(propertyName, func(value any) bool {
 		str, ok := value.(string)
 		if !ok {
 			return false

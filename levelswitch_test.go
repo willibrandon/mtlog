@@ -122,18 +122,18 @@ func TestLoggingLevelSwitch_FluentInterface(t *testing.T) {
 
 func TestLoggingLevelSwitch_ThreadSafety(t *testing.T) {
 	ls := NewLoggingLevelSwitch(core.InformationLevel)
-	
+
 	const numGoroutines = 100
 	const numOperationsPerGoroutine = 100
-	
+
 	var wg sync.WaitGroup
-	
+
 	// Start multiple goroutines that concurrently read and write the level
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
-			
+
 			levels := []core.LogEventLevel{
 				core.VerboseLevel,
 				core.DebugLevel,
@@ -142,19 +142,19 @@ func TestLoggingLevelSwitch_ThreadSafety(t *testing.T) {
 				core.ErrorLevel,
 				core.FatalLevel,
 			}
-			
-			for j := 0; j < numOperationsPerGoroutine; j++ {
+
+			for j := range numOperationsPerGoroutine {
 				// Set a level
 				level := levels[j%len(levels)]
 				ls.SetLevel(level)
-				
+
 				// Read the level
 				currentLevel := ls.Level()
-				
+
 				// Test IsEnabled with various levels
 				ls.IsEnabled(core.InformationLevel)
 				ls.IsEnabled(currentLevel)
-				
+
 				// Brief pause to encourage race conditions if they exist
 				if j%10 == 0 {
 					time.Sleep(1 * time.Nanosecond)
@@ -162,16 +162,16 @@ func TestLoggingLevelSwitch_ThreadSafety(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	wg.Wait()
-	
+
 	// If we reach here without data races or panics, the test passed
 }
 
 func TestLoggingLevelSwitch_LevelProgression(t *testing.T) {
 	ls := NewLoggingLevelSwitch(core.FatalLevel)
-	
+
 	// Test that each level correctly enables/disables appropriate levels
 	testData := []struct {
 		setLevel     core.LogEventLevel
@@ -185,7 +185,7 @@ func TestLoggingLevelSwitch_LevelProgression(t *testing.T) {
 		{core.VerboseLevel, core.WarningLevel, true},
 		{core.VerboseLevel, core.ErrorLevel, true},
 		{core.VerboseLevel, core.FatalLevel, true},
-		
+
 		// When set to Warning, only Warning and above should be enabled
 		{core.WarningLevel, core.VerboseLevel, false},
 		{core.WarningLevel, core.DebugLevel, false},
@@ -193,7 +193,7 @@ func TestLoggingLevelSwitch_LevelProgression(t *testing.T) {
 		{core.WarningLevel, core.WarningLevel, true},
 		{core.WarningLevel, core.ErrorLevel, true},
 		{core.WarningLevel, core.FatalLevel, true},
-		
+
 		// When set to Fatal, only Fatal should be enabled
 		{core.FatalLevel, core.VerboseLevel, false},
 		{core.FatalLevel, core.DebugLevel, false},
@@ -202,7 +202,7 @@ func TestLoggingLevelSwitch_LevelProgression(t *testing.T) {
 		{core.FatalLevel, core.ErrorLevel, false},
 		{core.FatalLevel, core.FatalLevel, true},
 	}
-	
+
 	for _, td := range testData {
 		ls.SetLevel(td.setLevel)
 		result := ls.IsEnabled(td.testLevel)
@@ -215,9 +215,8 @@ func TestLoggingLevelSwitch_LevelProgression(t *testing.T) {
 
 func BenchmarkLoggingLevelSwitch_Level(b *testing.B) {
 	ls := NewLoggingLevelSwitch(core.InformationLevel)
-	
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = ls.Level()
 	}
 }
@@ -232,18 +231,16 @@ func BenchmarkLoggingLevelSwitch_SetLevel(b *testing.B) {
 		core.ErrorLevel,
 		core.FatalLevel,
 	}
-	
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for i := 0; b.Loop(); i++ {
 		ls.SetLevel(levels[i%len(levels)])
 	}
 }
 
 func BenchmarkLoggingLevelSwitch_IsEnabled(b *testing.B) {
 	ls := NewLoggingLevelSwitch(core.InformationLevel)
-	
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = ls.IsEnabled(core.InformationLevel)
 	}
 }

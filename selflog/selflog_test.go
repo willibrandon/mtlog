@@ -30,7 +30,7 @@ func TestSelfLog(t *testing.T) {
 		defer selflog.Disable()
 
 		selflog.Printf("[test] error: %s", "test error")
-		
+
 		output := buf.String()
 		if !strings.Contains(output, "[test] error: test error") {
 			t.Errorf("expected error message, got: %s", output)
@@ -48,7 +48,7 @@ func TestSelfLog(t *testing.T) {
 		defer selflog.Disable()
 
 		selflog.Printf("[sink] write failed: %v", "disk full")
-		
+
 		if len(messages) != 1 {
 			t.Fatalf("expected 1 message, got %d", len(messages))
 		}
@@ -63,7 +63,7 @@ func TestSelfLog(t *testing.T) {
 		selflog.Printf("[test] first")
 		selflog.Disable()
 		selflog.Printf("[test] second")
-		
+
 		output := buf.String()
 		if strings.Contains(output, "second") {
 			t.Error("expected no output after disable")
@@ -87,12 +87,12 @@ func TestSyncWriter(t *testing.T) {
 	t.Run("concurrent writes", func(t *testing.T) {
 		var unsafeBuf bytes.Buffer
 		safeBuf := selflog.Sync(&unsafeBuf)
-		
+
 		selflog.Enable(safeBuf)
 		defer selflog.Disable()
 
 		var wg sync.WaitGroup
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			wg.Add(1)
 			go func(n int) {
 				defer wg.Done()
@@ -116,7 +116,7 @@ func TestRealWorldScenarios(t *testing.T) {
 
 		// Simulate a sink reporting an error
 		selflog.Printf("[file] write failed: %v (path=%s)", "permission denied", "/var/log/app.log")
-		
+
 		output := buf.String()
 		if !strings.Contains(output, "permission denied") {
 			t.Error("expected error details")
@@ -133,7 +133,7 @@ func TestRealWorldScenarios(t *testing.T) {
 
 		// Simulate async sink panic recovery
 		selflog.Printf("[async] worker panic: %v", "runtime error: index out of range")
-		
+
 		if !strings.Contains(buf.String(), "runtime error") {
 			t.Error("expected panic details")
 		}
@@ -145,7 +145,7 @@ func TestRealWorldScenarios(t *testing.T) {
 		defer selflog.Disable()
 
 		selflog.Printf("[parser] invalid template: %s at position %d", "unclosed property", 23)
-		
+
 		if !strings.Contains(buf.String(), "unclosed property at position 23") {
 			t.Error("expected parse error details")
 		}
@@ -156,8 +156,8 @@ func BenchmarkSelfLog(b *testing.B) {
 	b.Run("disabled", func(b *testing.B) {
 		selflog.Disable()
 		b.ResetTimer()
-		
-		for i := 0; i < b.N; i++ {
+
+		for i := 0; b.Loop(); i++ {
 			selflog.Printf("[bench] test message %d", i)
 		}
 	})
@@ -165,8 +165,8 @@ func BenchmarkSelfLog(b *testing.B) {
 	b.Run("disabled with guard", func(b *testing.B) {
 		selflog.Disable()
 		b.ResetTimer()
-		
-		for i := 0; i < b.N; i++ {
+
+		for i := 0; b.Loop(); i++ {
 			if selflog.IsEnabled() {
 				selflog.Printf("[bench] test message %d", i)
 			}
@@ -177,8 +177,8 @@ func BenchmarkSelfLog(b *testing.B) {
 		selflog.Enable(io.Discard)
 		defer selflog.Disable()
 		b.ResetTimer()
-		
-		for i := 0; i < b.N; i++ {
+
+		for i := 0; b.Loop(); i++ {
 			selflog.Printf("[bench] test message %d", i)
 		}
 	})
@@ -187,8 +187,8 @@ func BenchmarkSelfLog(b *testing.B) {
 		selflog.EnableFunc(func(string) {})
 		defer selflog.Disable()
 		b.ResetTimer()
-		
-		for i := 0; i < b.N; i++ {
+
+		for i := 0; b.Loop(); i++ {
 			selflog.Printf("[bench] test message %d", i)
 		}
 	})
@@ -206,10 +206,10 @@ func TestRace(t *testing.T) {
 	defer selflog.Disable()
 
 	done := make(chan bool)
-	
+
 	// Multiple goroutines enabling/disabling
 	go func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			selflog.Enable(syncWriter)
 			time.Sleep(time.Microsecond)
 		}
@@ -217,7 +217,7 @@ func TestRace(t *testing.T) {
 	}()
 
 	go func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			selflog.Disable()
 			time.Sleep(time.Microsecond)
 		}
@@ -225,9 +225,9 @@ func TestRace(t *testing.T) {
 	}()
 
 	// Multiple goroutines writing
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(n int) {
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				selflog.Printf("[race-%d] message %d", n, j)
 			}
 			done <- true
@@ -235,7 +235,7 @@ func TestRace(t *testing.T) {
 	}
 
 	// Wait for all
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		<-done
 	}
 }

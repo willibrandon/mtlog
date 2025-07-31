@@ -2,7 +2,7 @@ package enrichers
 
 import (
 	"context"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -12,13 +12,13 @@ type contextKey string
 const (
 	// CorrelationIdKey is the context key for correlation IDs.
 	CorrelationIdKey contextKey = "correlationId"
-	
+
 	// RequestIdKey is the context key for request IDs.
 	RequestIdKey contextKey = "requestId"
-	
+
 	// UserIdKey is the context key for user IDs.
 	UserIdKey contextKey = "userId"
-	
+
 	// SessionIdKey is the context key for session IDs.
 	SessionIdKey contextKey = "sessionId"
 )
@@ -55,7 +55,7 @@ func (c *ContextEnricher) Enrich(event *core.LogEvent, propertyFactory core.LogE
 	if c.ctx == nil {
 		return
 	}
-	
+
 	for ctxKey, propName := range c.propertyKeys {
 		if value := c.ctx.Value(ctxKey); value != nil {
 			prop := propertyFactory.CreateProperty(propName, value)
@@ -67,12 +67,12 @@ func (c *ContextEnricher) Enrich(event *core.LogEvent, propertyFactory core.LogE
 // ContextValueEnricher enriches log events with a specific value from context.
 type ContextValueEnricher struct {
 	ctx          context.Context
-	key          interface{}
+	key          any
 	propertyName string
 }
 
 // NewContextValueEnricher creates an enricher for a specific context value.
-func NewContextValueEnricher(ctx context.Context, key interface{}, propertyName string) *ContextValueEnricher {
+func NewContextValueEnricher(ctx context.Context, key any, propertyName string) *ContextValueEnricher {
 	return &ContextValueEnricher{
 		ctx:          ctx,
 		key:          key,
@@ -85,7 +85,7 @@ func (c *ContextValueEnricher) Enrich(event *core.LogEvent, propertyFactory core
 	if c.ctx == nil {
 		return
 	}
-	
+
 	if value := c.ctx.Value(c.key); value != nil {
 		prop := propertyFactory.CreateProperty(c.propertyName, value)
 		event.Properties[prop.Name] = prop.Value
@@ -103,7 +103,7 @@ func WithRequestId(ctx context.Context, requestId string) context.Context {
 }
 
 // WithUserId returns a context with a user ID.
-func WithUserId(ctx context.Context, userId interface{}) context.Context {
+func WithUserId(ctx context.Context, userId any) context.Context {
 	return context.WithValue(ctx, UserIdKey, userId)
 }
 
