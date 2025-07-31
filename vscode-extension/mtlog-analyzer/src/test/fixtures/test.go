@@ -1,8 +1,8 @@
-package main
+package fixtures
 
 import "github.com/willibrandon/mtlog"
 
-func main() {
+func TestMtlogIssues() {
 	logger := mtlog.New(mtlog.WithConsole())
 
 	// This should trigger an error: template has 2 properties but 1 argument
@@ -16,4 +16,10 @@ func main() {
 
 	// This is correct
 	logger.Information("User {@User} has {Count} items", struct{ Name string }{"Alice"}, 5)
+
+	// New error: missing argument
+	logger.Information("Missing {Argument}")
+
+	// New error: missing argument
+	logger.Information("Missing {Argument}")
 }
