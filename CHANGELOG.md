@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **VS Code Extension** - Real-time validation for mtlog message templates (#7)
+  - Automatic diagnostics on save and file changes with 500ms debounce
+  - Three severity levels: errors (red), warnings (yellow), suggestions (blue)
+  - Status bar indicator showing analysis state and issue count
+  - SHA-256 based caching to skip redundant analysis
+  - CPU-based concurrency control (uses half of logical cores)
+  - Automatic installation prompt when mtlog-analyzer not found
+  - Configurable analyzer path and flags via settings
+  - Published to VS Code Marketplace under publisher ID "mtlog"
+  - Integrated into main CI/CD pipeline with dual-tagging strategy
+  - Tag with `ext/v*` to publish to marketplace, regular tags for GitHub releases only
+
 ## [0.6.0] - 2025-07-30
 
 ### Added
