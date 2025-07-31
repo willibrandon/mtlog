@@ -55,4 +55,3 @@ vscode-extension/mtlog-analyzer/.vscode-test/
 vscode-extension/mtlog-analyzer/*.vsix
 vscode-extension/mtlog-analyzer/**/*.js
 vscode-extension/mtlog-analyzer/**/*.js.map
-vscode-extension/mtlog-analyzer/package-lock.json
