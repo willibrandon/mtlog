@@ -71,43 +71,43 @@ func TestGoTemplateEdgeCases(t *testing.T) {
 	tests := []struct {
 		name       string
 		template   string
-		properties map[string]interface{}
+		properties map[string]any
 		expected   string
 	}{
 		{
 			name:       "Empty Go template property",
 			template:   "Value: {{.}}",
-			properties: map[string]interface{}{},
+			properties: map[string]any{},
 			expected:   "Value: {}", // Empty property name
 		},
 		{
 			name:       "Go template without dot",
 			template:   "Value: {{Property}}",
-			properties: map[string]interface{}{"Property": "test"},
+			properties: map[string]any{"Property": "test"},
 			expected:   "Value: test", // Treated as regular property without dot
 		},
 		{
 			name:       "Nested Go templates",
 			template:   "{{.Outer{{.Inner}}}}",
-			properties: map[string]interface{}{"Outer": "out", "Inner": "in"},
+			properties: map[string]any{"Outer": "out", "Inner": "in"},
 			expected:   "{Outer{{.Inner}}", // Invalid nesting, treated as property with invalid content
 		},
 		{
 			name:       "Go template with spaces",
 			template:   "User {{ .UserId }} logged in",
-			properties: map[string]interface{}{"UserId": 123},
+			properties: map[string]any{"UserId": 123},
 			expected:   "User { .UserId } logged in", // Spaces make it a regular property
 		},
 		{
 			name:       "Unclosed Go template",
 			template:   "User {{.UserId logged in",
-			properties: map[string]interface{}{"UserId": 123},
+			properties: map[string]any{"UserId": 123},
 			expected:   "User {{.UserId logged in", // Treated as text
 		},
 		{
 			name:       "Go template with special characters",
 			template:   "Value: {{.user-id}}",
-			properties: map[string]interface{}{"user-id": 123},
+			properties: map[string]any{"user-id": 123},
 			expected:   "Value: 123", // Now allowing hyphens in property names
 		},
 	}
@@ -131,21 +131,21 @@ func TestGoTemplateCapturing(t *testing.T) {
 	tests := []struct {
 		name       string
 		template   string
-		properties map[string]interface{}
+		properties map[string]any
 		expected   string
 		checkType  string // To verify capturing hint is parsed
 	}{
 		{
 			name:       "Go template with @ capturing",
 			template:   "User {{@.User}} created",
-			properties: map[string]interface{}{"User": map[string]interface{}{"id": 1, "name": "Alice"}},
+			properties: map[string]any{"User": map[string]any{"id": 1, "name": "Alice"}},
 			expected:   "User ",
 			checkType:  "capture",
 		},
 		{
 			name:       "Go template with $ scalar",
 			template:   "Error: {{$.Error}}",
-			properties: map[string]interface{}{"Error": map[string]interface{}{"code": 500}},
+			properties: map[string]any{"Error": map[string]any{"code": 500}},
 			expected:   "Error: ",
 			checkType:  "scalar",
 		},
@@ -181,7 +181,7 @@ func TestGoTemplateCapturing(t *testing.T) {
 
 func TestMixedTemplateSyntax(t *testing.T) {
 	template := "User {UserId} ({{.Username}}) performed {Action} on {{.Resource}} at {Time}"
-	properties := map[string]interface{}{
+	properties := map[string]any{
 		"UserId":   123,
 		"Username": "alice",
 		"Action":   "update",
@@ -215,7 +215,7 @@ func TestMixedTemplateSyntax(t *testing.T) {
 
 func BenchmarkParseGoTemplate(b *testing.B) {
 	template := "User {{.UserId}} ({{.Username}}) logged in from {{.IP}}"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := Parse(template)
@@ -227,7 +227,7 @@ func BenchmarkParseGoTemplate(b *testing.B) {
 
 func BenchmarkParseTraditional(b *testing.B) {
 	template := "User {UserId} ({Username}) logged in from {IP}"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := Parse(template)
@@ -239,7 +239,7 @@ func BenchmarkParseTraditional(b *testing.B) {
 
 func BenchmarkParseMixed(b *testing.B) {
 	template := "User {UserId} ({{.Username}}) logged in from {IP}"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := Parse(template)
@@ -253,13 +253,13 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 	tests := []struct {
 		name       string
 		template   string
-		properties map[string]interface{}
+		properties map[string]any
 		expected   string
 	}{
 		{
 			name:     "Simple Go template",
 			template: "User {{.UserId}} logged in",
-			properties: map[string]interface{}{
+			properties: map[string]any{
 				"UserId": 123,
 			},
 			expected: "User 123 logged in",
@@ -267,7 +267,7 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 		{
 			name:     "Multiple Go templates",
 			template: "{{.User}} performed {{.Action}}",
-			properties: map[string]interface{}{
+			properties: map[string]any{
 				"User":   "Alice",
 				"Action": "login",
 			},
@@ -276,7 +276,7 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 		{
 			name:     "Mixed syntax",
 			template: "User {UserId} ({{.Username}}) logged in",
-			properties: map[string]interface{}{
+			properties: map[string]any{
 				"UserId":   123,
 				"Username": "alice",
 			},
@@ -285,7 +285,7 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 		{
 			name:     "Missing property",
 			template: "User {{.UserId}} status {{.Status}}",
-			properties: map[string]interface{}{
+			properties: map[string]any{
 				"UserId": 123,
 			},
 			expected: "User 123 status {Status}",

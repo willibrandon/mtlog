@@ -53,7 +53,7 @@ func (h *SlogHandler) Handle(ctx context.Context, record slog.Record) error {
 		fs := runtime.CallersFrames([]uintptr{record.PC})
 		f, _ := fs.Next()
 		if f.File != "" {
-			logger = logger.ForContext("source", map[string]interface{}{
+			logger = logger.ForContext("source", map[string]any{
 				"file":     f.File,
 				"line":     f.Line,
 				"function": f.Function,

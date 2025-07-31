@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -33,32 +33,32 @@ func TestLoadFromJSON(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	config, err := LoadFromJSON([]byte(jsonData))
 	if err != nil {
 		t.Fatalf("Failed to load JSON: %v", err)
 	}
-	
+
 	// Check minimum level
 	if config.Mtlog.MinimumLevel != "Debug" {
 		t.Errorf("Expected minimum level Debug, got %s", config.Mtlog.MinimumLevel)
 	}
-	
+
 	// Check sinks
 	if len(config.Mtlog.WriteTo) != 2 {
 		t.Errorf("Expected 2 sinks, got %d", len(config.Mtlog.WriteTo))
 	}
-	
+
 	// Check first sink
 	if config.Mtlog.WriteTo[0].Name != "Console" {
 		t.Errorf("Expected first sink to be Console, got %s", config.Mtlog.WriteTo[0].Name)
 	}
-	
+
 	// Check enrichers
 	if len(config.Mtlog.Enrich) != 2 {
 		t.Errorf("Expected 2 enrichers, got %d", len(config.Mtlog.Enrich))
 	}
-	
+
 	// Check properties
 	if config.Mtlog.Properties["Application"] != "TestApp" {
 		t.Errorf("Expected Application property to be TestApp")
@@ -87,7 +87,7 @@ func TestParseLevel(t *testing.T) {
 		{"FTL", core.FatalLevel, false},
 		{"unknown", core.InformationLevel, true},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			level, err := ParseLevel(tt.input)
@@ -102,7 +102,7 @@ func TestParseLevel(t *testing.T) {
 }
 
 func TestGetHelpers(t *testing.T) {
-	args := map[string]interface{}{
+	args := map[string]any{
 		"stringVal":  "hello",
 		"intVal":     42,
 		"floatVal":   42.5,
@@ -110,7 +110,7 @@ func TestGetHelpers(t *testing.T) {
 		"stringBool": "true",
 		"stringInt":  "123",
 	}
-	
+
 	// Test GetString
 	if v := GetString(args, "stringVal", "default"); v != "hello" {
 		t.Errorf("GetString failed, got %s", v)
@@ -118,7 +118,7 @@ func TestGetHelpers(t *testing.T) {
 	if v := GetString(args, "missing", "default"); v != "default" {
 		t.Errorf("GetString default failed, got %s", v)
 	}
-	
+
 	// Test GetInt
 	if v := GetInt(args, "intVal", 0); v != 42 {
 		t.Errorf("GetInt failed, got %d", v)
@@ -129,7 +129,7 @@ func TestGetHelpers(t *testing.T) {
 	if v := GetInt(args, "stringInt", 0); v != 123 {
 		t.Errorf("GetInt from string failed, got %d", v)
 	}
-	
+
 	// Test GetBool
 	if v := GetBool(args, "boolVal", false); v != true {
 		t.Errorf("GetBool failed")
@@ -158,17 +158,17 @@ func TestBuilderIntegration(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	logger, err := CreateLoggerFromJSON([]byte(jsonData))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	
+
 	// Logger should be created successfully
 	if logger == nil {
 		t.Fatal("Logger is nil")
 	}
-	
+
 	// Test logging
 	logger.Debug("Test debug message")
 	logger.Information("Test info message")
@@ -225,36 +225,36 @@ func TestComplexConfiguration(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	config, err := LoadFromJSON([]byte(jsonData))
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
-	
+
 	// Check rolling file sink
 	if len(config.Mtlog.WriteTo) != 2 {
 		t.Errorf("Expected 2 sinks, got %d", len(config.Mtlog.WriteTo))
 	}
-	
+
 	rollingFile := config.Mtlog.WriteTo[0]
 	if rollingFile.Name != "RollingFile" {
 		t.Errorf("Expected RollingFile sink, got %s", rollingFile.Name)
 	}
-	
+
 	// Check file size limit
 	sizeLimit := GetInt64(rollingFile.Args, "fileSizeLimitBytes", 0)
 	if sizeLimit != 10485760 {
 		t.Errorf("Expected file size limit 10485760, got %d", sizeLimit)
 	}
-	
+
 	// Check async sink
 	asyncSink := config.Mtlog.WriteTo[1]
 	if asyncSink.Name != "Async" {
 		t.Errorf("Expected Async sink, got %s", asyncSink.Name)
 	}
-	
+
 	// Check nested writeTo
-	writeTo, ok := asyncSink.Args["writeTo"].(map[string]interface{})
+	writeTo, ok := asyncSink.Args["writeTo"].(map[string]any)
 	if !ok {
 		t.Error("Expected writeTo in async sink args")
 	} else {
@@ -269,7 +269,7 @@ func TestLoadFromFile(t *testing.T) {
 	// Create a temporary config file
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "test-config.json")
-	
+
 	configData := `{
 		"Mtlog": {
 			"MinimumLevel": "Information",
@@ -283,17 +283,17 @@ func TestLoadFromFile(t *testing.T) {
 			]
 		}
 	}`
-	
+
 	if err := os.WriteFile(configPath, []byte(configData), 0644); err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
-	
+
 	// Load configuration
 	config, err := LoadFromFile(configPath)
 	if err != nil {
 		t.Fatalf("Failed to load config file: %v", err)
 	}
-	
+
 	if config.Mtlog.MinimumLevel != "Information" {
 		t.Errorf("Expected minimum level Information, got %s", config.Mtlog.MinimumLevel)
 	}
@@ -314,7 +314,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 			t.Errorf("Failed to restore directory: %v", err)
 		}
 	}()
-	
+
 	// Base configuration
 	baseConfig := `{
 		"Mtlog": {
@@ -330,7 +330,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	// Development configuration
 	devConfig := `{
 		"Mtlog": {
@@ -349,7 +349,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	// Write config files
 	if err := os.WriteFile("appsettings.json", []byte(baseConfig), 0644); err != nil {
 		t.Fatalf("Failed to write base config: %v", err)
@@ -357,17 +357,17 @@ func TestEnvironmentConfiguration(t *testing.T) {
 	if err := os.WriteFile("appsettings.Development.json", []byte(devConfig), 0644); err != nil {
 		t.Fatalf("Failed to write dev config: %v", err)
 	}
-	
+
 	// Create logger for development environment
 	logger, err := CreateLoggerFromEnvironment("Development")
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	
+
 	if logger == nil {
 		t.Fatal("Logger is nil")
 	}
-	
+
 	// The logger should have debug level from dev config
 	// and properties from both configs
 }

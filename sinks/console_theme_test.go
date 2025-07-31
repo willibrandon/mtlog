@@ -13,20 +13,20 @@ func TestConsoleThemes(t *testing.T) {
 	// Create a test event
 	event := &core.LogEvent{
 		Timestamp:       time.Date(2025, 1, 22, 15, 30, 45, 0, time.UTC),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "User {UserId} logged in from {IP}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"UserId": 123,
 			"IP":     "192.168.1.1",
 		},
 	}
 
 	tests := []struct {
-		name           string
-		theme          *ConsoleTheme
-		expectedParts  []string
-		notExpected    []string
-		checkNoColor   bool
+		name          string
+		theme         *ConsoleTheme
+		expectedParts []string
+		notExpected   []string
+		checkNoColor  bool
 	}{
 		{
 			name:  "Default theme",
@@ -118,9 +118,9 @@ func TestConsoleThemes(t *testing.T) {
 func TestConsoleThemeWithProperties(t *testing.T) {
 	event := &core.LogEvent{
 		Timestamp:       time.Date(2025, 1, 22, 15, 30, 45, 0, time.UTC),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "Processing order {OrderId}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"OrderId":    "ORD-123",
 			"CustomerId": "CUST-456",
 			"Total":      99.99,
@@ -178,9 +178,9 @@ func TestConsoleThemeLevels(t *testing.T) {
 			buf.Reset()
 			event := &core.LogEvent{
 				Timestamp:       time.Now(),
-				Level:          lvl.level,
+				Level:           lvl.level,
 				MessageTemplate: "Test message",
-				Properties:     map[string]interface{}{},
+				Properties:      map[string]any{},
 			}
 
 			sink.Emit(event)
@@ -209,9 +209,9 @@ func TestSetTheme(t *testing.T) {
 	// Start with default theme
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
-		Level:          core.InformationLevel,
+		Level:           core.InformationLevel,
 		MessageTemplate: "Test",
-		Properties:     map[string]interface{}{},
+		Properties:      map[string]any{},
 	}
 
 	sink.Emit(event)

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 	"time"
-	
+
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -82,7 +82,7 @@ func TestExtractTypeNameBasic(t *testing.T) {
 func TestExtractTypeNameWithPackage(t *testing.T) {
 	// Test with package inclusion
 	result := getTypeNameWithPackage[testUser]()
-	
+
 	// Should include "mtlog" as the immediate package
 	expected := "mtlog.testUser"
 	if result != expected {
@@ -160,7 +160,7 @@ func TestExtractTypeNameWithOptions(t *testing.T) {
 
 func TestExtractTypeNamePackageDepth(t *testing.T) {
 	// Test package depth limiting with actual package path github.com/willibrandon/mtlog
-	
+
 	tests := []struct {
 		name        string
 		depth       int
@@ -193,9 +193,9 @@ func TestExtractTypeNamePackageDepth(t *testing.T) {
 				IncludePackage: true,
 				PackageDepth:   tt.depth,
 			}
-			
+
 			result := extractTypeName[testUser](options)
-			
+
 			if result != tt.expected {
 				t.Errorf("expected %s, got %s (depth %d)", tt.expected, result, tt.depth)
 			}
@@ -227,7 +227,7 @@ func TestExtractTypeNameBuiltinTypes(t *testing.T) {
 		{
 			name: "interface{}",
 			extractFunc: func() string {
-				return extractTypeName[interface{}](TypeNameOptions{IncludePackage: true})
+				return extractTypeName[any](TypeNameOptions{IncludePackage: true})
 			},
 			expectedName: "Unknown",
 		},
@@ -246,7 +246,7 @@ func TestExtractTypeNameBuiltinTypes(t *testing.T) {
 func TestDefaultTypeNameOptions(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test that default options work as expected
 	expected := TypeNameOptions{
 		IncludePackage:    false,
@@ -256,27 +256,27 @@ func TestDefaultTypeNameOptions(t *testing.T) {
 		SimplifyAnonymous: false,
 		WarnOnUnknown:     true,
 	}
-	
+
 	if DefaultTypeNameOptions.IncludePackage != expected.IncludePackage {
 		t.Errorf("expected IncludePackage=%v, got %v", expected.IncludePackage, DefaultTypeNameOptions.IncludePackage)
 	}
-	
+
 	if DefaultTypeNameOptions.PackageDepth != expected.PackageDepth {
 		t.Errorf("expected PackageDepth=%v, got %v", expected.PackageDepth, DefaultTypeNameOptions.PackageDepth)
 	}
-	
+
 	if DefaultTypeNameOptions.Prefix != expected.Prefix {
 		t.Errorf("expected Prefix=%v, got %v", expected.Prefix, DefaultTypeNameOptions.Prefix)
 	}
-	
+
 	if DefaultTypeNameOptions.Suffix != expected.Suffix {
 		t.Errorf("expected Suffix=%v, got %v", expected.Suffix, DefaultTypeNameOptions.Suffix)
 	}
-	
+
 	if DefaultTypeNameOptions.SimplifyAnonymous != expected.SimplifyAnonymous {
 		t.Errorf("expected SimplifyAnonymous=%v, got %v", expected.SimplifyAnonymous, DefaultTypeNameOptions.SimplifyAnonymous)
 	}
-	
+
 	if DefaultTypeNameOptions.WarnOnUnknown != expected.WarnOnUnknown {
 		t.Errorf("expected WarnOnUnknown=%v, got %v", expected.WarnOnUnknown, DefaultTypeNameOptions.WarnOnUnknown)
 	}
@@ -284,7 +284,7 @@ func TestDefaultTypeNameOptions(t *testing.T) {
 
 func TestExtractTypeNameEdgeCases(t *testing.T) {
 	// Test edge cases like anonymous structs, named interfaces, etc.
-	
+
 	// Anonymous struct
 	t.Run("anonymous struct", func(t *testing.T) {
 		result := extractTypeName[struct{ Name string }](DefaultTypeNameOptions)
@@ -294,20 +294,20 @@ func TestExtractTypeNameEdgeCases(t *testing.T) {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
-	
+
 	// Anonymous struct with complex fields
 	t.Run("complex anonymous struct", func(t *testing.T) {
 		result := extractTypeName[struct {
 			ID    int
 			Items []string
-			Meta  map[string]interface{}
+			Meta  map[string]any
 		}](DefaultTypeNameOptions)
 		// Should contain the struct definition
 		if !strings.Contains(result, "struct") {
 			t.Errorf("expected result to contain 'struct', got %s", result)
 		}
 	})
-	
+
 	// Named interface
 	t.Run("named interface", func(t *testing.T) {
 		result := extractTypeName[Repository](DefaultTypeNameOptions)
@@ -317,7 +317,7 @@ func TestExtractTypeNameEdgeCases(t *testing.T) {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
-	
+
 	// Function type
 	t.Run("function type", func(t *testing.T) {
 		result := extractTypeName[func(string) error](DefaultTypeNameOptions)
@@ -326,7 +326,7 @@ func TestExtractTypeNameEdgeCases(t *testing.T) {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
-	
+
 	// Channel type
 	t.Run("channel type", func(t *testing.T) {
 		result := extractTypeName[chan string](DefaultTypeNameOptions)
@@ -340,7 +340,7 @@ func TestExtractTypeNameEdgeCases(t *testing.T) {
 func TestSimplifyAnonymousOption(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test SimplifyAnonymous option
 	tests := []struct {
 		name         string
@@ -377,7 +377,7 @@ func TestSimplifyAnonymousOption(t *testing.T) {
 				return extractTypeName[struct {
 					ID    int
 					Items []string
-					Meta  map[string]interface{}
+					Meta  map[string]any
 				}](opts)
 			},
 			expectedName: "AnonymousStruct",
@@ -419,7 +419,7 @@ func TestSimplifyAnonymousOption(t *testing.T) {
 func TestWarnOnUnknownOption(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test WarnOnUnknown option
 	tests := []struct {
 		name        string
@@ -428,9 +428,9 @@ func TestWarnOnUnknownOption(t *testing.T) {
 		description string
 	}{
 		{
-			name: "warnings enabled by default",
-			options: DefaultTypeNameOptions,
-			expectWarn: true,
+			name:        "warnings enabled by default",
+			options:     DefaultTypeNameOptions,
+			expectWarn:  true,
 			description: "should warn with default options",
 		},
 		{
@@ -438,7 +438,7 @@ func TestWarnOnUnknownOption(t *testing.T) {
 			options: TypeNameOptions{
 				WarnOnUnknown: false,
 			},
-			expectWarn: false,
+			expectWarn:  false,
 			description: "should not warn when disabled",
 		},
 		{
@@ -446,7 +446,7 @@ func TestWarnOnUnknownOption(t *testing.T) {
 			options: TypeNameOptions{
 				WarnOnUnknown: true,
 			},
-			expectWarn: true,
+			expectWarn:  true,
 			description: "should warn when explicitly enabled",
 		},
 	}
@@ -458,23 +458,23 @@ func TestWarnOnUnknownOption(t *testing.T) {
 			originalOutput := log.Writer()
 			log.SetOutput(&logBuffer)
 			defer log.SetOutput(originalOutput)
-			
+
 			// Test with interface type that results in "Unknown"
-			result := extractTypeName[interface{}](tt.options)
-			
+			result := extractTypeName[any](tt.options)
+
 			// Verify the result
 			if result != "Unknown" {
 				t.Errorf("expected 'Unknown' for interface{} type, got %s", result)
 			}
-			
+
 			// Check if warning was logged
 			logOutput := logBuffer.String()
 			containsWarning := strings.Contains(logOutput, "[mtlog] Warning:")
-			
+
 			if tt.expectWarn && !containsWarning {
 				t.Errorf("expected warning to be logged, but no warning found in output: %s", logOutput)
 			}
-			
+
 			if !tt.expectWarn && containsWarning {
 				t.Errorf("expected no warning, but warning was logged: %s", logOutput)
 			}
@@ -485,7 +485,7 @@ func TestWarnOnUnknownOption(t *testing.T) {
 func TestTypeNameCacheStats(t *testing.T) {
 	// Clear cache to start fresh
 	ResetTypeNameCache()
-	
+
 	// Check initial stats
 	stats := GetTypeNameCacheStats()
 	if stats.Hits != 0 || stats.Misses != 0 || stats.Evictions != 0 || stats.HitRatio != 0 || stats.Size != 0 {
@@ -494,7 +494,7 @@ func TestTypeNameCacheStats(t *testing.T) {
 	if stats.MaxSize <= 0 {
 		t.Errorf("expected positive MaxSize, got %d", stats.MaxSize)
 	}
-	
+
 	// First call should be a miss
 	_ = extractTypeName[testUser](DefaultTypeNameOptions)
 	stats = GetTypeNameCacheStats()
@@ -507,7 +507,7 @@ func TestTypeNameCacheStats(t *testing.T) {
 	if stats.Size != 1 {
 		t.Errorf("expected cache size=1, got %d", stats.Size)
 	}
-	
+
 	// Second call should be a hit
 	_ = extractTypeName[testUser](DefaultTypeNameOptions)
 	stats = GetTypeNameCacheStats()
@@ -520,7 +520,7 @@ func TestTypeNameCacheStats(t *testing.T) {
 	if stats.Size != 1 {
 		t.Errorf("expected cache size=1, got %d", stats.Size)
 	}
-	
+
 	// Third call should be another hit
 	_ = extractTypeName[testUser](DefaultTypeNameOptions)
 	stats = GetTypeNameCacheStats()
@@ -533,7 +533,7 @@ func TestTypeNameCacheStats(t *testing.T) {
 	if stats.Size != 1 {
 		t.Errorf("expected cache size=1, got %d", stats.Size)
 	}
-	
+
 	// Different type should be a miss
 	_ = extractTypeName[testProduct](DefaultTypeNameOptions)
 	stats = GetTypeNameCacheStats()
@@ -546,7 +546,7 @@ func TestTypeNameCacheStats(t *testing.T) {
 	if stats.Size != 2 {
 		t.Errorf("expected cache size=2, got %d", stats.Size)
 	}
-	
+
 	// Reset should clear stats
 	ResetTypeNameCache()
 	stats = GetTypeNameCacheStats()
@@ -565,7 +565,7 @@ type GenericMap[K comparable, V any] map[K]V
 func TestExtractTypeNameGenericTypes(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test generic types
 	tests := []struct {
 		name         string
@@ -615,7 +615,7 @@ func TestExtractTypeNameGenericTypes(t *testing.T) {
 func TestExtractTypeNameComplexGenericEdgeCases(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test complex generic edge cases that might occur in real applications
 	tests := []struct {
 		name         string
@@ -642,7 +642,7 @@ func TestExtractTypeNameComplexGenericEdgeCases(t *testing.T) {
 		{
 			name: "generic with built-in types",
 			extractFunc: func() string {
-				return getTypeNameSimple[GenericMap[string, []map[int]interface{}]]()
+				return getTypeNameSimple[GenericMap[string, []map[int]any]]()
 			},
 			expectedName: "GenericMap[string,[]map[int]interface {}]",
 			description:  "should handle complex built-in type combinations",
@@ -702,15 +702,15 @@ func TestExtractTypeNameComplexGenericEdgeCases(t *testing.T) {
 func TestExtractTypeNameConcurrency(t *testing.T) {
 	// Clear cache to ensure test isolation
 	ResetTypeNameCache()
-	
+
 	// Test concurrent usage to ensure thread safety
 	const numGoroutines = 10
 	const numIterations = 100
-	
+
 	t.Run("getTypeNameSimple", func(t *testing.T) {
 		var wg sync.WaitGroup
 		results := make(chan string, numGoroutines*numIterations)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			wg.Add(1)
 			go func() {
@@ -721,10 +721,10 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		wg.Wait()
 		close(results)
-		
+
 		// Verify all results are consistent
 		expected := "testUser"
 		count := 0
@@ -734,12 +734,12 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 				t.Errorf("expected %s, got %s", expected, result)
 			}
 		}
-		
+
 		if count != numGoroutines*numIterations {
 			t.Errorf("expected %d results, got %d", numGoroutines*numIterations, count)
 		}
 	})
-	
+
 	t.Run("extractTypeName with TypeNameOptions", func(t *testing.T) {
 		// Test different TypeNameOptions configurations concurrently
 		testCases := []struct {
@@ -785,13 +785,13 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 				expected: "App.mtlog.testUser.Service",
 			},
 		}
-		
+
 		for _, tc := range testCases {
 			tc := tc // capture loop variable
 			t.Run(tc.name, func(t *testing.T) {
 				var wg sync.WaitGroup
 				results := make(chan string, numGoroutines*numIterations)
-				
+
 				for i := 0; i < numGoroutines; i++ {
 					wg.Add(1)
 					go func() {
@@ -802,10 +802,10 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 						}
 					}()
 				}
-				
+
 				wg.Wait()
 				close(results)
-				
+
 				// Verify all results are consistent
 				count := 0
 				for result := range results {
@@ -814,7 +814,7 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 						t.Errorf("expected %s, got %s", tc.expected, result)
 					}
 				}
-				
+
 				if count != numGoroutines*numIterations {
 					t.Errorf("expected %d results, got %d", numGoroutines*numIterations, count)
 				}
@@ -826,41 +826,41 @@ func TestExtractTypeNameConcurrency(t *testing.T) {
 func TestTypeNameCacheLRUEviction(t *testing.T) {
 	// Clear cache to start fresh
 	ResetTypeNameCache()
-	
+
 	// Test LRU eviction with a small cache size
 	// We'll simulate a small cache by setting a very small limit
 	originalConfig := cacheConfig
 	defer func() { cacheConfig = originalConfig }()
-	
+
 	cacheConfig = typeNameCacheConfig{
 		maxSize: 2, // Very small cache for testing
 		enabled: true,
 	}
-	
+
 	// Add first type
 	name1 := extractTypeName[testUser](DefaultTypeNameOptions)
 	if name1 != "testUser" {
 		t.Errorf("expected testUser, got %s", name1)
 	}
-	
+
 	// Add second type
 	name2 := extractTypeName[testProduct](DefaultTypeNameOptions)
 	if name2 != "testProduct" {
 		t.Errorf("expected testProduct, got %s", name2)
 	}
-	
+
 	// Wait a bit for async eviction to complete
 	time.Sleep(10 * time.Millisecond)
-	
+
 	// Add third type - this should trigger eviction of the least recently used
 	name3 := extractTypeName[GenericType[string]](DefaultTypeNameOptions)
 	if name3 != "GenericType[string]" {
 		t.Errorf("expected GenericType[string], got %s", name3)
 	}
-	
+
 	// Wait for eviction to complete
 	time.Sleep(10 * time.Millisecond)
-	
+
 	// Check that we have evictions recorded
 	stats := GetTypeNameCacheStats()
 	if stats.Size > 2 {
@@ -874,35 +874,35 @@ func TestTypeNameCacheLRUEviction(t *testing.T) {
 func TestExtractTypeNameWithCacheKey(t *testing.T) {
 	// Clear cache to start fresh
 	ResetTypeNameCache()
-	
+
 	// Test custom cache keys for multi-tenant scenarios
 	tenant1Prefix := "tenant:acme"
 	tenant2Prefix := "tenant:globex"
-	
+
 	// Extract type names with different cache keys
 	name1 := ExtractTypeNameWithCacheKey[testUser](DefaultTypeNameOptions, tenant1Prefix)
 	name2 := ExtractTypeNameWithCacheKey[testUser](DefaultTypeNameOptions, tenant2Prefix)
-	
+
 	// Both should return the same type name
 	if name1 != "testUser" || name2 != "testUser" {
 		t.Errorf("expected both to be testUser, got %s and %s", name1, name2)
 	}
-	
+
 	// Check that cache has separate entries for different tenants
 	stats := GetTypeNameCacheStats()
 	if stats.Size < 2 {
 		t.Errorf("expected at least 2 cache entries for different tenants, got %d", stats.Size)
 	}
-	
+
 	// Test cache hits with tenant-specific keys
 	initialStats := GetTypeNameCacheStats()
-	
+
 	// This should be a cache hit for tenant1
 	name1Again := ExtractTypeNameWithCacheKey[testUser](DefaultTypeNameOptions, tenant1Prefix)
 	if name1Again != "testUser" {
 		t.Errorf("expected testUser, got %s", name1Again)
 	}
-	
+
 	finalStats := GetTypeNameCacheStats()
 	if finalStats.Hits <= initialStats.Hits {
 		t.Errorf("expected cache hit for tenant-specific key, hits did not increase")
@@ -912,26 +912,26 @@ func TestExtractTypeNameWithCacheKey(t *testing.T) {
 func TestForTypeWithCacheKey(t *testing.T) {
 	// Clear cache to start fresh
 	ResetTypeNameCache()
-	
+
 	// Create a memory sink to capture events
 	sink := sinks.NewMemorySink()
 	logger := New(WithSink(sink))
-	
+
 	// Test ForType with custom cache key
 	tenantPrefix := "tenant:acme"
 	userLogger := ForTypeWithCacheKey[testUser](logger, tenantPrefix)
 	userLogger.Information("User operation for tenant")
-	
+
 	events := sink.Events()
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	
+
 	event := events[0]
 	if sourceContext, ok := event.Properties["SourceContext"]; !ok || sourceContext != "testUser" {
 		t.Errorf("expected SourceContext=testUser, got %v", sourceContext)
 	}
-	
+
 	// Verify that cache has an entry
 	stats := GetTypeNameCacheStats()
 	if stats.Size < 1 {

@@ -8,17 +8,17 @@ import (
 // LoggerG is a generic type-safe logger interface
 type LoggerG[T any] interface {
 	// Logging methods with type safety
-	VerboseT(messageTemplate string, value T, args ...interface{})
-	DebugT(messageTemplate string, value T, args ...interface{})
-	InformationT(messageTemplate string, value T, args ...interface{})
-	WarningT(messageTemplate string, value T, args ...interface{})
-	ErrorT(messageTemplate string, value T, args ...interface{})
-	FatalT(messageTemplate string, value T, args ...interface{})
-	
+	VerboseT(messageTemplate string, value T, args ...any)
+	DebugT(messageTemplate string, value T, args ...any)
+	InformationT(messageTemplate string, value T, args ...any)
+	WarningT(messageTemplate string, value T, args ...any)
+	ErrorT(messageTemplate string, value T, args ...any)
+	FatalT(messageTemplate string, value T, args ...any)
+
 	// Short method names
-	InfoT(messageTemplate string, value T, args ...interface{})
-	WarnT(messageTemplate string, value T, args ...interface{})
-	
+	InfoT(messageTemplate string, value T, args ...any)
+	WarnT(messageTemplate string, value T, args ...any)
+
 	// ForContextT adds a typed property
 	ForContextT(propertyName string, value T) LoggerG[T]
 }
@@ -36,50 +36,50 @@ func NewTyped[T any](opts ...Option) LoggerG[T] {
 }
 
 // VerboseT logs at verbose level with typed value
-func (l *TypedLogger[T]) VerboseT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) VerboseT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Verbose(messageTemplate, allArgs...)
 }
 
 // DebugT logs at debug level with typed value
-func (l *TypedLogger[T]) DebugT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) DebugT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Debug(messageTemplate, allArgs...)
 }
 
 // InformationT logs at information level with typed value
-func (l *TypedLogger[T]) InformationT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) InformationT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Information(messageTemplate, allArgs...)
 }
 
 // WarningT logs at warning level with typed value
-func (l *TypedLogger[T]) WarningT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) WarningT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Warning(messageTemplate, allArgs...)
 }
 
 // ErrorT logs at error level with typed value
-func (l *TypedLogger[T]) ErrorT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) ErrorT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Error(messageTemplate, allArgs...)
 }
 
 // FatalT logs at fatal level with typed value
-func (l *TypedLogger[T]) FatalT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) FatalT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Fatal(messageTemplate, allArgs...)
 }
 
 // InfoT writes an information-level log event with a typed value (alias for InformationT)
-func (l *TypedLogger[T]) InfoT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) InfoT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Info(messageTemplate, allArgs...)
 }
 
 // WarnT writes a warning-level log event with a typed value (alias for WarningT)
-func (l *TypedLogger[T]) WarnT(messageTemplate string, value T, args ...interface{}) {
-	allArgs := append([]interface{}{value}, args...)
+func (l *TypedLogger[T]) WarnT(messageTemplate string, value T, args ...any) {
+	allArgs := append([]any{value}, args...)
 	l.logger.Warn(messageTemplate, allArgs...)
 }
 
@@ -104,7 +104,7 @@ func NewStructured(opts ...Option) *StructuredLogger {
 
 // Log logs with a typed property bag
 func (sl *StructuredLogger) Log(level core.LogEventLevel, messageTemplate string, properties *core.PropertyBag) {
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 	for k, v := range properties.Properties() {
 		args = append(args, v)
 		_ = k // Properties are matched positionally in templates
@@ -129,13 +129,13 @@ type LogBuilder struct {
 }
 
 // Property adds a property
-func (b *LogBuilder) Property(name string, value interface{}) *LogBuilder {
+func (b *LogBuilder) Property(name string, value any) *LogBuilder {
 	b.properties.Add(name, value)
 	return b
 }
 
 // PropertyTyped adds a typed property
-func (b *LogBuilder) PropertyTyped(name string, value interface{}) *LogBuilder {
+func (b *LogBuilder) PropertyTyped(name string, value any) *LogBuilder {
 	b.properties.Add(name, value)
 	return b
 }
@@ -157,8 +157,8 @@ func (b *LogBuilder) Write() {
 	// For message templates, we need to match properties by name
 	// Extract property names from the template
 	tmpl, _ := parser.ParseCached(b.template)
-	args := make([]interface{}, 0)
-	
+	args := make([]any, 0)
+
 	if tmpl != nil {
 		// Match properties in template order
 		for _, token := range tmpl.Tokens {
@@ -171,6 +171,6 @@ func (b *LogBuilder) Write() {
 			}
 		}
 	}
-	
+
 	b.logger.Write(b.level, b.template, args...)
 }

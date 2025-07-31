@@ -150,7 +150,7 @@ type ComplexStruct struct {
 	ID       int
 	Name     string
 	Tags     []string
-	Metadata map[string]interface{}
+	Metadata map[string]any
 	Children []ComplexStruct
 }
 
@@ -214,7 +214,7 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 	// - Cached calls: ~148 ns/op with 3 allocs (cache entry access + lastUsed update)
 	// - Cache provides ~1.4x speedup with LRU tracking overhead
 	// These benchmarks measure the performance impact of different TypeNameOptions configurations.
-	
+
 	// Benchmark ExtractTypeName with different TypeNameOptions configurations
 	tests := []struct {
 		name    string
@@ -283,10 +283,10 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 
 func BenchmarkCachedVsUncached(b *testing.B) {
 	// Benchmark cached vs uncached type name extraction to measure cache effectiveness
-	
+
 	// Clear cache before benchmark (access through the global variable)
 	mtlog.ResetTypeNameCache()
-	
+
 	b.Run("FirstCall_Uncached", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -296,18 +296,18 @@ func BenchmarkCachedVsUncached(b *testing.B) {
 			_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
 		}
 	})
-	
+
 	b.Run("SubsequentCalls_Cached", func(b *testing.B) {
 		// Prime the cache with one call
 		_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
-		
+
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
 		}
 	})
-	
+
 	b.Run("MixedTypes_CacheHitMiss", func(b *testing.B) {
 		// Mix of cached and uncached calls to simulate real usage
 		types := []func() string{
@@ -316,7 +316,7 @@ func BenchmarkCachedVsUncached(b *testing.B) {
 			func() string { return mtlog.ExtractTypeName[ComplexStruct](mtlog.DefaultTypeNameOptions) },
 			func() string { return mtlog.ExtractTypeName[BenchGeneric[string]](mtlog.DefaultTypeNameOptions) },
 		}
-		
+
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

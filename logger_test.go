@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -38,7 +38,7 @@ func TestLoggerLevels(t *testing.T) {
 		WithMinimumLevel(core.InformationLevel),
 		WithSink(sink),
 	)
-	
+
 	// Log at different levels
 	logger.Verbose("Verbose message")
 	logger.Debug("Debug message")
@@ -46,14 +46,14 @@ func TestLoggerLevels(t *testing.T) {
 	logger.Warning("Warning message")
 	logger.Error("Error message")
 	logger.Fatal("Fatal message")
-	
+
 	events := sink.GetEvents()
-	
+
 	// Should have 4 events (Information and above)
 	if len(events) != 4 {
 		t.Errorf("Expected 4 events, got %d", len(events))
 	}
-	
+
 	// Check levels
 	expectedLevels := []core.LogEventLevel{
 		core.InformationLevel,
@@ -61,7 +61,7 @@ func TestLoggerLevels(t *testing.T) {
 		core.ErrorLevel,
 		core.FatalLevel,
 	}
-	
+
 	for i, event := range events {
 		if event.Level != expectedLevels[i] {
 			t.Errorf("Event %d: expected level %d, got %d", i, expectedLevels[i], event.Level)
@@ -72,22 +72,22 @@ func TestLoggerLevels(t *testing.T) {
 func TestLoggerPropertyExtraction(t *testing.T) {
 	sink := &memorySink{}
 	logger := New(WithSink(sink))
-	
+
 	// Log with properties
 	logger.Information("User {UserId} logged in from {IpAddress}", 123, "192.168.1.1")
-	
+
 	events := sink.GetEvents()
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(events))
 	}
-	
+
 	event := events[0]
-	
+
 	// Check properties
 	if userId, ok := event.Properties["UserId"].(int); !ok || userId != 123 {
 		t.Errorf("Expected UserId=123, got %v", event.Properties["UserId"])
 	}
-	
+
 	if ip, ok := event.Properties["IpAddress"].(string); !ok || ip != "192.168.1.1" {
 		t.Errorf("Expected IpAddress='192.168.1.1', got %v", event.Properties["IpAddress"])
 	}
@@ -96,18 +96,18 @@ func TestLoggerPropertyExtraction(t *testing.T) {
 func TestLoggerForContext(t *testing.T) {
 	sink := &memorySink{}
 	logger := New(WithSink(sink))
-	
+
 	// Create context logger
 	ctxLogger := logger.ForContext("Environment", "Production")
 	ctxLogger.Information("Test message")
-	
+
 	events := sink.GetEvents()
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(events))
 	}
-	
+
 	event := events[0]
-	
+
 	// Check context property
 	if env, ok := event.Properties["Environment"].(string); !ok || env != "Production" {
 		t.Errorf("Expected Environment='Production', got %v", event.Properties["Environment"])
@@ -117,24 +117,24 @@ func TestLoggerForContext(t *testing.T) {
 func TestLoggerMultipleContexts(t *testing.T) {
 	sink := &memorySink{}
 	logger := New(WithSink(sink))
-	
+
 	// Create nested context loggers
 	ctx1 := logger.ForContext("Environment", "Production")
 	ctx2 := ctx1.ForContext("Version", "1.0.0")
 	ctx2.Information("Test message")
-	
+
 	events := sink.GetEvents()
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(events))
 	}
-	
+
 	event := events[0]
-	
+
 	// Check both context properties
 	if env, ok := event.Properties["Environment"].(string); !ok || env != "Production" {
 		t.Errorf("Expected Environment='Production', got %v", event.Properties["Environment"])
 	}
-	
+
 	if ver, ok := event.Properties["Version"].(string); !ok || ver != "1.0.0" {
 		t.Errorf("Expected Version='1.0.0', got %v", event.Properties["Version"])
 	}
@@ -147,16 +147,16 @@ func TestLoggerEnrichers(t *testing.T) {
 		WithSink(sink),
 		WithEnricher(testEnricher),
 	)
-	
+
 	logger.Information("Test message")
-	
+
 	events := sink.GetEvents()
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(events))
 	}
-	
+
 	event := events[0]
-	
+
 	// Check enriched property
 	if val, ok := event.Properties["TestProp"].(string); !ok || val != "TestValue" {
 		t.Errorf("Expected TestProp='TestValue', got %v", event.Properties["TestProp"])
@@ -171,16 +171,16 @@ func TestLoggerFilters(t *testing.T) {
 		WithSink(sink),
 		WithFilter(filter),
 	)
-	
+
 	logger.Information("Public message")
 	logger.Information("This contains secret information")
 	logger.Information("Another public message")
-	
+
 	events := sink.GetEvents()
 	if len(events) != 2 {
 		t.Errorf("Expected 2 events (filtered), got %d", len(events))
 	}
-	
+
 	// Check that secret message was filtered
 	for _, event := range events {
 		if strings.Contains(event.MessageTemplate, "secret") {
@@ -192,12 +192,12 @@ func TestLoggerFilters(t *testing.T) {
 func TestLoggerConcurrency(t *testing.T) {
 	sink := &memorySink{}
 	logger := New(WithSink(sink))
-	
+
 	// Test concurrent logging
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	numLogs := 100
-	
+
 	wg.Add(numGoroutines)
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
@@ -207,9 +207,9 @@ func TestLoggerConcurrency(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
-	
+
 	events := sink.GetEvents()
 	expectedEvents := numGoroutines * numLogs
 	if len(events) != expectedEvents {
@@ -221,7 +221,7 @@ func TestLoggerConcurrency(t *testing.T) {
 
 type testEnricher struct {
 	property string
-	value    interface{}
+	value    any
 }
 
 func (te *testEnricher) Enrich(event *core.LogEvent, propertyFactory core.LogEventPropertyFactory) {

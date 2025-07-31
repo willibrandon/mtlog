@@ -2,18 +2,18 @@ package enrichers
 
 import (
 	"context"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
 // LogContextEnricher enriches log events with properties from LogContext.
 type LogContextEnricher struct {
-	ctx context.Context
-	getProperties func(context.Context) map[string]interface{}
+	ctx           context.Context
+	getProperties func(context.Context) map[string]any
 }
 
 // NewLogContextEnricher creates an enricher that extracts properties from LogContext.
-func NewLogContextEnricher(ctx context.Context, getProperties func(context.Context) map[string]interface{}) *LogContextEnricher {
+func NewLogContextEnricher(ctx context.Context, getProperties func(context.Context) map[string]any) *LogContextEnricher {
 	return &LogContextEnricher{
 		ctx:           ctx,
 		getProperties: getProperties,
@@ -25,7 +25,7 @@ func (e *LogContextEnricher) Enrich(event *core.LogEvent, propertyFactory core.L
 	if e.ctx == nil || e.getProperties == nil {
 		return
 	}
-	
+
 	properties := e.getProperties(e.ctx)
 	for name, value := range properties {
 		// Only add if not already present (allows event-specific overrides)
@@ -35,4 +35,3 @@ func (e *LogContextEnricher) Enrich(event *core.LogEvent, propertyFactory core.L
 		}
 	}
 }
-

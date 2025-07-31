@@ -2,7 +2,7 @@ package sinks
 
 import (
 	"sync"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -23,16 +23,16 @@ func NewMemorySink() *MemorySink {
 func (m *MemorySink) Emit(event *core.LogEvent) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Make a copy to avoid data races
 	eventCopy := *event
 	if event.Properties != nil {
-		eventCopy.Properties = make(map[string]interface{})
+		eventCopy.Properties = make(map[string]any)
 		for k, v := range event.Properties {
 			eventCopy.Properties[k] = v
 		}
 	}
-	
+
 	m.events = append(m.events, eventCopy)
 }
 
@@ -45,7 +45,7 @@ func (m *MemorySink) Close() error {
 func (m *MemorySink) Events() []core.LogEvent {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	result := make([]core.LogEvent, len(m.events))
 	copy(result, m.events)
 	return result
@@ -69,7 +69,7 @@ func (m *MemorySink) Count() int {
 func (m *MemorySink) FindEvents(predicate func(*core.LogEvent) bool) []core.LogEvent {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	var result []core.LogEvent
 	for _, event := range m.events {
 		if predicate(&event) {
@@ -83,7 +83,7 @@ func (m *MemorySink) FindEvents(predicate func(*core.LogEvent) bool) []core.LogE
 func (m *MemorySink) HasEvent(predicate func(*core.LogEvent) bool) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	for _, event := range m.events {
 		if predicate(&event) {
 			return true
@@ -96,11 +96,11 @@ func (m *MemorySink) HasEvent(predicate func(*core.LogEvent) bool) bool {
 func (m *MemorySink) LastEvent() *core.LogEvent {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	if len(m.events) == 0 {
 		return nil
 	}
-	
+
 	event := m.events[len(m.events)-1]
 	return &event
 }

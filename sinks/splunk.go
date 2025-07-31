@@ -17,25 +17,25 @@ import (
 
 // SplunkSink writes log events to Splunk HTTP Event Collector (HEC)
 type SplunkSink struct {
-	url     string
-	token   string
-	client  *http.Client
-	index   string
-	source  string
+	url        string
+	token      string
+	client     *http.Client
+	index      string
+	source     string
 	sourceType string
-	host    string
+	host       string
 
 	// Batching configuration
 	batchSize    int
 	batchTimeout time.Duration
 
 	// Internal state
-	batch      []*core.LogEvent
-	batchMu    sync.Mutex
-	stopCh     chan struct{}
-	flushCh    chan struct{}
-	wg         sync.WaitGroup
-	closed     sync.Once
+	batch   []*core.LogEvent
+	batchMu sync.Mutex
+	stopCh  chan struct{}
+	flushCh chan struct{}
+	wg      sync.WaitGroup
+	closed  sync.Once
 }
 
 // SplunkOption configures a Splunk sink
@@ -110,7 +110,7 @@ func NewSplunkSink(url, token string, opts ...SplunkOption) (*SplunkSink, error)
 			InsecureSkipVerify: true, // For test environments with self-signed certs
 		},
 	}
-	
+
 	sink := &SplunkSink{
 		url:          url,
 		token:        token,
@@ -140,7 +140,7 @@ func (s *SplunkSink) Emit(event *core.LogEvent) {
 	if event == nil {
 		return
 	}
-	
+
 	s.batchMu.Lock()
 	s.batch = append(s.batch, event)
 	shouldFlush := len(s.batch) >= s.batchSize
@@ -196,11 +196,11 @@ func (s *SplunkSink) worker() {
 func (s *SplunkSink) flush() {
 	s.batchMu.Lock()
 	defer s.batchMu.Unlock()
-	
+
 	if len(s.batch) == 0 {
 		return
 	}
-	
+
 	// Send the batch directly without copying to avoid race conditions
 	s.sendBatch(s.batch)
 	s.batch = make([]*core.LogEvent, 0)
@@ -216,7 +216,7 @@ func (s *SplunkSink) sendBatch(events []*core.LogEvent) {
 	var buf bytes.Buffer
 	for _, event := range events {
 		hecEvent := s.formatEvent(event)
-		
+
 		// Try JSON encoding with error handling
 		if data, err := json.Marshal(hecEvent); err == nil {
 			buf.Write(data)
@@ -226,11 +226,11 @@ func (s *SplunkSink) sendBatch(events []*core.LogEvent) {
 				selflog.Printf("[splunk] failed to marshal HEC event: %v", err)
 			}
 			// Fallback: create a simplified event if JSON marshaling fails
-			fallbackEvent := map[string]interface{}{
+			fallbackEvent := map[string]any{
 				"time":  event.Timestamp.Unix(),
 				"event": event.MessageTemplate,
-				"fields": map[string]interface{}{
-					"level": levelToString(event.Level),
+				"fields": map[string]any{
+					"level":           levelToString(event.Level),
 					"messageTemplate": event.MessageTemplate,
 				},
 			}
@@ -279,7 +279,7 @@ func (s *SplunkSink) sendRequest(body []byte) bool {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return true
 	}
-	
+
 	// Log non-success status codes
 	if selflog.IsEnabled() {
 		selflog.Printf("[splunk] HTTP request failed with status %d (url=%s)", resp.StatusCode, s.url)
@@ -288,9 +288,9 @@ func (s *SplunkSink) sendRequest(body []byte) bool {
 }
 
 // formatEvent formats a log event for Splunk HEC
-func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
+func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]any {
 	var message string
-	
+
 	// Safe template rendering with fallbacks
 	func() {
 		defer func() {
@@ -298,13 +298,13 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 				message = event.MessageTemplate // Fallback on panic
 			}
 		}()
-		
+
 		tmpl, err := parser.Parse(event.MessageTemplate)
 		if err != nil {
 			message = event.MessageTemplate // Fallback on parse error
 			return
 		}
-		
+
 		message = tmpl.Render(event.Properties)
 		if message == "" {
 			message = event.MessageTemplate // Fallback on empty render
@@ -314,10 +314,10 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 	// For JSON sourcetype, send as structured JSON with fields at top level
 	if s.sourceType == "json" || s.sourceType == "_json" {
 		// Create a flat JSON event with all fields at the top level
-		hecEvent := map[string]interface{}{
+		hecEvent := map[string]any{
 			"time": event.Timestamp.Unix(),
 		}
-		
+
 		// Add metadata
 		if s.index != "" {
 			hecEvent["index"] = s.index
@@ -329,15 +329,15 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 		if s.host != "" {
 			hecEvent["host"] = s.host
 		}
-		
+
 		// Create structured event data with message and all properties at top level
-		eventData := map[string]interface{}{
+		eventData := map[string]any{
 			"message":         message,
 			"messageTemplate": event.MessageTemplate,
-			"level":          levelToString(event.Level),
-			"@timestamp":     event.Timestamp.Format("2006-01-02T15:04:05.000Z"),
+			"level":           levelToString(event.Level),
+			"@timestamp":      event.Timestamp.Format("2006-01-02T15:04:05.000Z"),
 		}
-		
+
 		// Add all properties directly to event data with JSON safety
 		for k, v := range event.Properties {
 			if jsonSafeValue := s.makeJSONSafe(v); jsonSafeValue != nil {
@@ -346,7 +346,7 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 				eventData[fieldName] = jsonSafeValue
 			}
 		}
-		
+
 		// Add error field if present
 		if err, ok := event.Properties["Error"]; ok {
 			if errStr, ok := err.(string); ok {
@@ -355,13 +355,13 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 				eventData["error"] = errObj.Error()
 			}
 		}
-		
+
 		hecEvent["event"] = eventData
 		return hecEvent
 	}
 
 	// Standard HEC format for non-JSON sourcetypes
-	hecEvent := map[string]interface{}{
+	hecEvent := map[string]any{
 		"time":  event.Timestamp.Unix(),
 		"event": message,
 	}
@@ -381,12 +381,12 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 	}
 
 	// Add fields (properties)
-	fields := make(map[string]interface{})
-	
+	fields := make(map[string]any)
+
 	// Add standard fields
 	fields["level"] = levelToString(event.Level)
 	fields["messageTemplate"] = event.MessageTemplate
-	
+
 	// Add all properties with JSON safety
 	for k, v := range event.Properties {
 		// Ensure property is JSON-safe
@@ -410,11 +410,11 @@ func (s *SplunkSink) formatEvent(event *core.LogEvent) map[string]interface{} {
 }
 
 // makeJSONSafe ensures a value can be safely JSON marshaled and is Splunk HEC compatible
-func (s *SplunkSink) makeJSONSafe(v interface{}) interface{} {
+func (s *SplunkSink) makeJSONSafe(v any) any {
 	if v == nil {
 		return nil
 	}
-	
+
 	// Check if it's a simple type that Splunk can handle as indexed fields
 	switch v.(type) {
 	case string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:

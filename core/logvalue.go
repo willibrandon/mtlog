@@ -7,5 +7,5 @@ type LogValue interface {
 	// LogValue returns the value to be logged. This can be a simple type
 	// (string, number, bool) or a complex type (struct, map, slice).
 	// The returned value may itself be captured if it's complex.
-	LogValue() interface{}
+	LogValue() any
 }

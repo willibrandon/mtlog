@@ -10,7 +10,7 @@ import (
 // MessageTemplateToken represents a single token in a message template.
 type MessageTemplateToken interface {
 	// Render returns the string representation of the token using the provided properties.
-	Render(properties map[string]interface{}) string
+	Render(properties map[string]any) string
 }
 
 // TextToken represents literal text in a message template.
@@ -20,7 +20,7 @@ type TextToken struct {
 }
 
 // Render returns the literal text.
-func (t *TextToken) Render(properties map[string]interface{}) string {
+func (t *TextToken) Render(properties map[string]any) string {
 	return t.Text
 }
 
@@ -28,28 +28,28 @@ func (t *TextToken) Render(properties map[string]interface{}) string {
 type PropertyToken struct {
 	// PropertyName is the name of the property.
 	PropertyName string
-	
+
 	// Capturing specifies how the property should be captured.
 	Capturing CapturingHint
-	
+
 	// Format specifies the format string, if any.
 	Format string
-	
+
 	// Alignment specifies text alignment, if any.
 	Alignment int
 }
 
 // Render returns the string representation of the property value.
-func (p *PropertyToken) Render(properties map[string]interface{}) string {
+func (p *PropertyToken) Render(properties map[string]any) string {
 	if value, ok := properties[p.PropertyName]; ok {
 		// Apply formatting
 		formatted := p.formatValue(value)
-		
+
 		// Apply alignment
 		if p.Alignment != 0 {
 			formatted = p.applyAlignment(formatted)
 		}
-		
+
 		return formatted
 	}
 	return "{" + p.PropertyName + "}"
@@ -61,28 +61,28 @@ type CapturingHint int
 const (
 	// Default capturing uses Go's default string conversion (e.g., fmt.Sprintf("%v", value)).
 	Default CapturingHint = iota
-	
+
 	// Stringify forces string conversion.
 	Stringify
-	
+
 	// Capture captures object structure.
 	Capture
-	
+
 	// AsScalar treats as scalar value.
 	AsScalar
 )
 
 // formatValue formats a value according to the property's format string.
-func (p *PropertyToken) formatValue(value interface{}) string {
+func (p *PropertyToken) formatValue(value any) string {
 	if value == nil {
 		return ""
 	}
-	
+
 	// If no format specified, use default formatting
 	if p.Format == "" {
 		return formatValue(value)
 	}
-	
+
 	// Handle different value types with format strings
 	switch v := value.(type) {
 	case int, int8, int16, int32, int64:
@@ -102,12 +102,12 @@ func (p *PropertyToken) formatValue(value interface{}) string {
 }
 
 // formatNumber formats an integer according to the format string.
-func (p *PropertyToken) formatNumber(value interface{}) string {
+func (p *PropertyToken) formatNumber(value any) string {
 	// Common formats:
 	// "000" - pad with zeros to 3 digits
 	// "X" or "x" - hexadecimal
 	// "D" or "d" - decimal (default)
-	
+
 	var num int64
 	switch v := value.(type) {
 	case int:
@@ -131,13 +131,13 @@ func (p *PropertyToken) formatNumber(value interface{}) string {
 	case uint64:
 		num = int64(v)
 	}
-	
+
 	// Handle padding with zeros
 	if len(p.Format) > 0 && p.Format[0] == '0' {
 		width := len(p.Format)
 		return fmt.Sprintf("%0*d", width, num)
 	}
-	
+
 	// Handle hex format
 	if p.Format == "x" || p.Format == "X" {
 		if p.Format == "x" {
@@ -145,19 +145,19 @@ func (p *PropertyToken) formatNumber(value interface{}) string {
 		}
 		return fmt.Sprintf("%X", num)
 	}
-	
+
 	// Default decimal
 	return strconv.FormatInt(num, 10)
 }
 
 // formatFloat formats a floating-point number according to the format string.
-func (p *PropertyToken) formatFloat(value interface{}) string {
+func (p *PropertyToken) formatFloat(value any) string {
 	// Common formats:
 	// "F2" or "f2" - fixed point with 2 decimal places
 	// "E" or "e" - exponential notation
 	// "G" or "g" - general format
 	// "P" or "p" - percentage
-	
+
 	var num float64
 	switch v := value.(type) {
 	case float32:
@@ -165,9 +165,9 @@ func (p *PropertyToken) formatFloat(value interface{}) string {
 	case float64:
 		num = v
 	}
-	
+
 	format := strings.ToUpper(p.Format)
-	
+
 	// Extract precision if present
 	precision := -1
 	if len(format) > 1 {
@@ -176,7 +176,7 @@ func (p *PropertyToken) formatFloat(value interface{}) string {
 			format = format[:1]
 		}
 	}
-	
+
 	switch format {
 	case "F":
 		if precision >= 0 {
@@ -210,9 +210,9 @@ func (p *PropertyToken) formatTime(t time.Time) string {
 	// yyyy-MM-dd -> 2006-01-02
 	// HH:mm:ss -> 15:04:05
 	// yyyy-MM-dd HH:mm:ss -> 2006-01-02 15:04:05
-	
+
 	format := p.Format
-	
+
 	// Replace common .NET format patterns with Go equivalents
 	replacements := []struct {
 		from, to string
@@ -242,11 +242,11 @@ func (p *PropertyToken) formatTime(t time.Time) string {
 		{"zz", "-07"},
 		{"z", "-7"},
 	}
-	
+
 	for _, r := range replacements {
 		format = strings.ReplaceAll(format, r.from, r.to)
 	}
-	
+
 	return t.Format(format)
 }
 
@@ -255,7 +255,7 @@ func (p *PropertyToken) applyAlignment(s string) string {
 	if p.Alignment == 0 {
 		return s
 	}
-	
+
 	width := p.Alignment
 	if width < 0 {
 		// Left align
@@ -273,7 +273,7 @@ func (p *PropertyToken) applyAlignment(s string) string {
 	}
 }
 
-func formatValue(value interface{}) string {
+func formatValue(value any) string {
 	if value == nil {
 		return ""
 	}

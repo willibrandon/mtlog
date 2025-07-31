@@ -91,7 +91,7 @@ func TestBuiltInTokenRender(t *testing.T) {
 		Timestamp:       timestamp,
 		Level:           core.InformationLevel,
 		MessageTemplate: "User {UserId} logged in",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"UserId":        12345,
 			"SourceContext": "TestContext",
 			"Count":         42,
@@ -117,46 +117,46 @@ func TestBuiltInTokenRender(t *testing.T) {
 		{
 			name:     "Timestamp HH:mm:ss",
 			builtIn:  "Timestamp",
-			format:       "HH:mm:ss",
-			expected:     "15:04:05",
+			format:   "HH:mm:ss",
+			expected: "15:04:05",
 		},
 		{
-			name:         "Timestamp with date",
-			builtIn: "Timestamp",
-			format:       "yyyy-MM-dd",
-			expected:     "2024-01-02",
+			name:     "Timestamp with date",
+			builtIn:  "Timestamp",
+			format:   "yyyy-MM-dd",
+			expected: "2024-01-02",
 		},
 		// Level formats
 		{
-			name:         "Level uppercase 3",
-			builtIn: "Level",
-			format:       "u3",
-			expected:     "INF",
+			name:     "Level uppercase 3",
+			builtIn:  "Level",
+			format:   "u3",
+			expected: "INF",
 		},
 		{
-			name:         "Level uppercase full",
-			builtIn: "Level",
-			format:       "u",
-			expected:     "INFORMATION",
+			name:     "Level uppercase full",
+			builtIn:  "Level",
+			format:   "u",
+			expected: "INFORMATION",
 		},
 		{
-			name:         "Level lowercase",
-			builtIn: "Level",
-			format:       "l",
-			expected:     "information",
+			name:     "Level lowercase",
+			builtIn:  "Level",
+			format:   "l",
+			expected: "information",
 		},
 		{
-			name:         "Level default",
-			builtIn: "Level",
-			format:       "",
-			expected:     "Information",
+			name:     "Level default",
+			builtIn:  "Level",
+			format:   "",
+			expected: "Information",
 		},
 		// Message rendering
 		{
-			name:         "Message",
-			builtIn: "Message",
-			format:       "",
-			expected:     "User 12345 logged in",
+			name:     "Message",
+			builtIn:  "Message",
+			format:   "",
+			expected: "User 12345 logged in",
 		},
 		// Special built-ins
 		{
@@ -195,7 +195,7 @@ func TestBuiltInTokenRender(t *testing.T) {
 
 func TestPropertyTokenRender(t *testing.T) {
 	event := &core.LogEvent{
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"UserId":        12345,
 			"SourceContext": "TestContext",
 			"Count":         42,
@@ -268,7 +268,7 @@ func TestTemplateRender(t *testing.T) {
 		Timestamp:       timestamp,
 		Level:           core.WarningLevel,
 		MessageTemplate: "Disk usage at {Percentage}",
-		Properties: map[string]interface{}{
+		Properties: map[string]any{
 			"Percentage":    0.85,
 			"SourceContext": "Monitor",
 		},

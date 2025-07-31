@@ -10,9 +10,9 @@ type config struct {
 	levelSwitch  *LoggingLevelSwitch
 	enrichers    []core.LogEventEnricher
 	filters      []core.LogEventFilter
-	capturer core.Capturer
+	capturer     core.Capturer
 	sinks        []core.LogEventSink
-	properties   map[string]interface{}
+	properties   map[string]any
 	err          error // First error encountered during configuration
 }
 
@@ -63,14 +63,14 @@ func WithSink(sink core.LogEventSink) Option {
 }
 
 // WithProperty adds a global property to all log events.
-func WithProperty(name string, value interface{}) Option {
+func WithProperty(name string, value any) Option {
 	return func(c *config) {
 		c.properties[name] = value
 	}
 }
 
 // WithProperties adds multiple global properties.
-func WithProperties(properties map[string]interface{}) Option {
+func WithProperties(properties map[string]any) Option {
 	return func(c *config) {
 		for k, v := range properties {
 			c.properties[k] = v

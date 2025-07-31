@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"sync/atomic"
-	
+
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -22,7 +22,7 @@ func NewSamplingFilter(rate float32) *SamplingFilter {
 	} else if rate > 1.0 {
 		rate = 1.0
 	}
-	
+
 	return &SamplingFilter{
 		rate: rate,
 	}
@@ -36,10 +36,10 @@ func (f *SamplingFilter) IsEnabled(event *core.LogEvent) bool {
 	if f.rate >= 1.0 {
 		return true
 	}
-	
+
 	// Use atomic counter for thread-safe sampling
 	count := atomic.AddUint32(&f.counter, 1)
-	
+
 	// Simple modulo-based sampling
 	threshold := uint32(1.0 / f.rate)
 	return count%threshold == 0
@@ -59,7 +59,7 @@ func NewHashSamplingFilter(propertyName string, rate float32) *HashSamplingFilte
 	} else if rate > 1.0 {
 		rate = 1.0
 	}
-	
+
 	return &HashSamplingFilter{
 		propertyName: propertyName,
 		rate:         rate,
@@ -74,24 +74,24 @@ func (f *HashSamplingFilter) IsEnabled(event *core.LogEvent) bool {
 	if f.rate >= 1.0 {
 		return true
 	}
-	
+
 	value, exists := event.Properties[f.propertyName]
 	if !exists {
 		return false
 	}
-	
+
 	// Hash the property value
 	h := fnv.New32a()
 	h.Write([]byte(formatValue(value)))
 	hash := h.Sum32()
-	
+
 	// Check if hash falls within sampling range
 	threshold := uint32(float32(^uint32(0)) * f.rate)
 	return hash <= threshold
 }
 
 // formatValue converts a value to string for hashing.
-func formatValue(v interface{}) string {
+func formatValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val
@@ -121,7 +121,7 @@ func NewRateLimitFilter(maxEvents int, windowNanos int64) *RateLimitFilter {
 // IsEnabled returns true if the event is within the rate limit.
 func (f *RateLimitFilter) IsEnabled(event *core.LogEvent) bool {
 	now := event.Timestamp.UnixNano()
-	
+
 	// Check if we're in a new window
 	windowStart := atomic.LoadInt64(&f.windowStart)
 	if now >= windowStart+f.windowSize {
@@ -133,12 +133,12 @@ func (f *RateLimitFilter) IsEnabled(event *core.LogEvent) bool {
 		// Someone else started the new window, re-read values
 		windowStart = atomic.LoadInt64(&f.windowStart)
 	}
-	
+
 	// Check if we're still in the current window
 	if now < windowStart || now >= windowStart+f.windowSize {
 		return false
 	}
-	
+
 	// Increment counter and check limit
 	count := atomic.AddInt32(&f.counter, 1)
 	return count <= f.maxEvents
