@@ -173,37 +173,28 @@ log.Information("User {userId} logged in", id) // lowercase property name
 
 ## IDE Integration
 
-The analyzer provides suggested fixes that can be automatically applied in IDEs. Here's how to set it up:
-
 ### VS Code
 
-1. **Using Go extension** (recommended):
-   - Install the official Go extension
-   - Add to your workspace settings (`.vscode/settings.json`):
-     ```json
-     {
-       "go.lintTool": "golangci-lint",
-       "go.lintFlags": [
-         "--enable=govet"
-       ],
-       "go.vetFlags": [
-         "-vettool=$(which mtlog-analyzer)"
-       ]
-     }
-     ```
-   - Use `Ctrl+.` (or `Cmd+.` on Mac) on diagnostics to apply suggested fixes
+For the best experience in Visual Studio Code, install the [mtlog-analyzer extension](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer):
 
-2. **Using gopls directly**:
-   - Configure gopls to use the analyzer:
-     ```json
-     {
-       "gopls": {
-         "analyses": {
-           "mtlog": true
-         }
-       }
-     }
-     ```
+1. Install mtlog-analyzer: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+2. Install the extension from VS Code Marketplace (search for "mtlog-analyzer")
+3. Get instant feedback on template errors as you type
+
+The extension provides:
+- 🔍 Real-time diagnostics with squiggly underlines
+- 🎯 Precise error locations - click to jump to issues
+- 📊 Three severity levels: errors, warnings, and suggestions
+- ⚙️ Configurable analyzer path and flags
+
+For manual setup without the extension, you can configure the Go extension to use mtlog-analyzer:
+```json
+{
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--enable=govet"],
+  "go.vetFlags": ["-vettool=$(which mtlog-analyzer)"]
+}
+```
 
 ### GoLand / IntelliJ IDEA
 

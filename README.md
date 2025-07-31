@@ -794,6 +794,20 @@ log.Information("User {@User} has {Count} items", user, count)
 
 See [mtlog-analyzer README](./cmd/mtlog-analyzer/README.md) for detailed documentation and CI integration.
 
+### VS Code Extension
+
+For real-time validation in Visual Studio Code, install the [mtlog-analyzer extension](./vscode-extension/mtlog-analyzer/README.md):
+
+1. Install mtlog-analyzer: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+2. Install the extension from VS Code Marketplace (search for "mtlog-analyzer")
+3. Get instant feedback on template errors as you type
+
+The extension provides:
+- 🔍 Real-time diagnostics with squiggly underlines
+- 🎯 Precise error locations - click to jump to issues
+- 📊 Three severity levels: errors, warnings, and suggestions
+- ⚙️ Configurable analyzer path and flags
+
 ## Advanced Usage
 
 ### Custom Sinks
