@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, execSync } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
@@ -192,7 +192,6 @@ async function analyzeDocument(document: vscode.TextDocument) {
     // If analyzer path is just the name, find it using 'where' command
     if (!analyzerPath.includes(path.sep) && !analyzerPath.includes('/')) {
         try {
-            const { execSync } = require('child_process');
             analyzerPath = execSync(`where ${analyzerPath}`, { encoding: 'utf8' }).trim().split('\n')[0];
         } catch (e) {
             // Analyzer not found, offer to install
@@ -214,7 +213,6 @@ async function analyzeDocument(document: vscode.TextDocument) {
     let workingDir = path.dirname(document.fileName);
     let packagePath = './...';
     try {
-        const { execSync } = require('child_process');
         const goModPath = execSync('go env GOMOD', { 
             cwd: workingDir, 
             encoding: 'utf8' 
@@ -444,7 +442,6 @@ function checkAnalyzerAvailable() {
     
     // Check if analyzer is in PATH
     try {
-        const { execSync } = require('child_process');
         execSync(`where ${analyzerPath}`, { encoding: 'utf8' });
     } catch (e) {
         // Not found, show notification

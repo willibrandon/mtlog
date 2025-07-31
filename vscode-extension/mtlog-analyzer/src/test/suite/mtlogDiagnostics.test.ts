@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
 import * as path from "path";
+import { execSync } from "child_process";
 
 /**
  * Integration tests for the mtlog‑analyzer VS Code extension.
@@ -52,7 +53,6 @@ suite("mtlog‑analyzer diagnostics", () => {
     await extension!.activate();
     
     // Find the actual analyzer path dynamically
-    const { execSync } = require('child_process');
     let analyzerPath = 'mtlog-analyzer';
     try {
       analyzerPath = execSync('where mtlog-analyzer', { encoding: 'utf8' }).trim().split('\n')[0];
