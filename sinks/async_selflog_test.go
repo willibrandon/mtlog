@@ -33,9 +33,9 @@ func TestAsyncSinkSelfLog(t *testing.T) {
 		// Create async sink with panicking inner sink
 		innerSink := &panickingSink{}
 		asyncSink := sinks.NewAsyncSink(innerSink, sinks.AsyncOptions{
-			BufferSize:       10,
+			BufferSize:      10,
 			OverflowStrategy: sinks.OverflowDrop,
-			ShutdownTimeout:  1 * time.Second,
+			ShutdownTimeout: 1 * time.Second,
 		})
 
 		// Create logger
@@ -66,7 +66,7 @@ func TestAsyncSinkSelfLog(t *testing.T) {
 
 		// Create a slow sink that blocks
 		blockingSink := &slowSink{delay: 100 * time.Millisecond}
-
+		
 		// Create async sink with small buffer
 		asyncSink := sinks.NewAsyncSink(blockingSink, sinks.AsyncOptions{
 			BufferSize:       2,
@@ -79,7 +79,7 @@ func TestAsyncSinkSelfLog(t *testing.T) {
 		logger := mtlog.New(mtlog.WithSink(asyncSink))
 
 		// Log many messages quickly to trigger overflow
-		for i := range 10 {
+		for i := 0; i < 10; i++ {
 			logger.Information("Test message {Number}", i)
 		}
 

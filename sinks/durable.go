@@ -23,28 +23,28 @@ import (
 type DurableOptions struct {
 	// BufferPath is the directory where buffer files are stored.
 	BufferPath string
-
+	
 	// MaxBufferSize is the maximum size in bytes of the buffer file.
 	MaxBufferSize int64
-
+	
 	// MaxBufferFiles is the maximum number of buffer files to keep.
 	MaxBufferFiles int
-
+	
 	// RetryInterval is how often to attempt delivery to the wrapped sink.
 	RetryInterval time.Duration
-
+	
 	// BatchSize is the number of events to process in each retry batch.
 	BatchSize int
-
+	
 	// OnError is called when an error occurs in the background worker.
 	OnError func(error)
-
+	
 	// ShutdownTimeout is the maximum time to wait during shutdown.
 	ShutdownTimeout time.Duration
-
+	
 	// FlushInterval is how often to flush the buffer file to disk.
 	FlushInterval time.Duration
-
+	
 	// ChannelBufferSize is the size of the internal event channel.
 	// Defaults to 10000 if not specified.
 	ChannelBufferSize int
@@ -52,41 +52,41 @@ type DurableOptions struct {
 
 // DurableSink wraps another sink to provide persistent buffering when the sink fails.
 type DurableSink struct {
-	wrapped core.LogEventSink
-	options DurableOptions
-
+	wrapped    core.LogEventSink
+	options    DurableOptions
+	
 	// File management
-	bufferFile  *os.File
-	encoder     *json.Encoder
-	currentSize atomic.Int64
-	fileIndex   atomic.Int32
-	fileMu      sync.Mutex
-
+	bufferFile   *os.File
+	encoder      *json.Encoder
+	currentSize  atomic.Int64
+	fileIndex    atomic.Int32
+	fileMu       sync.Mutex
+	
 	// Background processing
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+	
 	// Event channels
 	events       chan *core.LogEvent
 	flushTrigger chan struct{}
-
+	
 	// State tracking
-	sinkHealthy atomic.Bool
-	lastCheck   atomic.Int64
-
+	sinkHealthy  atomic.Bool
+	lastCheck    atomic.Int64
+	
 	// Metrics
-	buffered  atomic.Uint64
-	delivered atomic.Uint64
-	dropped   atomic.Uint64
-	retries   atomic.Uint64
+	buffered     atomic.Uint64
+	delivered    atomic.Uint64
+	dropped      atomic.Uint64
+	retries      atomic.Uint64
 }
 
 // BufferedLogEvent represents a persisted log event with metadata.
 type BufferedLogEvent struct {
 	Event     *core.LogEvent `json:"event"`
-	Timestamp int64          `json:"timestamp"`
-	Sequence  uint64         `json:"sequence"`
+	Timestamp int64         `json:"timestamp"`
+	Sequence  uint64        `json:"sequence"`
 }
 
 // NewDurableSink creates a new durable buffer sink.
@@ -121,14 +121,14 @@ func NewDurableSink(wrapped core.LogEventSink, options DurableOptions) (*Durable
 			fmt.Printf("DurableSink error: %v\n", err)
 		}
 	}
-
+	
 	// Ensure buffer directory exists
 	if err := os.MkdirAll(options.BufferPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create buffer directory: %w", err)
 	}
-
+	
 	ctx, cancel := context.WithCancel(context.Background())
-
+	
 	sink := &DurableSink{
 		wrapped:      wrapped,
 		options:      options,
@@ -137,26 +137,26 @@ func NewDurableSink(wrapped core.LogEventSink, options DurableOptions) (*Durable
 		events:       make(chan *core.LogEvent, options.ChannelBufferSize),
 		flushTrigger: make(chan struct{}, 1),
 	}
-
+	
 	// Initialize sink health state
 	sink.sinkHealthy.Store(true)
 	sink.lastCheck.Store(time.Now().UnixNano())
-
+	
 	// Initialize buffer file
 	if err := sink.initBufferFile(); err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to initialize buffer file: %w", err)
 	}
-
+	
 	// Start background workers
 	sink.wg.Add(3)
 	go sink.eventWorker()
 	go sink.retryWorker()
 	go sink.flushWorker()
-
+	
 	// Recover any existing buffered events on startup
 	go sink.recoverBufferedEvents()
-
+	
 	return sink, nil
 }
 
@@ -178,14 +178,14 @@ func (ds *DurableSink) Emit(event *core.LogEvent) {
 func (ds *DurableSink) Close() error {
 	// Signal shutdown
 	ds.cancel()
-
+	
 	// Wait for workers to finish with timeout
 	done := make(chan struct{})
 	go func() {
 		ds.wg.Wait()
 		close(done)
 	}()
-
+	
 	select {
 	case <-done:
 		// Clean shutdown
@@ -195,7 +195,7 @@ func (ds *DurableSink) Close() error {
 			ds.options.OnError(fmt.Errorf("shutdown timeout exceeded"))
 		}
 	}
-
+	
 	// Close buffer file properly
 	ds.fileMu.Lock()
 	if ds.bufferFile != nil {
@@ -208,7 +208,7 @@ func (ds *DurableSink) Close() error {
 		ds.bufferFile = nil
 	}
 	ds.fileMu.Unlock()
-
+	
 	// Close wrapped sink
 	return ds.wrapped.Close()
 }
@@ -216,7 +216,7 @@ func (ds *DurableSink) Close() error {
 // eventWorker handles incoming events and attempts direct delivery or buffering.
 func (ds *DurableSink) eventWorker() {
 	defer ds.wg.Done()
-
+	
 	for {
 		select {
 		case <-ds.ctx.Done():
@@ -235,11 +235,11 @@ func (ds *DurableSink) processEvent(event *core.LogEvent) {
 			ds.delivered.Add(1)
 			return
 		}
-
+		
 		// Sink failed, mark as unhealthy
 		ds.sinkHealthy.Store(false)
 	}
-
+	
 	// Buffer the event
 	if err := ds.bufferEvent(event); err != nil {
 		ds.dropped.Add(1)
@@ -262,7 +262,7 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 			ds.sinkHealthy.Store(false)
 		}
 	}()
-
+	
 	// For HTTP-based sinks that use batching (Seq, Elasticsearch, Splunk),
 	// test connectivity first since Emit() always succeeds
 	if seqSink, ok := ds.wrapped.(*SeqSink); ok {
@@ -278,11 +278,11 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 			return false
 		}
 	}
-
+	
 	// Use a timeout to prevent hanging
 	done := make(chan struct{})
 	var success bool
-
+	
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -297,11 +297,11 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 			}
 			close(done)
 		}()
-
+		
 		ds.wrapped.Emit(event)
 		success = true
 	}()
-
+	
 	select {
 	case <-done:
 		return success
@@ -315,20 +315,20 @@ func (ds *DurableSink) tryDeliverEvent(event *core.LogEvent) bool {
 func (ds *DurableSink) testSeqConnectivity(sink *SeqSink) bool {
 	// Simple HTTP HEAD request to test connectivity
 	client := &http.Client{Timeout: 2 * time.Second}
-
+	
 	// Extract the server URL from the sink (we need to access the private field)
 	// For now, let's try a simple approach - attempt to reach the health endpoint
 	serverURL := ds.extractSeqURL(sink)
 	if serverURL == "" {
 		return false
 	}
-
+	
 	resp, err := client.Get(serverURL)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-
+	
 	// Any response (even 404) means the server is reachable
 	return resp.StatusCode < 500
 }
@@ -337,18 +337,18 @@ func (ds *DurableSink) testSeqConnectivity(sink *SeqSink) bool {
 func (ds *DurableSink) testElasticsearchConnectivity(sink *ElasticsearchSink) bool {
 	// Similar connectivity test for Elasticsearch
 	client := &http.Client{Timeout: 2 * time.Second}
-
+	
 	esURL := ds.extractElasticsearchURL(sink)
 	if esURL == "" {
 		return false
 	}
-
+	
 	resp, err := client.Get(esURL)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-
+	
 	return resp.StatusCode < 500
 }
 
@@ -363,24 +363,24 @@ func (ds *DurableSink) testSplunkConnectivity(sink *SplunkSink) bool {
 			},
 		},
 	}
-
+	
 	splunkURL := ds.extractSplunkURL(sink)
 	if splunkURL == "" {
 		return false
 	}
-
+	
 	// Test HEC health endpoint
 	healthURL := strings.Replace(splunkURL, "/services/collector/event", "/services/collector/health", 1)
 	if !strings.Contains(healthURL, "/services/collector/health") {
 		healthURL = strings.TrimRight(splunkURL, "/") + "/services/collector/health"
 	}
-
+	
 	resp, err := client.Get(healthURL)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-
+	
 	return resp.StatusCode < 500
 }
 
@@ -420,7 +420,7 @@ func (ds *DurableSink) extractSplunkURL(sink *SplunkSink) string {
 func (ds *DurableSink) bufferEvent(event *core.LogEvent) error {
 	ds.fileMu.Lock()
 	defer ds.fileMu.Unlock()
-
+	
 	// Check if we need to rotate the buffer file
 	if ds.currentSize.Load() >= ds.options.MaxBufferSize {
 		if err := ds.rotateBufferFile(); err != nil {
@@ -430,39 +430,39 @@ func (ds *DurableSink) bufferEvent(event *core.LogEvent) error {
 			return fmt.Errorf("failed to rotate buffer file: %w", err)
 		}
 	}
-
+	
 	bufferedEvent := &BufferedLogEvent{
 		Event:     event,
 		Timestamp: time.Now().UnixNano(),
 		Sequence:  ds.buffered.Load(),
 	}
-
+	
 	if err := ds.encoder.Encode(bufferedEvent); err != nil {
 		if selflog.IsEnabled() {
 			selflog.Printf("[durable] failed to encode event: %v", err)
 		}
 		return fmt.Errorf("failed to encode event: %w", err)
 	}
-
+	
 	// Update size (approximate)
 	ds.currentSize.Add(200) // Rough estimate
-
+	
 	// Trigger flush
 	select {
 	case ds.flushTrigger <- struct{}{}:
 	default:
 	}
-
+	
 	return nil
 }
 
 // retryWorker periodically attempts to deliver buffered events.
 func (ds *DurableSink) retryWorker() {
 	defer ds.wg.Done()
-
+	
 	ticker := time.NewTicker(ds.options.RetryInterval)
 	defer ticker.Stop()
-
+	
 	for {
 		select {
 		case <-ds.ctx.Done():
@@ -478,19 +478,19 @@ func (ds *DurableSink) attemptRetry() {
 	// Test sink health
 	testEvent := &core.LogEvent{
 		Timestamp:       time.Now(),
-		Level:           core.InformationLevel,
+		Level:          core.InformationLevel,
 		MessageTemplate: "health check",
-		Properties:      make(map[string]any),
+		Properties:      make(map[string]interface{}),
 	}
-
+	
 	if !ds.tryDeliverEvent(testEvent) {
 		return // Sink still unhealthy
 	}
-
+	
 	// Sink is healthy, process buffered events
 	ds.sinkHealthy.Store(true)
 	ds.retries.Add(1)
-
+	
 	// Process buffer files
 	bufferFiles, err := ds.getBufferFiles()
 	if err != nil {
@@ -499,7 +499,7 @@ func (ds *DurableSink) attemptRetry() {
 		}
 		return
 	}
-
+	
 	// Get current buffer file name to exclude from retry processing
 	ds.fileMu.Lock()
 	currentBufferFile := ""
@@ -507,13 +507,13 @@ func (ds *DurableSink) attemptRetry() {
 		currentBufferFile = ds.getBufferFileName(int(ds.fileIndex.Load()))
 	}
 	ds.fileMu.Unlock()
-
+	
 	for _, filename := range bufferFiles {
 		// Skip the currently open buffer file
 		if filename == currentBufferFile {
 			continue
 		}
-
+		
 		if err := ds.processBufferFile(filename); err != nil {
 			if ds.options.OnError != nil {
 				ds.options.OnError(fmt.Errorf("failed to process buffer file %s: %w", filename, err))
@@ -526,10 +526,10 @@ func (ds *DurableSink) attemptRetry() {
 // flushWorker periodically flushes the buffer file.
 func (ds *DurableSink) flushWorker() {
 	defer ds.wg.Done()
-
+	
 	ticker := time.NewTicker(ds.options.FlushInterval)
 	defer ticker.Stop()
-
+	
 	for {
 		select {
 		case <-ds.ctx.Done():
@@ -547,7 +547,7 @@ func (ds *DurableSink) flushWorker() {
 func (ds *DurableSink) flushBufferFile() {
 	ds.fileMu.Lock()
 	defer ds.fileMu.Unlock()
-
+	
 	if ds.bufferFile != nil {
 		if err := ds.bufferFile.Sync(); err != nil && ds.options.OnError != nil {
 			ds.options.OnError(fmt.Errorf("failed to sync buffer file: %w", err))
@@ -560,23 +560,23 @@ func (ds *DurableSink) initBufferFile() error {
 	// Find the next available buffer file index
 	nextIndex := ds.getNextBufferFileIndex()
 	ds.fileIndex.Store(int32(nextIndex))
-
+	
 	filename := ds.getBufferFileName(nextIndex)
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
-
+	
 	ds.bufferFile = file
 	ds.encoder = json.NewEncoder(file)
-
+	
 	// Get current file size
 	info, err := file.Stat()
 	if err != nil {
 		return err
 	}
 	ds.currentSize.Store(info.Size())
-
+	
 	return nil
 }
 
@@ -586,7 +586,7 @@ func (ds *DurableSink) getNextBufferFileIndex() int {
 	if err != nil || len(files) == 0 {
 		return 0
 	}
-
+	
 	// Find the highest existing index and increment
 	maxIndex := -1
 	for _, file := range files {
@@ -598,7 +598,7 @@ func (ds *DurableSink) getNextBufferFileIndex() int {
 			}
 		}
 	}
-
+	
 	return maxIndex + 1
 }
 
@@ -608,24 +608,24 @@ func (ds *DurableSink) rotateBufferFile() error {
 	if ds.bufferFile != nil {
 		ds.bufferFile.Close()
 	}
-
+	
 	// Increment file index
 	newIndex := ds.fileIndex.Add(1)
-
+	
 	// Create new file
 	filename := ds.getBufferFileName(int(newIndex))
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
-
+	
 	ds.bufferFile = file
 	ds.encoder = json.NewEncoder(file)
 	ds.currentSize.Store(0)
-
+	
 	// Clean up old files
 	ds.cleanupOldBufferFiles()
-
+	
 	return nil
 }
 
@@ -653,10 +653,10 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 		return err
 	}
 	defer file.Close()
-
+	
 	scanner := bufio.NewScanner(file)
 	batch := make([]*core.LogEvent, 0, ds.options.BatchSize)
-
+	
 	for scanner.Scan() {
 		var bufferedEvent BufferedLogEvent
 		if err := json.Unmarshal(scanner.Bytes(), &bufferedEvent); err != nil {
@@ -666,9 +666,9 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 			}
 			continue // Skip malformed events
 		}
-
+		
 		batch = append(batch, bufferedEvent.Event)
-
+		
 		if len(batch) >= ds.options.BatchSize {
 			if !ds.deliverBatch(batch) {
 				if selflog.IsEnabled() {
@@ -679,7 +679,7 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 			batch = batch[:0]
 		}
 	}
-
+	
 	// Deliver remaining events
 	if len(batch) > 0 {
 		if !ds.deliverBatch(batch) {
@@ -689,13 +689,13 @@ func (ds *DurableSink) processBufferFile(filename string) error {
 			return fmt.Errorf("final batch delivery failed")
 		}
 	}
-
+	
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-
+	
 	// File is closed by defer above
-
+	
 	// Don't delete the file immediately to avoid Windows file locking issues
 	// The file will be cleaned up during the next cleanup cycle
 	return nil
@@ -719,38 +719,39 @@ func (ds *DurableSink) cleanupOldBufferFiles() {
 	if err != nil {
 		return
 	}
-
+	
 	// Also clean up processed files
 	processedFiles, _ := filepath.Glob(filepath.Join(ds.options.BufferPath, "buffer-*.jsonl.processed"))
 	for _, processedFile := range processedFiles {
 		os.Remove(processedFile) // Best effort, ignore errors
 	}
-
+	
 	if len(files) <= ds.options.MaxBufferFiles {
 		return
 	}
-
+	
 	// Remove oldest files
 	filesToRemove := len(files) - ds.options.MaxBufferFiles
-	for i := range filesToRemove {
+	for i := 0; i < filesToRemove; i++ {
 		if err := os.Remove(files[i]); err != nil && ds.options.OnError != nil {
 			ds.options.OnError(fmt.Errorf("failed to delete old buffer file %s: %w", files[i], err))
 		}
 	}
 }
 
+
 // recoverBufferedEvents processes existing buffer files on startup.
 func (ds *DurableSink) recoverBufferedEvents() {
 	time.Sleep(1 * time.Second) // Allow sink to stabilize
-
+	
 	// Clean up old files first
 	ds.cleanupOldBufferFiles()
-
+	
 	files, err := ds.getBufferFiles()
 	if err != nil || len(files) == 0 {
 		return
 	}
-
+	
 	// Get current buffer file name to exclude from recovery
 	ds.fileMu.Lock()
 	currentBufferFile := ""
@@ -758,7 +759,7 @@ func (ds *DurableSink) recoverBufferedEvents() {
 		currentBufferFile = ds.getBufferFileName(int(ds.fileIndex.Load()))
 	}
 	ds.fileMu.Unlock()
-
+	
 	// Process existing buffer files (excluding current one)
 	for _, filename := range files {
 		select {
@@ -769,7 +770,7 @@ func (ds *DurableSink) recoverBufferedEvents() {
 			if filename == currentBufferFile {
 				continue
 			}
-
+			
 			if err := ds.processBufferFile(filename); err != nil {
 				if ds.options.OnError != nil {
 					ds.options.OnError(fmt.Errorf("recovery failed for %s: %w", filename, err))

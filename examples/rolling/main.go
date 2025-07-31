@@ -40,8 +40,8 @@ func demoSizeRolling(logsDir string) {
 	// Create a rolling file sink that rolls at 1KB
 	sink, err := sinks.NewRollingFileSink(sinks.RollingFileOptions{
 		FilePath:        filepath.Join(logsDir, "app-size.log"),
-		MaxFileSize:     1024, // 1KB for demo
-		RetainFileCount: 3,    // Keep only last 3 files
+		MaxFileSize:     1024,  // 1KB for demo
+		RetainFileCount: 3,     // Keep only last 3 files
 	})
 	if err != nil {
 		fmt.Printf("Failed to create sink: %v\n", err)
@@ -52,11 +52,11 @@ func demoSizeRolling(logsDir string) {
 	logger := mtlog.New(mtlog.WithSink(sink))
 
 	// Generate some logs to trigger rolling
-	for i := range 50 {
-		logger.Information("Processing order {OrderId} for customer {CustomerId}",
-			fmt.Sprintf("ORD-%04d", i),
+	for i := 0; i < 50; i++ {
+		logger.Information("Processing order {OrderId} for customer {CustomerId}", 
+			fmt.Sprintf("ORD-%04d", i), 
 			fmt.Sprintf("CUST-%03d", i%10))
-
+		
 		if i%10 == 0 {
 			logger.Warning("High memory usage detected: {MemoryMB}MB", 512+i*10)
 		}
@@ -89,9 +89,9 @@ func demoTimeRolling(logsDir string) {
 	logger.Information("Listening on port {Port}", 8080)
 
 	// Simulate some operations
-	for i := range 10 {
-		logger.Information("Request {RequestId} processed in {DurationMs}ms",
-			fmt.Sprintf("req-%d", i),
+	for i := 0; i < 10; i++ {
+		logger.Information("Request {RequestId} processed in {DurationMs}ms", 
+			fmt.Sprintf("req-%d", i), 
 			50+i*10)
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -116,7 +116,7 @@ func demoCompressionRolling(logsDir string) {
 	logger := mtlog.New(mtlog.WithSink(sink))
 
 	// Generate logs with structured data
-	for i := range 30 {
+	for i := 0; i < 30; i++ {
 		order := struct {
 			ID         string
 			CustomerID string
@@ -130,9 +130,9 @@ func demoCompressionRolling(logsDir string) {
 		}
 
 		logger.Information("Order processed: {@Order}", order)
-
+		
 		if i%5 == 0 {
-			logger.Debug("Cache statistics: {HitRate:P2} ({Hits}/{Total})",
+			logger.Debug("Cache statistics: {HitRate:P2} ({Hits}/{Total})", 
 				0.85+float64(i%10)/100, 850+i, 1000+i)
 		}
 	}
@@ -142,7 +142,7 @@ func demoCompressionRolling(logsDir string) {
 
 func demoProductionConfig(logsDir string) {
 	// Production-ready configuration with multiple sinks
-
+	
 	// Main application log with daily rolling
 	appSink, err := sinks.NewRollingFileSink(sinks.RollingFileOptions{
 		FilePath:            filepath.Join(logsDir, "app.log"),
@@ -181,7 +181,7 @@ func demoProductionConfig(logsDir string) {
 		mtlog.WithEnricher(enrichers.NewProcessEnricher()),
 		mtlog.WithEnricher(enrichers.NewThreadIdEnricher()),
 	)
-
+	
 	// Also create an error logger
 	errorLogger := mtlog.New(mtlog.WithSink(errorSink))
 
@@ -190,7 +190,7 @@ func demoProductionConfig(logsDir string) {
 	logger.Information("Database connection established to {Host}:{Port}", "db.example.com", 5432)
 
 	// Normal operations
-	for i := range 5 {
+	for i := 0; i < 5; i++ {
 		logger.Information("Health check passed: {Status}", "healthy")
 		logger.Debug("Memory usage: {UsedMB}/{TotalMB}MB", 256+i*10, 1024)
 		time.Sleep(200 * time.Millisecond)

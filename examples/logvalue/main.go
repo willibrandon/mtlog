@@ -2,7 +2,7 @@ package main
 
 import (
 	"time"
-
+	
 	"github.com/willibrandon/mtlog"
 )
 
@@ -17,8 +17,8 @@ type User struct {
 }
 
 // LogValue provides a safe representation for logging
-func (u User) LogValue() any {
-	return map[string]any{
+func (u User) LogValue() interface{} {
+	return map[string]interface{}{
 		"id":        u.ID,
 		"username":  u.Username,
 		"email":     maskEmail(u.Email),
@@ -53,7 +53,7 @@ type DatabaseConnection struct {
 	Password string // Should be masked
 }
 
-func (db DatabaseConnection) LogValue() any {
+func (db DatabaseConnection) LogValue() interface{} {
 	return struct {
 		Host     string
 		Port     int
@@ -78,7 +78,7 @@ type APIRequest struct {
 	Body    []byte
 }
 
-func (r APIRequest) LogValue() any {
+func (r APIRequest) LogValue() interface{} {
 	// Filter sensitive headers
 	safeHeaders := make(map[string]string)
 	for k, v := range r.Headers {
@@ -89,15 +89,15 @@ func (r APIRequest) LogValue() any {
 			safeHeaders[k] = v
 		}
 	}
-
+	
 	// Truncate body if too large
 	bodyPreview := string(r.Body)
 	const maxBodyLength = 200
 	if len(r.Body) > maxBodyLength {
 		bodyPreview = string(r.Body[:maxBodyLength]) + "... (truncated)"
 	}
-
-	return map[string]any{
+	
+	return map[string]interface{}{
 		"method":  r.Method,
 		"url":     r.URL,
 		"headers": safeHeaders,
@@ -115,7 +115,7 @@ type MetricSample struct {
 	Tags      map[string]string
 }
 
-func (m MetricSample) LogValue() any {
+func (m MetricSample) LogValue() interface{} {
 	// Format for efficient metric logging
 	return struct {
 		Metric string
@@ -141,13 +141,13 @@ type LoggableErrorContext struct {
 	ErrorContext
 }
 
-func (e LoggableErrorContext) LogValue() any {
+func (e LoggableErrorContext) LogValue() interface{} {
 	errorMsg := "none"
 	if e.Error != nil {
 		errorMsg = e.Error.Error()
 	}
-
-	return map[string]any{
+	
+	return map[string]interface{}{
 		"userId":    e.UserID,
 		"operation": e.Operation,
 		"error":     errorMsg,
@@ -160,7 +160,7 @@ func main() {
 		mtlog.WithConsoleProperties(),
 		mtlog.WithCapturing(),
 	)
-
+	
 	// Example 1: User with sensitive data
 	user := User{
 		ID:        123,
@@ -170,9 +170,9 @@ func main() {
 		APIKey:    "sk_live_abcd1234",
 		LastLogin: time.Now(),
 	}
-
+	
 	log.Information("User logged in: {@User}", user)
-
+	
 	// Example 2: Database connection
 	db := DatabaseConnection{
 		Host:     "db.example.com",
@@ -181,9 +181,9 @@ func main() {
 		Username: "dbuser",
 		Password: "dbpass123", // Won't be logged
 	}
-
+	
 	log.Information("Connected to database: {@Database}", db)
-
+	
 	// Example 3: API request with sensitive headers
 	request := APIRequest{
 		Method: "POST",
@@ -203,9 +203,9 @@ func main() {
 			}
 		}`),
 	}
-
+	
 	log.Information("API request: {@Request}", request)
-
+	
 	// Example 4: Metrics logging
 	metric := MetricSample{
 		Name:      "api.response.time",
@@ -218,18 +218,18 @@ func main() {
 			"status":   "200",
 		},
 	}
-
+	
 	log.Information("Metric recorded: {@Metric}", metric)
-
+	
 	// Example 5: Array of custom types
 	team := []User{
 		{ID: 1, Username: "alice", Email: "alice@example.com", Password: "pass1"},
 		{ID: 2, Username: "bob", Email: "bob@example.com", Password: "pass2"},
 		{ID: 3, Username: "charlie", Email: "charlie@example.com", Password: "pass3"},
 	}
-
+	
 	log.Information("Team members: {@Team}", team)
-
+	
 	// Example 6: Error scenarios with context
 	errCtx := LoggableErrorContext{
 		ErrorContext: ErrorContext{
@@ -239,6 +239,6 @@ func main() {
 			Timestamp: time.Now(),
 		},
 	}
-
+	
 	log.Information("Operation completed: {@Context}", errCtx)
 }

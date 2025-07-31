@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
+	
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/enrichers"
@@ -22,13 +22,13 @@ type LoggerBuilder struct {
 }
 
 // SinkFactory creates a sink from configuration.
-type SinkFactory func(args map[string]any) (core.LogEventSink, error)
+type SinkFactory func(args map[string]interface{}) (core.LogEventSink, error)
 
 // EnricherFactory creates an enricher from configuration.
-type EnricherFactory func(args map[string]any) (core.LogEventEnricher, error)
+type EnricherFactory func(args map[string]interface{}) (core.LogEventEnricher, error)
 
 // FilterFactory creates a filter from configuration.
-type FilterFactory func(args map[string]any) (core.LogEventFilter, error)
+type FilterFactory func(args map[string]interface{}) (core.LogEventFilter, error)
 
 // NewLoggerBuilder creates a new logger builder with default factories.
 func NewLoggerBuilder() *LoggerBuilder {
@@ -37,7 +37,7 @@ func NewLoggerBuilder() *LoggerBuilder {
 		enricherFactories: make(map[string]EnricherFactory),
 		filterFactories:   make(map[string]FilterFactory),
 	}
-
+	
 	// Register default sinks
 	lb.RegisterSink("Console", createConsoleSink)
 	lb.RegisterSink("File", createFileSink)
@@ -47,25 +47,25 @@ func NewLoggerBuilder() *LoggerBuilder {
 	lb.RegisterSink("Splunk", createSplunkSink)
 	lb.RegisterSink("Async", createAsyncSink)
 	lb.RegisterSink("Durable", createDurableSink)
-
+	
 	// Register default enrichers
-	lb.RegisterEnricher("WithMachineName", func(args map[string]any) (core.LogEventEnricher, error) {
+	lb.RegisterEnricher("WithMachineName", func(args map[string]interface{}) (core.LogEventEnricher, error) {
 		return enrichers.NewMachineNameEnricher(), nil
 	})
-	lb.RegisterEnricher("WithThreadId", func(args map[string]any) (core.LogEventEnricher, error) {
+	lb.RegisterEnricher("WithThreadId", func(args map[string]interface{}) (core.LogEventEnricher, error) {
 		return enrichers.NewThreadIdEnricher(), nil
 	})
-	lb.RegisterEnricher("WithProcessId", func(args map[string]any) (core.LogEventEnricher, error) {
+	lb.RegisterEnricher("WithProcessId", func(args map[string]interface{}) (core.LogEventEnricher, error) {
 		return enrichers.NewProcessEnricher(), nil
 	})
-	lb.RegisterEnricher("WithEnvironmentName", func(args map[string]any) (core.LogEventEnricher, error) {
+	lb.RegisterEnricher("WithEnvironmentName", func(args map[string]interface{}) (core.LogEventEnricher, error) {
 		name := GetString(args, "environmentName", "Production")
 		// Create a simple enricher that adds a fixed "EnvironmentName" property
 		return &fixedPropertyEnricher{propertyName: "EnvironmentName", value: name}, nil
 	})
-
+	
 	// Register default filters
-	lb.RegisterFilter("ByLevel", func(args map[string]any) (core.LogEventFilter, error) {
+	lb.RegisterFilter("ByLevel", func(args map[string]interface{}) (core.LogEventFilter, error) {
 		levelStr := GetString(args, "minimumLevel", "Information")
 		level, err := ParseLevel(levelStr)
 		if err != nil {
@@ -73,7 +73,7 @@ func NewLoggerBuilder() *LoggerBuilder {
 		}
 		return filters.MinimumLevelFilter(level), nil
 	})
-
+	
 	return lb
 }
 
@@ -95,7 +95,7 @@ func (lb *LoggerBuilder) RegisterFilter(name string, factory FilterFactory) {
 // Build creates a logger from configuration.
 func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 	var options []mtlog.Option
-
+	
 	// Set minimum level
 	if config.Mtlog.MinimumLevel != "" {
 		level, err := ParseLevel(config.Mtlog.MinimumLevel)
@@ -104,7 +104,7 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 		}
 		options = append(options, mtlog.WithMinimumLevel(level))
 	}
-
+	
 	// Add sinks
 	for _, sinkConfig := range config.Mtlog.WriteTo {
 		sink, err := lb.createSink(sinkConfig)
@@ -113,7 +113,7 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 		}
 		options = append(options, mtlog.WithSink(sink))
 	}
-
+	
 	// Add enrichers
 	for _, enricherName := range config.Mtlog.Enrich {
 		enricher, err := lb.createEnricherByName(enricherName)
@@ -122,7 +122,7 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 		}
 		options = append(options, mtlog.WithEnricher(enricher))
 	}
-
+	
 	// Add enrichers with args
 	for _, enricherConfig := range config.Mtlog.EnrichWith {
 		enricher, err := lb.createEnricher(enricherConfig)
@@ -131,7 +131,7 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 		}
 		options = append(options, mtlog.WithEnricher(enricher))
 	}
-
+	
 	// Add filters
 	for _, filterConfig := range config.Mtlog.Filter {
 		filter, err := lb.createFilter(filterConfig)
@@ -140,12 +140,12 @@ func (lb *LoggerBuilder) Build(config *Configuration) (core.Logger, error) {
 		}
 		options = append(options, mtlog.WithFilter(filter))
 	}
-
+	
 	// Add properties
 	for key, value := range config.Mtlog.Properties {
 		options = append(options, mtlog.WithProperty(key, value))
 	}
-
+	
 	return mtlog.New(options...), nil
 }
 
@@ -158,7 +158,7 @@ func (lb *LoggerBuilder) createSink(config SinkConfiguration) (core.LogEventSink
 		}
 		return nil, fmt.Errorf("unknown sink: %s", config.Name)
 	}
-
+	
 	return factory(config.Args)
 }
 
@@ -171,7 +171,7 @@ func (lb *LoggerBuilder) createEnricherByName(name string) (core.LogEventEnriche
 		}
 		return nil, fmt.Errorf("unknown enricher: %s", name)
 	}
-
+	
 	return factory(nil)
 }
 
@@ -184,7 +184,7 @@ func (lb *LoggerBuilder) createEnricher(config EnricherConfiguration) (core.LogE
 		}
 		return nil, fmt.Errorf("unknown enricher: %s", config.Name)
 	}
-
+	
 	return factory(config.Args)
 }
 
@@ -197,7 +197,7 @@ func (lb *LoggerBuilder) createFilter(config FilterConfiguration) (core.LogEvent
 		}
 		return nil, fmt.Errorf("unknown filter: %s", config.Name)
 	}
-
+	
 	return factory(config.Args)
 }
 
@@ -230,9 +230,9 @@ func (lb *LoggerBuilder) getAvailableFilterNames() []string {
 
 // Default sink factories
 
-func createConsoleSink(args map[string]any) (core.LogEventSink, error) {
+func createConsoleSink(args map[string]interface{}) (core.LogEventSink, error) {
 	themeName := GetString(args, "theme", "Default")
-
+	
 	var theme *sinks.ConsoleTheme
 	switch themeName {
 	case "Default":
@@ -249,38 +249,38 @@ func createConsoleSink(args map[string]any) (core.LogEventSink, error) {
 		}
 		theme = sinks.DefaultTheme()
 	}
-
+	
 	sink := sinks.NewConsoleSinkWithTheme(theme)
-
+	
 	// Check for property display
 	if GetBool(args, "showProperties", false) {
 		sink.ShowProperties(true)
 	}
-
+	
 	return sink, nil
 }
 
-func createFileSink(args map[string]any) (core.LogEventSink, error) {
+func createFileSink(args map[string]interface{}) (core.LogEventSink, error) {
 	path := GetString(args, "path", "")
 	if path == "" {
 		return nil, fmt.Errorf("file sink requires 'path' argument")
 	}
-
+	
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
-
+	
 	return sinks.NewFileSink(path)
 }
 
-func createRollingFileSink(args map[string]any) (core.LogEventSink, error) {
+func createRollingFileSink(args map[string]interface{}) (core.LogEventSink, error) {
 	path := GetString(args, "path", "")
 	if path == "" {
 		return nil, fmt.Errorf("rolling file sink requires 'path' argument")
 	}
-
+	
 	options := sinks.RollingFileOptions{
 		FilePath:            path,
 		MaxFileSize:         GetInt64(args, "fileSizeLimitBytes", 0),
@@ -288,7 +288,7 @@ func createRollingFileSink(args map[string]any) (core.LogEventSink, error) {
 		CompressRolledFiles: GetBool(args, "compress", false),
 		BufferSize:          GetInt(args, "bufferSize", 64*1024),
 	}
-
+	
 	// Parse rolling interval
 	interval := GetString(args, "rollingInterval", "")
 	switch interval {
@@ -301,60 +301,60 @@ func createRollingFileSink(args map[string]any) (core.LogEventSink, error) {
 	case "Month", "Monthly":
 		options.RollingInterval = sinks.RollingIntervalMonthly
 	}
-
+	
 	return sinks.NewRollingFileSink(options)
 }
 
-func createSeqSink(args map[string]any) (core.LogEventSink, error) {
+func createSeqSink(args map[string]interface{}) (core.LogEventSink, error) {
 	url := GetString(args, "serverUrl", "")
 	if url == "" {
 		return nil, fmt.Errorf("Seq sink requires 'serverUrl' argument")
 	}
-
+	
 	var options []sinks.SeqOption
-
+	
 	// Add API key if provided
 	apiKey := GetString(args, "apiKey", "")
 	if apiKey != "" {
 		options = append(options, sinks.WithSeqAPIKey(apiKey))
 	}
-
+	
 	// Add batch size
 	batchSize := GetInt(args, "batchSize", 100)
 	options = append(options, sinks.WithSeqBatchSize(batchSize))
-
+	
 	// Add flush interval
 	flushInterval := parseDuration(GetString(args, "period", "5s"), 5*time.Second)
 	options = append(options, sinks.WithSeqBatchTimeout(flushInterval))
-
+	
 	// Add compression option
 	compress := GetBool(args, "compress", false)
 	options = append(options, sinks.WithSeqCompression(compress))
-
+	
 	// Add retry options
 	retryCount := GetInt(args, "maxRetries", 3)
 	retryDelay := parseDuration(GetString(args, "retryBackoff", "1s"), time.Second)
 	options = append(options, sinks.WithSeqRetry(retryCount, retryDelay))
-
+	
 	return sinks.NewSeqSink(url, options...)
 }
 
-func createAsyncSink(args map[string]any) (core.LogEventSink, error) {
+func createAsyncSink(args map[string]interface{}) (core.LogEventSink, error) {
 	// Get the wrapped sink configuration
-	wrappedConfig, ok := args["writeTo"].(map[string]any)
+	wrappedConfig, ok := args["writeTo"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("async sink requires 'writeTo' configuration")
 	}
-
+	
 	// Create wrapped sink
 	sinkName, ok := wrappedConfig["Name"].(string)
 	if !ok {
 		return nil, fmt.Errorf("wrapped sink must have 'Name'")
 	}
-
+	
 	// Get wrapped sink args
-	wrappedArgs, _ := wrappedConfig["Args"].(map[string]any)
-
+	wrappedArgs, _ := wrappedConfig["Args"].(map[string]interface{})
+	
 	// Use a temporary builder to create the wrapped sink
 	tempBuilder := NewLoggerBuilder()
 	wrapped, err := tempBuilder.createSink(SinkConfiguration{
@@ -364,7 +364,7 @@ func createAsyncSink(args map[string]any) (core.LogEventSink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wrapped sink: %w", err)
 	}
-
+	
 	// Parse overflow strategy
 	strategy := sinks.OverflowBlock
 	strategyStr := GetString(args, "overflowStrategy", "Block")
@@ -374,7 +374,7 @@ func createAsyncSink(args map[string]any) (core.LogEventSink, error) {
 	case "DropOldest":
 		strategy = sinks.OverflowDropOldest
 	}
-
+	
 	options := sinks.AsyncOptions{
 		BufferSize:       GetInt(args, "bufferSize", 1000),
 		OverflowStrategy: strategy,
@@ -382,67 +382,67 @@ func createAsyncSink(args map[string]any) (core.LogEventSink, error) {
 		FlushInterval:    parseDuration(GetString(args, "flushInterval", "0"), 0),
 		ShutdownTimeout:  parseDuration(GetString(args, "shutdownTimeout", "30s"), 30*time.Second),
 	}
-
+	
 	return sinks.NewAsyncSink(wrapped, options), nil
 }
 
-func createElasticsearchSink(args map[string]any) (core.LogEventSink, error) {
+func createElasticsearchSink(args map[string]interface{}) (core.LogEventSink, error) {
 	url := GetString(args, "url", "")
 	if url == "" {
 		return nil, fmt.Errorf("Elasticsearch sink requires 'url' argument")
 	}
-
+	
 	var options []sinks.ElasticsearchOption
-
+	
 	// Set index name if provided
 	if index := GetString(args, "index", ""); index != "" {
 		options = append(options, sinks.WithElasticsearchIndex(index))
 	}
-
+	
 	// Authentication
 	apiKey := GetString(args, "apiKey", "")
 	username := GetString(args, "username", "")
 	password := GetString(args, "password", "")
-
+	
 	if apiKey != "" {
 		options = append(options, sinks.WithElasticsearchAPIKey(apiKey))
 	} else if username != "" && password != "" {
 		options = append(options, sinks.WithElasticsearchBasicAuth(username, password))
 	}
-
+	
 	// Batching options
 	batchSize := GetInt(args, "batchSize", 100)
 	options = append(options, sinks.WithElasticsearchBatchSize(batchSize))
-
+	
 	batchTimeout := parseDuration(GetString(args, "batchTimeout", "5s"), 5*time.Second)
 	options = append(options, sinks.WithElasticsearchBatchTimeout(batchTimeout))
-
+	
 	// Data streams
 	if GetBool(args, "dataStreams", false) {
 		options = append(options, sinks.WithElasticsearchDataStreams())
 	}
-
+	
 	// Pipeline
 	if pipeline := GetString(args, "pipeline", ""); pipeline != "" {
 		options = append(options, sinks.WithElasticsearchPipeline(pipeline))
 	}
-
+	
 	return sinks.NewElasticsearchSink(url, options...)
 }
 
-func createSplunkSink(args map[string]any) (core.LogEventSink, error) {
+func createSplunkSink(args map[string]interface{}) (core.LogEventSink, error) {
 	url := GetString(args, "url", "")
 	if url == "" {
 		return nil, fmt.Errorf("Splunk sink requires 'url' argument")
 	}
-
+	
 	token := GetString(args, "token", "")
 	if token == "" {
 		return nil, fmt.Errorf("Splunk sink requires 'token' argument")
 	}
-
+	
 	var options []sinks.SplunkOption
-
+	
 	// Set metadata fields if provided
 	if index := GetString(args, "index", ""); index != "" {
 		options = append(options, sinks.WithSplunkIndex(index))
@@ -456,41 +456,41 @@ func createSplunkSink(args map[string]any) (core.LogEventSink, error) {
 	if host := GetString(args, "host", ""); host != "" {
 		options = append(options, sinks.WithSplunkHost(host))
 	}
-
+	
 	// Batching options
 	batchSize := GetInt(args, "batchSize", 100)
 	options = append(options, sinks.WithSplunkBatchSize(batchSize))
-
+	
 	if batchTimeout := GetString(args, "batchTimeout", ""); batchTimeout != "" {
 		if d, err := time.ParseDuration(batchTimeout); err == nil {
 			options = append(options, sinks.WithSplunkBatchTimeout(d))
 		}
 	}
-
+	
 	return sinks.NewSplunkSink(url, token, options...)
 }
 
-func createDurableSink(args map[string]any) (core.LogEventSink, error) {
+func createDurableSink(args map[string]interface{}) (core.LogEventSink, error) {
 	bufferPath := GetString(args, "bufferPath", "")
 	if bufferPath == "" {
 		return nil, fmt.Errorf("durable sink requires 'bufferPath' argument")
 	}
-
+	
 	// Get the wrapped sink configuration
-	wrappedConfig, ok := args["writeTo"].(map[string]any)
+	wrappedConfig, ok := args["writeTo"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("durable sink requires 'writeTo' configuration")
 	}
-
+	
 	// Create wrapped sink
 	sinkName, ok := wrappedConfig["Name"].(string)
 	if !ok {
 		return nil, fmt.Errorf("wrapped sink must have 'Name'")
 	}
-
+	
 	// Get wrapped sink args
-	wrappedArgs, _ := wrappedConfig["Args"].(map[string]any)
-
+	wrappedArgs, _ := wrappedConfig["Args"].(map[string]interface{})
+	
 	// Use a temporary builder to create the wrapped sink
 	tempBuilder := NewLoggerBuilder()
 	wrapped, err := tempBuilder.createSink(SinkConfiguration{
@@ -500,7 +500,7 @@ func createDurableSink(args map[string]any) (core.LogEventSink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wrapped sink: %w", err)
 	}
-
+	
 	// Create durable options
 	options := sinks.DurableOptions{
 		BufferPath:      bufferPath,
@@ -511,7 +511,7 @@ func createDurableSink(args map[string]any) (core.LogEventSink, error) {
 		FlushInterval:   parseDuration(GetString(args, "flushInterval", ""), 0),
 		ShutdownTimeout: parseDuration(GetString(args, "shutdownTimeout", ""), 0),
 	}
-
+	
 	return sinks.NewDurableSink(wrapped, options)
 }
 
@@ -526,7 +526,7 @@ func parseDuration(s string, defaultValue time.Duration) time.Duration {
 // fixedPropertyEnricher adds a fixed property to log events.
 type fixedPropertyEnricher struct {
 	propertyName string
-	value        any
+	value        interface{}
 }
 
 // Enrich adds the fixed property to the log event.

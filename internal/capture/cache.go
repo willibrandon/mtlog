@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"time"
-
+	
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -52,16 +52,16 @@ func (tc *typeCache) getOrCreate(t reflect.Type) *typeDescriptor {
 	if desc, ok := tc.get(t); ok {
 		return desc
 	}
-
+	
 	// Create new descriptor
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
-
+	
 	// Double-check after acquiring write lock
 	if desc, ok := tc.cache[t]; ok {
 		return desc
 	}
-
+	
 	desc := tc.createDescriptor(t)
 	tc.cache[t] = desc
 	return desc
@@ -73,25 +73,25 @@ func (tc *typeCache) createDescriptor(t reflect.Type) *typeDescriptor {
 		Type: t,
 		Kind: t.Kind(),
 	}
-
+	
 	// Cache struct fields if applicable
 	if t.Kind() == reflect.Struct {
 		desc.Fields = make([]fieldDescriptor, 0, t.NumField())
-
+		
 		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
-
+			
 			// Skip unexported fields
 			if field.PkgPath != "" {
 				continue
 			}
-
+			
 			// Get log tag
 			tag := field.Tag.Get("log")
 			if tag == "-" {
 				continue // Skip fields marked with log:"-"
 			}
-
+			
 			fieldDesc := fieldDescriptor{
 				Index:      i,
 				Name:       field.Name,
@@ -99,16 +99,16 @@ func (tc *typeCache) createDescriptor(t reflect.Type) *typeDescriptor {
 				Tag:        tag,
 				IsExported: field.PkgPath == "",
 			}
-
+			
 			// Use tag name if provided
 			if tag != "" && tag != "-" {
 				fieldDesc.Name = tag
 			}
-
+			
 			desc.Fields = append(desc.Fields, fieldDesc)
 		}
 	}
-
+	
 	return desc
 }
 
@@ -125,16 +125,16 @@ type CachedCapturer struct {
 func NewCachedCapturer() *CachedCapturer {
 	return &CachedCapturer{
 		DefaultCapturer: NewDefaultCapturer(),
-		typeCache:       globalTypeCache,
+		typeCache:          globalTypeCache,
 	}
 }
 
 // TryCapture attempts to capture a value using cached type information.
-func (d *CachedCapturer) TryCapture(value any, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
+func (d *CachedCapturer) TryCapture(value interface{}, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
 	if value == nil {
 		return propertyFactory.CreateProperty("", nil), true
 	}
-
+	
 	// Check if the value implements LogValue interface
 	if lv, ok := value.(core.LogValue); ok {
 		// Recursively capture the LogValue result
@@ -142,42 +142,42 @@ func (d *CachedCapturer) TryCapture(value any, propertyFactory core.LogEventProp
 		captured := d.capture(logValue, 0)
 		return propertyFactory.CreateProperty("", captured), true
 	}
-
+	
 	captured := d.capture(value, 0)
 	return propertyFactory.CreateProperty("", captured), true
 }
 
 // captureStructCached captures a struct using cached type information.
-func (d *CachedCapturer) captureStructCached(v reflect.Value, depth int) any {
+func (d *CachedCapturer) captureStructCached(v reflect.Value, depth int) interface{} {
 	t := v.Type()
 	desc := d.typeCache.getOrCreate(t)
-
-	result := make(map[string]any, len(desc.Fields))
-
+	
+	result := make(map[string]interface{}, len(desc.Fields))
+	
 	for _, field := range desc.Fields {
 		fieldValue := v.Field(field.Index)
 		result[field.Name] = d.capture(fieldValue.Interface(), depth+1)
 	}
-
+	
 	return result
 }
 
 // captureSliceCached captures a slice checking for LogValue on elements.
-func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) any {
+func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) interface{} {
 	length := v.Len()
 	if length == 0 {
-		return []any{}
+		return []interface{}{}
 	}
-
+	
 	// Limit collection size
 	if length > d.maxCollectionCount {
 		length = d.maxCollectionCount
 	}
-
-	result := make([]any, length)
+	
+	result := make([]interface{}, length)
 	for i := 0; i < length; i++ {
 		elem := v.Index(i).Interface()
-
+		
 		// Check if element implements LogValue
 		if lv, ok := elem.(core.LogValue); ok {
 			result[i] = d.capture(lv.LogValue(), depth+1)
@@ -185,89 +185,89 @@ func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) any {
 			result[i] = d.capture(elem, depth+1)
 		}
 	}
-
+	
 	// Add indicator if truncated
 	if v.Len() > d.maxCollectionCount {
 		result = append(result, fmt.Sprintf("... (%d more)", v.Len()-d.maxCollectionCount))
 	}
-
+	
 	return result
 }
 
 // Override the capture method to use caching
-func (d *CachedCapturer) capture(value any, depth int) any {
+func (d *CachedCapturer) capture(value interface{}, depth int) interface{} {
 	if value == nil {
 		return nil
 	}
-
+	
 	// Check depth limit
 	if depth >= d.maxDepth {
 		return formatType(value)
 	}
-
+	
 	v := reflect.ValueOf(value)
 	t := v.Type()
-
+	
 	// Handle basic types
 	switch v.Kind() {
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
 		return value
-
+		
 	case reflect.String:
 		s := v.String()
 		if len(s) > d.maxStringLength {
 			return s[:d.maxStringLength] + "..."
 		}
 		return s
-
+		
 	case reflect.Ptr:
 		if v.IsNil() {
 			return nil
 		}
 		return d.capture(v.Elem().Interface(), depth)
-
+		
 	case reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
 		return d.capture(v.Elem().Interface(), depth)
-
+		
 	case reflect.Slice, reflect.Array:
 		return d.captureSliceCached(v, depth)
-
+		
 	case reflect.Map:
 		return d.captureMap(v, depth)
-
+		
 	case reflect.Struct:
 		// Check if it's a known scalar type
 		if d.scalarTypes[t] {
 			return value
 		}
-
+		
 		// Special handling for time.Time
 		if isTimeType(t) {
 			return formatTime(value)
 		}
-
+		
 		// Use cached capturing for structs
 		return d.captureStructCached(v, depth)
-
+		
 	case reflect.Func, reflect.Chan:
 		return formatType(value)
-
+		
 	default:
 		return formatValue(value)
 	}
 }
 
 // Helper functions
-func formatType(v any) string {
+func formatType(v interface{}) string {
 	return reflect.TypeOf(v).String()
 }
 
-func formatValue(v any) string {
+func formatValue(v interface{}) string {
 	return fmt.Sprintf("%v", v)
 }
 
@@ -275,7 +275,7 @@ func isTimeType(t reflect.Type) bool {
 	return t.PkgPath() == "time" && t.Name() == "Time"
 }
 
-func formatTime(v any) string {
+func formatTime(v interface{}) string {
 	if t, ok := v.(time.Time); ok {
 		return t.Format(time.RFC3339)
 	}

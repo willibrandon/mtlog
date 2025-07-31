@@ -2,7 +2,6 @@ package mtlog
 
 import (
 	"github.com/willibrandon/mtlog/core"
-	"maps"
 )
 
 // config holds the configuration for building a logger.
@@ -11,9 +10,9 @@ type config struct {
 	levelSwitch  *LoggingLevelSwitch
 	enrichers    []core.LogEventEnricher
 	filters      []core.LogEventFilter
-	capturer     core.Capturer
+	capturer core.Capturer
 	sinks        []core.LogEventSink
-	properties   map[string]any
+	properties   map[string]interface{}
 	err          error // First error encountered during configuration
 }
 
@@ -64,15 +63,17 @@ func WithSink(sink core.LogEventSink) Option {
 }
 
 // WithProperty adds a global property to all log events.
-func WithProperty(name string, value any) Option {
+func WithProperty(name string, value interface{}) Option {
 	return func(c *config) {
 		c.properties[name] = value
 	}
 }
 
 // WithProperties adds multiple global properties.
-func WithProperties(properties map[string]any) Option {
+func WithProperties(properties map[string]interface{}) Option {
 	return func(c *config) {
-		maps.Copy(c.properties, properties)
+		for k, v := range properties {
+			c.properties[k] = v
+		}
 	}
 }

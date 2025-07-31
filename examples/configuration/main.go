@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"time"
-
+	
 	"github.com/willibrandon/mtlog"
 	"github.com/willibrandon/mtlog/configuration"
 	"github.com/willibrandon/mtlog/sinks"
@@ -12,19 +12,19 @@ import (
 
 func main() {
 	fmt.Println("=== JSON Configuration Examples ===")
-
+	
 	// Example 1: Basic configuration
 	fmt.Println("1. Basic Configuration")
 	demoBasicConfig()
-
+	
 	// Example 2: Complex configuration
 	fmt.Println("\n2. Complex Configuration")
 	demoComplexConfig()
-
+	
 	// Example 3: Environment-based configuration
 	fmt.Println("\n3. Environment-based Configuration")
 	demoEnvironmentConfig()
-
+	
 	// Example 4: Programmatic configuration with JSON
 	fmt.Println("\n4. Inline JSON Configuration")
 	demoInlineConfig()
@@ -56,18 +56,18 @@ func demoBasicConfig() {
 			}
 		}
 	}`
-
+	
 	// Save to file
 	os.WriteFile("basic-config.json", []byte(configJSON), 0644)
 	defer os.Remove("basic-config.json")
-
+	
 	// Create logger from file
 	logger, err := configuration.CreateLoggerFromFile("basic-config.json")
 	if err != nil {
 		fmt.Printf("Failed to create logger: %v\n", err)
 		return
 	}
-
+	
 	// Use the logger
 	logger.Information("Application started with basic configuration")
 	logger.Information("Processing request {RequestId}", "req-001")
@@ -140,19 +140,19 @@ func demoComplexConfig() {
 			}
 		}
 	}`
-
+	
 	// Create logger from JSON
 	logger, err := configuration.CreateLoggerFromJSON([]byte(configJSON))
 	if err != nil {
 		fmt.Printf("Failed to create logger: %v\n", err)
 		return
 	}
-
+	
 	// Demonstrate various log levels
 	logger.Debug("This debug message will be filtered out")
 	logger.Information("Complex configuration loaded successfully")
 	logger.Information("Processing batch {BatchId} with {ItemCount} items", "batch-001", 150)
-
+	
 	// Log with structured data
 	order := struct {
 		ID     string
@@ -164,7 +164,7 @@ func demoComplexConfig() {
 		Status: "Processing",
 	}
 	logger.Information("Order received: {@Order}", order)
-
+	
 	// Simulate some warnings and errors
 	logger.Warning("High memory usage: {UsagePercent:P}", 0.85)
 	logger.Error("Failed to connect to service {Service}: {Error}", "PaymentGateway", "Connection timeout")
@@ -187,7 +187,7 @@ func demoEnvironmentConfig() {
 			}
 		}
 	}`
-
+	
 	// Create development override
 	devConfig := `{
 		"Mtlog": {
@@ -207,7 +207,7 @@ func demoEnvironmentConfig() {
 			}
 		}
 	}`
-
+	
 	// Create production override
 	prodConfig := `{
 		"Mtlog": {
@@ -235,31 +235,31 @@ func demoEnvironmentConfig() {
 			}
 		}
 	}`
-
+	
 	// Save configuration files
 	os.WriteFile("appsettings.json", []byte(baseConfig), 0644)
 	os.WriteFile("appsettings.Development.json", []byte(devConfig), 0644)
 	os.WriteFile("appsettings.Production.json", []byte(prodConfig), 0644)
-
+	
 	defer os.Remove("appsettings.json")
 	defer os.Remove("appsettings.Development.json")
 	defer os.Remove("appsettings.Production.json")
-
+	
 	// Get environment from env var or default to Development
 	environment := os.Getenv("ASPNETCORE_ENVIRONMENT")
 	if environment == "" {
 		environment = "Development"
 	}
-
+	
 	fmt.Printf("Loading configuration for environment: %s\n", environment)
-
+	
 	// Create logger for current environment
 	logger, err := configuration.CreateLoggerFromEnvironment(environment)
 	if err != nil {
 		fmt.Printf("Failed to create logger: %v\n", err)
 		return
 	}
-
+	
 	// Log based on environment
 	logger.Debug("Debug message - only visible in Development")
 	logger.Information("Application started in {Environment} mode", environment)
@@ -285,12 +285,12 @@ func demoInlineConfig() {
 			}
 		}
 	}`))
-
+	
 	if err != nil {
 		fmt.Printf("Failed to create logger: %v\n", err)
 		return
 	}
-
+	
 	// Demonstrate all log levels
 	logger.Verbose("Verbose: Detailed trace information")
 	logger.Debug("Debug: Internal system events")
@@ -298,29 +298,29 @@ func demoInlineConfig() {
 	logger.Warning("Warning: Abnormal or unexpected events")
 	logger.Error("Error: Errors and exceptions")
 	logger.Fatal("Fatal: Critical errors causing shutdown")
-
+	
 	// Performance comparison
 	iterations := 1000
-
+	
 	// Time configuration-based logger
 	start := time.Now()
-	for i := range iterations {
+	for i := 0; i < iterations; i++ {
 		logger.Information("Message {Number}", i)
 	}
 	configTime := time.Since(start)
-
+	
 	// Time programmatic logger for comparison
 	programmaticLogger := mtlog.New(
 		mtlog.WithSink(sinks.NewConsoleSinkWithTheme(sinks.LiteTheme())),
 		mtlog.WithProperty("Component", "Programmatic"),
 	)
-
+	
 	start = time.Now()
-	for i := range iterations {
+	for i := 0; i < iterations; i++ {
 		programmaticLogger.Information("Message {Number}", i)
 	}
 	programmaticTime := time.Since(start)
-
+	
 	fmt.Printf("\nPerformance comparison (%d iterations):\n", iterations)
 	fmt.Printf("  Configuration-based: %v\n", configTime)
 	fmt.Printf("  Programmatic: %v\n", programmaticTime)

@@ -9,11 +9,11 @@ import (
 
 func TestSourceContextLevelFilter(t *testing.T) {
 	overrides := map[string]core.LogEventLevel{
-		"Microsoft":                  core.WarningLevel,
-		"Microsoft.EntityFramework":  core.InformationLevel,
-		"Microsoft.Hosting.Lifetime": core.InformationLevel,
-		"System":                     core.WarningLevel,
-		"MyApp.Critical":             core.VerboseLevel,
+		"Microsoft":                   core.WarningLevel,
+		"Microsoft.EntityFramework":   core.InformationLevel,
+		"Microsoft.Hosting.Lifetime":  core.InformationLevel,
+		"System":                      core.WarningLevel,
+		"MyApp.Critical":              core.VerboseLevel,
 	}
 
 	filter := NewSourceContextLevelFilter(core.InformationLevel, overrides)
@@ -108,7 +108,7 @@ func TestSourceContextLevelFilter(t *testing.T) {
 			event := &core.LogEvent{
 				Timestamp: time.Now(),
 				Level:     tt.level,
-				Properties: map[string]any{
+				Properties: map[string]interface{}{
 					"SourceContext": tt.sourceContext,
 				},
 			}
@@ -151,7 +151,7 @@ func TestSourceContextLevelFilterPrefixMatching(t *testing.T) {
 		t.Run(tt.context, func(t *testing.T) {
 			event := &core.LogEvent{
 				Level: tt.level,
-				Properties: map[string]any{
+				Properties: map[string]interface{}{
 					"SourceContext": tt.context,
 				},
 			}
@@ -182,7 +182,7 @@ func TestSourceContextLevelFilterNoOverrides(t *testing.T) {
 	for _, tt := range tests {
 		event := &core.LogEvent{
 			Level: tt.level,
-			Properties: map[string]any{
+			Properties: map[string]interface{}{
 				"SourceContext": "Any.Context",
 			},
 		}
@@ -214,7 +214,7 @@ func TestSourceContextLevelFilterCaseSensitive(t *testing.T) {
 	for _, tt := range tests {
 		event := &core.LogEvent{
 			Level: tt.level,
-			Properties: map[string]any{
+			Properties: map[string]interface{}{
 				"SourceContext": tt.context,
 			},
 		}

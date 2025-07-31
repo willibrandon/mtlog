@@ -22,23 +22,23 @@ func (p PropertyValue[T]) ToLogEventProperty(name string, factory LogEventProper
 
 // PropertyBag is a type-safe property collection
 type PropertyBag struct {
-	properties map[string]any
+	properties map[string]interface{}
 }
 
 // NewPropertyBag creates a new property bag
 func NewPropertyBag() *PropertyBag {
 	return &PropertyBag{
-		properties: make(map[string]any),
+		properties: make(map[string]interface{}),
 	}
 }
 
 // Add adds a typed property to the bag
-func (pb *PropertyBag) Add(name string, value any) {
+func (pb *PropertyBag) Add(name string, value interface{}) {
 	pb.properties[name] = value
 }
 
 // Get retrieves a property from the bag
-func (pb *PropertyBag) Get(name string) (any, bool) {
+func (pb *PropertyBag) Get(name string) (interface{}, bool) {
 	val, ok := pb.properties[name]
 	return val, ok
 }
@@ -60,6 +60,6 @@ func AddTyped[T any](pb *PropertyBag, name string, value T) {
 }
 
 // Properties returns all properties as a map
-func (pb *PropertyBag) Properties() map[string]any {
+func (pb *PropertyBag) Properties() map[string]interface{} {
 	return pb.properties
 }

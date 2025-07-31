@@ -13,14 +13,15 @@ import (
 // panickingLogValue implements LogValue but panics
 type panickingLogValue struct{}
 
-func (p panickingLogValue) LogValue() any {
+func (p panickingLogValue) LogValue() interface{} {
 	panic("LogValue panic!")
 }
+
 
 // propertyFactory is a simple implementation of LogEventPropertyFactory
 type propertyFactory struct{}
 
-func (pf *propertyFactory) CreateProperty(name string, value any) *core.LogEventProperty {
+func (pf *propertyFactory) CreateProperty(name string, value interface{}) *core.LogEventProperty {
 	return &core.LogEventProperty{
 		Name:  name,
 		Value: value,
@@ -73,7 +74,7 @@ func TestCapturerSelfLog(t *testing.T) {
 
 		// Create a value that might cause reflection issues
 		// Using a nil interface with concrete type
-		var nilMap map[string]any
+		var nilMap map[string]interface{}
 		prop, ok := d.TryCapture(nilMap, factory)
 
 		// Should handle nil map gracefully
@@ -103,7 +104,7 @@ func TestCapturerSelfLog(t *testing.T) {
 
 		// Create a deeply nested structure
 		type Nested struct {
-			Value any
+			Value interface{}
 		}
 		deepValue := &Nested{Value: &Nested{Value: &Nested{Value: "deep"}}}
 
@@ -199,7 +200,7 @@ func TestCapturerPanicScenarios(t *testing.T) {
 		type panickingStringer struct {
 			value string
 		}
-
+		
 		// This type will be handled by capturing without calling String()
 		ps := &panickingStringer{value: "test"}
 		prop, ok := d.TryCapture(ps, factory)

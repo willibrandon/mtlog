@@ -2,9 +2,8 @@ package configuration
 
 import (
 	"fmt"
-	"maps"
 	"os"
-
+	
 	"github.com/willibrandon/mtlog/core"
 )
 
@@ -15,7 +14,7 @@ func CreateLoggerFromFile(filename string) (core.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
-
+	
 	builder := NewLoggerBuilder()
 	return builder.Build(config)
 }
@@ -26,7 +25,7 @@ func CreateLoggerFromJSON(jsonData []byte) (core.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse configuration: %w", err)
 	}
-
+	
 	builder := NewLoggerBuilder()
 	return builder.Build(config)
 }
@@ -39,7 +38,7 @@ func CreateLoggerFromEnvironment(environment string) (core.Logger, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to load base configuration: %w", err)
 	}
-
+	
 	// If no base config, create empty one
 	if baseConfig == nil {
 		baseConfig = &Configuration{
@@ -48,7 +47,7 @@ func CreateLoggerFromEnvironment(environment string) (core.Logger, error) {
 			},
 		}
 	}
-
+	
 	// Load environment-specific configuration if provided
 	if environment != "" {
 		envFile := fmt.Sprintf("appsettings.%s.json", environment)
@@ -56,13 +55,13 @@ func CreateLoggerFromEnvironment(environment string) (core.Logger, error) {
 		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to load environment configuration: %w", err)
 		}
-
+		
 		if envConfig != nil {
 			// Merge configurations (environment overrides base)
 			mergeConfiguration(baseConfig, envConfig)
 		}
 	}
-
+	
 	builder := NewLoggerBuilder()
 	return builder.Build(baseConfig)
 }
@@ -73,22 +72,24 @@ func mergeConfiguration(target, source *Configuration) {
 	if source.Mtlog.MinimumLevel != "" {
 		target.Mtlog.MinimumLevel = source.Mtlog.MinimumLevel
 	}
-
+	
 	// Merge sinks (replace entirely if specified)
 	if len(source.Mtlog.WriteTo) > 0 {
 		target.Mtlog.WriteTo = source.Mtlog.WriteTo
 	}
-
+	
 	// Merge enrichers (append)
 	target.Mtlog.Enrich = append(target.Mtlog.Enrich, source.Mtlog.Enrich...)
 	target.Mtlog.EnrichWith = append(target.Mtlog.EnrichWith, source.Mtlog.EnrichWith...)
-
+	
 	// Merge filters (append)
 	target.Mtlog.Filter = append(target.Mtlog.Filter, source.Mtlog.Filter...)
-
+	
 	// Merge properties
 	if target.Mtlog.Properties == nil {
-		target.Mtlog.Properties = make(map[string]any)
+		target.Mtlog.Properties = make(map[string]interface{})
 	}
-	maps.Copy(target.Mtlog.Properties, source.Mtlog.Properties)
+	for k, v := range source.Mtlog.Properties {
+		target.Mtlog.Properties[k] = v
+	}
 }

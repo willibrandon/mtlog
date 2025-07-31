@@ -29,12 +29,12 @@ func main() {
 		WarningColor:     sinks.ColorBrightYellow + sinks.ColorBold,
 		ErrorColor:       sinks.ColorBrightRed + sinks.ColorBold,
 		FatalColor:       sinks.ColorBgRed + sinks.ColorWhite + sinks.ColorBold,
-
+		
 		TimestampColor:   sinks.ColorBrightBlue,
 		MessageColor:     sinks.ColorBrightWhite,
 		PropertyKeyColor: sinks.ColorCyan,
 		PropertyValColor: sinks.ColorYellow,
-
+		
 		LevelFormat:     "%-5s |", // Left-aligned with separator
 		TimestampFormat: "15:04:05.000",
 		PropertyFormat:  "%s → %v",
@@ -58,14 +58,14 @@ func demoTheme(theme *sinks.ConsoleTheme) {
 	logger.Information("User {UserId} logged in successfully", 42)
 	logger.Warning("Cache miss for key {Key}", "user:42:profile")
 	logger.Error("Failed to connect to database {Database} after {Attempts} attempts", "OrderDB", 3)
-
+	
 	// Demo with extra properties
 	loggerWithProps.ForContext("RequestId", "req-123").
 		ForContext("UserId", 42).
 		Information("Processing order {OrderId} with total ${Total:F2}", "ORD-2025-001", 99.99)
 
 	// Demo structured logging
-	order := map[string]any{
+	order := map[string]interface{}{
 		"Id":     "ORD-2025-001",
 		"Status": "Processing",
 		"Items":  3,
@@ -76,7 +76,7 @@ func demoTheme(theme *sinks.ConsoleTheme) {
 	start := time.Now()
 	time.Sleep(50 * time.Millisecond)
 	elapsed := time.Since(start)
-	logger.Warning("Slow query detected: {Query} took {Duration}ms",
-		"SELECT * FROM orders WHERE status = 'pending'",
+	logger.Warning("Slow query detected: {Query} took {Duration}ms", 
+		"SELECT * FROM orders WHERE status = 'pending'", 
 		elapsed.Milliseconds())
 }

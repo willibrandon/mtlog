@@ -5,37 +5,37 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
+	
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/selflog"
 )
 
 // LoggerConfiguration represents the JSON configuration for mtlog.
 type LoggerConfiguration struct {
-	MinimumLevel string                  `json:"MinimumLevel,omitempty"`
-	WriteTo      []SinkConfiguration     `json:"WriteTo,omitempty"`
-	Enrich       []string                `json:"Enrich,omitempty"`
-	EnrichWith   []EnricherConfiguration `json:"EnrichWith,omitempty"`
-	Properties   map[string]any          `json:"Properties,omitempty"`
-	Filter       []FilterConfiguration   `json:"Filter,omitempty"`
+	MinimumLevel   string                   `json:"MinimumLevel,omitempty"`
+	WriteTo        []SinkConfiguration      `json:"WriteTo,omitempty"`
+	Enrich         []string                 `json:"Enrich,omitempty"`
+	EnrichWith     []EnricherConfiguration  `json:"EnrichWith,omitempty"`
+	Properties     map[string]interface{}   `json:"Properties,omitempty"`
+	Filter         []FilterConfiguration    `json:"Filter,omitempty"`
 }
 
 // SinkConfiguration represents a sink configuration.
 type SinkConfiguration struct {
-	Name string         `json:"Name"`
-	Args map[string]any `json:"Args,omitempty"`
+	Name string                 `json:"Name"`
+	Args map[string]interface{} `json:"Args,omitempty"`
 }
 
 // EnricherConfiguration represents an enricher with arguments.
 type EnricherConfiguration struct {
-	Name string         `json:"Name"`
-	Args map[string]any `json:"Args,omitempty"`
+	Name string                 `json:"Name"`
+	Args map[string]interface{} `json:"Args,omitempty"`
 }
 
 // FilterConfiguration represents a filter configuration.
 type FilterConfiguration struct {
-	Name string         `json:"Name"`
-	Args map[string]any `json:"Args,omitempty"`
+	Name string                 `json:"Name"`
+	Args map[string]interface{} `json:"Args,omitempty"`
 }
 
 // Configuration is the root configuration object.
@@ -49,7 +49,7 @@ func LoadFromFile(filename string) (*Configuration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-
+	
 	return LoadFromJSON(data)
 }
 
@@ -59,12 +59,12 @@ func LoadFromJSON(data []byte) (*Configuration, error) {
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
-
+	
 	// Apply defaults
 	if config.Mtlog.MinimumLevel == "" {
 		config.Mtlog.MinimumLevel = "Information"
 	}
-
+	
 	return &config, nil
 }
 
@@ -92,7 +92,7 @@ func ParseLevel(levelStr string) (core.LogEventLevel, error) {
 }
 
 // GetString gets a string value from configuration args.
-func GetString(args map[string]any, key string, defaultValue string) string {
+func GetString(args map[string]interface{}, key string, defaultValue string) string {
 	if v, ok := args[key]; ok {
 		if s, ok := v.(string); ok {
 			return s
@@ -106,7 +106,7 @@ func GetString(args map[string]any, key string, defaultValue string) string {
 }
 
 // GetInt gets an int value from configuration args.
-func GetInt(args map[string]any, key string, defaultValue int) int {
+func GetInt(args map[string]interface{}, key string, defaultValue int) int {
 	if v, ok := args[key]; ok {
 		switch val := v.(type) {
 		case float64:
@@ -134,7 +134,7 @@ func GetInt(args map[string]any, key string, defaultValue int) int {
 }
 
 // GetInt64 gets an int64 value from configuration args.
-func GetInt64(args map[string]any, key string, defaultValue int64) int64 {
+func GetInt64(args map[string]interface{}, key string, defaultValue int64) int64 {
 	if v, ok := args[key]; ok {
 		switch val := v.(type) {
 		case float64:
@@ -155,7 +155,7 @@ func GetInt64(args map[string]any, key string, defaultValue int64) int64 {
 }
 
 // GetBool gets a bool value from configuration args.
-func GetBool(args map[string]any, key string, defaultValue bool) bool {
+func GetBool(args map[string]interface{}, key string, defaultValue bool) bool {
 	if v, ok := args[key]; ok {
 		switch val := v.(type) {
 		case bool:
@@ -169,6 +169,6 @@ func GetBool(args map[string]any, key string, defaultValue bool) bool {
 
 // GetDuration gets a duration value from configuration args.
 // Supports formats like "100ms", "5s", "1m", etc.
-func GetDuration(args map[string]any, key string, defaultValue string) string {
+func GetDuration(args map[string]interface{}, key string, defaultValue string) string {
 	return GetString(args, key, defaultValue)
 }

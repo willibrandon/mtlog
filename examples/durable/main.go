@@ -19,10 +19,10 @@ func main() {
 	defer os.RemoveAll(tempDir)
 
 	fmt.Printf("Durable buffer directory: %s\n", tempDir)
-
+	
 	// Example 1: Basic durable buffering with Seq
 	fmt.Println("\n=== Example 1: Durable Seq Sink ===")
-
+	
 	// Create a Seq sink that might fail (we'll use a mock if it fails)
 	var seqSinkInterface core.LogEventSink
 	seqSink, err := sinks.NewSeqSink("http://localhost:5341")
@@ -33,7 +33,7 @@ func main() {
 	} else {
 		seqSinkInterface = seqSink
 	}
-
+	
 	// Wrap with durable buffering
 	durableSeq, err := sinks.NewDurableSink(seqSinkInterface, sinks.DurableOptions{
 		BufferPath:    filepath.Join(tempDir, "seq-buffer"),
@@ -48,39 +48,39 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create durable sink: %v", err)
 	}
-
+	
 	logger := mtlog.New(
 		mtlog.WithSink(durableSeq),
 		mtlog.WithProperty("Service", "DurableExample"),
 	)
-
+	
 	// Log some events
 	logger.Information("Application started")
 	logger.Warning("This message will be buffered if Seq is unavailable")
 	logger.Error("Critical error occurred")
-
+	
 	// Show metrics
 	showMetrics("Durable Seq", durableSeq)
-
+	
 	durableSeq.Close()
-
+	
 	// Example 2: Using convenience methods
 	fmt.Println("\n=== Example 2: Convenience Methods ===")
-
+	
 	logger2 := mtlog.New(
 		mtlog.WithDurableSeq("http://localhost:5341", filepath.Join(tempDir, "convenient-buffer")),
 		mtlog.WithProperty("Example", "Convenience"),
 	)
-
+	
 	logger2.Information("Using convenient durable Seq configuration")
 	logger2.Debug("Debug message with convenience method")
-
+	
 	// Example 3: Configuration-based setup
 	fmt.Println("\n=== Example 3: Advanced Configuration ===")
-
+	
 	// Create a failing sink for demonstration
 	failingSink := &failingSink{}
-
+	
 	durableAdvanced, err := sinks.NewDurableSink(failingSink, sinks.DurableOptions{
 		BufferPath:      filepath.Join(tempDir, "advanced-buffer"),
 		MaxBufferSize:   512 * 1024, // 512KB
@@ -96,37 +96,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create advanced durable sink: %v", err)
 	}
-
+	
 	logger3 := mtlog.New(
 		mtlog.WithSink(durableAdvanced),
 		mtlog.WithProperty("Mode", "Advanced"),
 	)
-
+	
 	// Generate events that will be buffered
-	for i := range 10 {
+	for i := 0; i < 10; i++ {
 		logger3.Information("Buffered message {Index}", i)
 		time.Sleep(100 * time.Millisecond)
 	}
-
+	
 	showMetrics("Advanced Durable", durableAdvanced)
-
+	
 	// Simulate sink recovery
 	fmt.Println("\nSimulating sink recovery...")
 	failingSink.Recover()
-
+	
 	// Wait for retry
 	time.Sleep(3 * time.Second)
-
+	
 	showMetrics("Advanced Durable (after recovery)", durableAdvanced)
-
+	
 	durableAdvanced.Close()
-
+	
 	// Example 4: Multiple sinks with different reliability
 	fmt.Println("\n=== Example 4: Mixed Reliability ===")
-
+	
 	// Reliable console sink
 	consoleSink := sinks.NewConsoleSink()
-
+	
 	// Unreliable remote sink with durable buffering
 	remoteSink := &intermittentSink{failureRate: 0.3}
 	durableRemote, err := sinks.NewDurableSink(remoteSink, sinks.DurableOptions{
@@ -137,23 +137,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create durable remote sink: %v", err)
 	}
-
+	
 	logger4 := mtlog.New(
-		mtlog.WithSink(consoleSink),   // Always works
-		mtlog.WithSink(durableRemote), // Sometimes fails, but buffered
+		mtlog.WithSink(consoleSink),     // Always works
+		mtlog.WithSink(durableRemote),   // Sometimes fails, but buffered
 		mtlog.WithProperty("Reliability", "Mixed"),
 	)
-
+	
 	// Generate mixed traffic
-	for i := range 5 {
+	for i := 0; i < 5; i++ {
 		logger4.Information("Mixed reliability message {Index}", i)
 		time.Sleep(200 * time.Millisecond)
 	}
-
+	
 	showMetrics("Mixed Remote", durableRemote)
-
+	
 	durableRemote.Close()
-
+	
 	fmt.Println("\n=== Durable Buffer Example Complete ===")
 	fmt.Printf("Buffer files created in: %s\n", tempDir)
 }

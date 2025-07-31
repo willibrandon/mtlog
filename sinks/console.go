@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
+	
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/formatters/output"
 	"github.com/willibrandon/mtlog/internal/parser"
@@ -27,7 +26,7 @@ type ConsoleSink struct {
 	template       string
 	parsedTemplate *output.Template
 	// Template analysis for optimization
-	hasBrackets       bool     // Template contains bracket tokens
+	hasBrackets       bool // Template contains bracket tokens
 	potentialStatuses []string // Property names that might be status codes
 }
 
@@ -35,7 +34,7 @@ type ConsoleSink struct {
 func NewConsoleSink() *ConsoleSink {
 	// Enable VT processing on Windows for ANSI colors
 	enableWindowsVTProcessing()
-
+	
 	sink := &ConsoleSink{
 		output:   os.Stdout,
 		theme:    DefaultTheme(),
@@ -48,7 +47,7 @@ func NewConsoleSink() *ConsoleSink {
 func NewConsoleSinkWithProperties() *ConsoleSink {
 	// Enable VT processing on Windows for ANSI colors
 	enableWindowsVTProcessing()
-
+	
 	return &ConsoleSink{
 		output:         os.Stdout,
 		showProperties: true,
@@ -70,7 +69,7 @@ func NewConsoleSinkWithWriter(w io.Writer) *ConsoleSink {
 func NewConsoleSinkWithTheme(theme *ConsoleTheme) *ConsoleSink {
 	// Enable VT processing on Windows for ANSI colors
 	enableWindowsVTProcessing()
-
+	
 	return &ConsoleSink{
 		output:   os.Stdout,
 		theme:    theme,
@@ -82,7 +81,7 @@ func NewConsoleSinkWithTheme(theme *ConsoleTheme) *ConsoleSink {
 func NewConsoleSinkWithTemplate(template string) (*ConsoleSink, error) {
 	// Enable VT processing on Windows for ANSI colors
 	enableWindowsVTProcessing()
-
+	
 	parsedTemplate, err := output.Parse(template)
 	if err != nil {
 		return nil, fmt.Errorf("invalid output template: %w", err)
@@ -94,10 +93,10 @@ func NewConsoleSinkWithTemplate(template string) (*ConsoleSink, error) {
 		template:       template,
 		parsedTemplate: parsedTemplate,
 	}
-
+	
 	// Analyze template for optimizations
 	sink.hasBrackets, sink.potentialStatuses = analyzeTemplate(parsedTemplate)
-
+	
 	return sink, nil
 }
 
@@ -105,7 +104,7 @@ func NewConsoleSinkWithTemplate(template string) (*ConsoleSink, error) {
 func NewConsoleSinkWithTemplateAndTheme(template string, theme *ConsoleTheme) (*ConsoleSink, error) {
 	// Enable VT processing on Windows for ANSI colors
 	enableWindowsVTProcessing()
-
+	
 	parsedTemplate, err := output.Parse(template)
 	if err != nil {
 		return nil, fmt.Errorf("invalid output template: %w", err)
@@ -117,15 +116,15 @@ func NewConsoleSinkWithTemplateAndTheme(template string, theme *ConsoleTheme) (*
 		template:       template,
 		parsedTemplate: parsedTemplate,
 	}
-
+	
 	// If theme has no colors, disable color output entirely
 	if theme.InformationColor == "" && theme.WarningColor == "" && theme.ErrorColor == "" {
 		sink.useColor = false
 	}
-
+	
 	// Analyze template for optimizations
 	sink.hasBrackets, sink.potentialStatuses = analyzeTemplate(parsedTemplate)
-
+	
 	return sink, nil
 }
 
@@ -161,7 +160,7 @@ func (cs *ConsoleSink) SetOutput(w io.Writer) {
 func (cs *ConsoleSink) Emit(event *core.LogEvent) {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
-
+	
 	var message string
 	if cs.parsedTemplate != nil {
 		// Use template-based formatting with per-token coloring
@@ -170,7 +169,7 @@ func (cs *ConsoleSink) Emit(event *core.LogEvent) {
 		// Use default formatting
 		message = cs.formatEvent(event)
 	}
-
+	
 	// Write to output
 	if _, err := fmt.Fprintln(cs.output, message); err != nil {
 		if selflog.IsEnabled() {
@@ -199,31 +198,31 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 			Tokens: []parser.MessageTemplateToken{&parser.TextToken{Text: event.MessageTemplate}},
 		}
 	}
-
+	
 	// Render the message
 	message := tmpl.Render(event.Properties)
-
+	
 	// Format components with theme
 	levelStr := formatLevel(event.Level)
 	levelColor := cs.theme.GetLevelColor(event.Level)
 	timestamp := event.Timestamp.Format(cs.theme.TimestampFormat)
-
+	
 	// Build the formatted output
 	var result string
-
+	
 	// Timestamp
 	timestampPart := fmt.Sprintf("[%s]", timestamp)
 	timestampPart = colorize(timestampPart, cs.theme.TimestampColor, cs.useColor)
-
+	
 	// Level
 	levelPart := fmt.Sprintf(cs.theme.LevelFormat, levelStr)
 	levelPart = colorize(levelPart, levelColor, cs.useColor)
-
+	
 	// Message
 	messagePart := colorize(message, cs.theme.MessageColor, cs.useColor)
-
+	
 	result = fmt.Sprintf("%s %s %s", timestampPart, levelPart, messagePart)
-
+	
 	// Add properties if enabled and there are any
 	if cs.showProperties && len(event.Properties) > 0 {
 		// Get properties that weren't used in the message template
@@ -233,7 +232,7 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 				usedProps[prop.PropertyName] = true
 			}
 		}
-
+		
 		// Collect extra properties
 		var extras []string
 		for k, v := range event.Properties {
@@ -244,15 +243,15 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 				extras = append(extras, fmt.Sprintf(cs.theme.PropertyFormat, key, val))
 			}
 		}
-
+		
 		// Sort for consistent output
 		sort.Strings(extras)
-
+		
 		if len(extras) > 0 {
 			result += fmt.Sprintf(" {%s}", strings.Join(extras, ", "))
 		}
 	}
-
+	
 	return result
 }
 
@@ -260,7 +259,7 @@ func (cs *ConsoleSink) formatEvent(event *core.LogEvent) string {
 func (cs *ConsoleSink) EmitSimple(timestamp time.Time, level core.LogEventLevel, message string) {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
-
+	
 	// Use zero-allocation formatter
 	levelStr := formatLevel(level)
 	if err := writeSimple(cs.output, timestamp, levelStr, message); err != nil {
@@ -295,12 +294,12 @@ func (cs *ConsoleSink) renderTemplateWithColors(event *core.LogEvent) string {
 	if cs.parsedTemplate == nil {
 		return cs.formatEvent(event)
 	}
-
+	
 	var sb strings.Builder
-
+	
 	for _, token := range cs.parsedTemplate.Tokens {
 		text := token.Render(event)
-
+		
 		// Apply coloring based on token type
 		switch tok := token.(type) {
 		case *output.BuiltInToken:
@@ -340,10 +339,10 @@ func (cs *ConsoleSink) renderTemplateWithColors(event *core.LogEvent) string {
 				text = cs.colorizeTextWithBrackets(text, textToken.Text)
 			}
 		}
-
+		
 		sb.WriteString(text)
 	}
-
+	
 	return sb.String()
 }
 
@@ -354,9 +353,9 @@ func (cs *ConsoleSink) renderMessageWithPropertyColors(event *core.LogEvent, for
 	if err != nil {
 		return colorize(event.MessageTemplate, cs.theme.MessageColor, cs.useColor)
 	}
-
+	
 	var sb strings.Builder
-
+	
 	for _, token := range tmpl.Tokens {
 		switch t := token.(type) {
 		case *parser.TextToken:
@@ -383,7 +382,7 @@ func (cs *ConsoleSink) renderMessageWithPropertyColors(event *core.LogEvent, for
 			}
 		}
 	}
-
+	
 	return sb.String()
 }
 
@@ -391,14 +390,14 @@ func (cs *ConsoleSink) renderMessageWithPropertyColors(event *core.LogEvent, for
 func (cs *ConsoleSink) colorizeTextWithBrackets(rendered, original string) string {
 	// Common bracket patterns to colorize
 	brackets := []string{"[", "]", "(", ")", "{", "}", ":", ","}
-
+	
 	for _, bracket := range brackets {
 		if strings.Contains(original, bracket) {
 			// Apply bracket color to the entire text token if it contains brackets
 			return colorize(rendered, cs.theme.BracketColor, cs.useColor)
 		}
 	}
-
+	
 	// No brackets found, return as-is
 	return rendered
 }
@@ -407,7 +406,7 @@ func (cs *ConsoleSink) colorizeTextWithBrackets(rendered, original string) strin
 func (cs *ConsoleSink) getStatusCodeColor(value string) Color {
 	// Try to parse as integer
 	trimmed := strings.TrimSpace(value)
-
+	
 	// Check if it looks like a status code (3 digits)
 	if len(trimmed) == 3 {
 		if code, err := strconv.Atoi(trimmed); err == nil {
@@ -427,7 +426,7 @@ func (cs *ConsoleSink) getStatusCodeColor(value string) Color {
 			}
 		}
 	}
-
+	
 	return ""
 }
 
@@ -436,9 +435,9 @@ func analyzeTemplate(parsedTemplate *output.Template) (hasBrackets bool, potenti
 	if parsedTemplate == nil {
 		return false, nil
 	}
-
+	
 	statusNames := make(map[string]bool)
-
+	
 	for _, token := range parsedTemplate.Tokens {
 		// Check for brackets in text tokens
 		if textToken, ok := token.(*output.TextToken); ok {
@@ -446,24 +445,24 @@ func analyzeTemplate(parsedTemplate *output.Template) (hasBrackets bool, potenti
 				hasBrackets = true
 			}
 		}
-
+		
 		// Check for properties that might be status codes
 		if propToken, ok := token.(*output.PropertyToken); ok {
 			name := strings.ToLower(propToken.PropertyName)
-			if strings.Contains(name, "status") ||
-				strings.Contains(name, "code") ||
-				strings.Contains(name, "http") ||
-				name == "response" {
+			if strings.Contains(name, "status") || 
+			   strings.Contains(name, "code") ||
+			   strings.Contains(name, "http") ||
+			   name == "response" {
 				statusNames[propToken.PropertyName] = true
 			}
 		}
 	}
-
+	
 	// Convert map to slice
 	for name := range statusNames {
 		potentialStatuses = append(potentialStatuses, name)
 	}
-
+	
 	return hasBrackets, potentialStatuses
 }
 
@@ -472,11 +471,16 @@ func (cs *ConsoleSink) isPotentialStatus(propertyName string) bool {
 	if len(cs.potentialStatuses) == 0 {
 		// No analysis done, fall back to checking name
 		name := strings.ToLower(propertyName)
-		return strings.Contains(name, "status") ||
-			strings.Contains(name, "code") ||
-			strings.Contains(name, "http") ||
-			name == "response"
+		return strings.Contains(name, "status") || 
+		       strings.Contains(name, "code") ||
+		       strings.Contains(name, "http") ||
+		       name == "response"
 	}
-
-	return slices.Contains(cs.potentialStatuses, propertyName)
+	
+	for _, status := range cs.potentialStatuses {
+		if status == propertyName {
+			return true
+		}
+	}
+	return false
 }

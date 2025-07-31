@@ -32,7 +32,7 @@
 //
 // Set MTLOG_SELFLOG to automatically enable on startup:
 //   - "stderr" - log to standard error
-//   - "stdout" - log to standard output
+//   - "stdout" - log to standard output  
 //   - "/path/to/file" - log to specified file
 package selflog
 
@@ -82,7 +82,7 @@ func Disable() {
 // This is called by mtlog internals and can be called by custom sinks.
 // The format string should include the component in square brackets,
 // e.g., "[console] write failed: %v"
-func Printf(format string, args ...any) {
+func Printf(format string, args ...interface{}) {
 	// Fast path - check if disabled first to avoid allocation
 	w := outputWriter.Load()
 	fn := outputFunc.Load()

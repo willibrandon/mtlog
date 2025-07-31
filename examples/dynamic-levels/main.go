@@ -197,12 +197,12 @@ func httpLevelControlExample() {
 
 	for _, req := range requests {
 		handleLevelChange(req)
-
+		
 		// Log some messages to demonstrate the level change
 		logger.Debug("Debug message after level change")
 		logger.Information("Information message after level change")
 		logger.Warning("Warning message after level change")
-
+		
 		fmt.Println()
 		time.Sleep(200 * time.Millisecond)
 	}
@@ -227,14 +227,14 @@ func performanceComparisonExample() {
 
 	// Benchmark static level filtering
 	start := time.Now()
-	for range iterations {
+	for i := 0; i < iterations; i++ {
 		staticLogger.Debug("Filtered debug message")
 	}
 	staticDuration := time.Since(start)
 
 	// Benchmark dynamic level filtering
 	start = time.Now()
-	for range iterations {
+	for i := 0; i < iterations; i++ {
 		dynamicLogger.Debug("Filtered debug message")
 	}
 	dynamicDuration := time.Since(start)
@@ -248,11 +248,11 @@ func performanceComparisonExample() {
 
 	// Demonstrate that both can be changed at runtime (only dynamic actually works)
 	fmt.Println("\nTesting runtime level changes:")
-
+	
 	// This won't change anything for static logger
 	fmt.Println("Attempting to change static logger level (no effect)...")
 	staticLogger.Information("Static logger info message") // Still filtered
-
+	
 	// This will work for dynamic logger
 	fmt.Println("Changing dynamic logger level to Information...")
 	levelSwitch.SetLevel(core.InformationLevel)
@@ -262,7 +262,7 @@ func performanceComparisonExample() {
 // demonstrateHTTPServer shows how you might integrate level switching with a real HTTP server
 func demonstrateHTTPServer() {
 	levelSwitch := mtlog.NewLoggingLevelSwitch(core.InformationLevel)
-
+	
 	logger := mtlog.New(
 		mtlog.WithConsole(),
 		mtlog.WithLevelSwitch(levelSwitch),
@@ -304,10 +304,10 @@ func demonstrateHTTPServer() {
 
 		oldLevel := levelSwitch.Level()
 		levelSwitch.SetLevel(level)
-
-		logger.Information("Log level changed via HTTP from {OldLevel} to {NewLevel} by {RemoteAddr}",
+		
+		logger.Information("Log level changed via HTTP from {OldLevel} to {NewLevel} by {RemoteAddr}", 
 			oldLevel, level, r.RemoteAddr)
-
+		
 		fmt.Fprintf(w, "Log level changed from %v to %v\n", oldLevel, level)
 	})
 
@@ -325,7 +325,7 @@ func demonstrateHTTPServer() {
 	logger.Information("HTTP admin server would be available at http://localhost:8080/admin/loglevel")
 	logger.Information("Use POST with 'level' parameter to change level")
 	logger.Information("Use GET to check current level")
-
+	
 	// Note: We don't actually start the server in this example
 	// fmt.Println("Starting HTTP server on :8080...")
 	// log.Fatal(http.ListenAndServe(":8080", nil))

@@ -26,7 +26,7 @@ func BenchmarkForType(b *testing.B) {
 	b.Run("ForType[User]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchUser](logger).Information("User operation")
 		}
 	})
@@ -34,7 +34,7 @@ func BenchmarkForType(b *testing.B) {
 	b.Run("ForSourceContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			logger.ForSourceContext("BenchUser").Information("User operation")
 		}
 	})
@@ -42,7 +42,7 @@ func BenchmarkForType(b *testing.B) {
 	b.Run("ForType[*User]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[*BenchUser](logger).Information("User pointer operation")
 		}
 	})
@@ -50,7 +50,7 @@ func BenchmarkForType(b *testing.B) {
 	b.Run("ForType[Product]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchProduct](logger).Information("Product operation")
 		}
 	})
@@ -64,7 +64,7 @@ func BenchmarkForTypeChaining(b *testing.B) {
 	b.Run("ForType+ForContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchUser](logger).ForContext("Operation", "Create").Information("Chained operation")
 		}
 	})
@@ -72,7 +72,7 @@ func BenchmarkForTypeChaining(b *testing.B) {
 	b.Run("ForSourceContext+ForContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			logger.ForSourceContext("BenchUser").ForContext("Operation", "Create").Information("Chained operation")
 		}
 	})
@@ -80,7 +80,7 @@ func BenchmarkForTypeChaining(b *testing.B) {
 	b.Run("MultipleForContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchUser](logger).
 				ForContext("Operation", "Create").
 				ForContext("RequestId", "req-123").
@@ -93,7 +93,7 @@ func BenchmarkTypeNameExtraction(b *testing.B) {
 	b.Run("getTypeNameSimple[User]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			_ = mtlog.GetTypeNameSimple[BenchUser]()
 		}
 	})
@@ -101,7 +101,7 @@ func BenchmarkTypeNameExtraction(b *testing.B) {
 	b.Run("getTypeNameSimple[*User]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			_ = mtlog.GetTypeNameSimple[*BenchUser]()
 		}
 	})
@@ -109,7 +109,7 @@ func BenchmarkTypeNameExtraction(b *testing.B) {
 	b.Run("getTypeNameWithPackage[User]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			_ = mtlog.GetTypeNameWithPackage[BenchUser]()
 		}
 	})
@@ -123,7 +123,7 @@ func BenchmarkForTypeVsManual(b *testing.B) {
 	b.Run("ForType_Automatic", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchUser](logger).Information("Test message")
 		}
 	})
@@ -131,7 +131,7 @@ func BenchmarkForTypeVsManual(b *testing.B) {
 	b.Run("Manual_SourceContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			logger.ForSourceContext("BenchUser").Information("Test message")
 		}
 	})
@@ -139,7 +139,7 @@ func BenchmarkForTypeVsManual(b *testing.B) {
 	b.Run("Manual_ForContext", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			logger.ForContext("SourceContext", "BenchUser").Information("Test message")
 		}
 	})
@@ -150,7 +150,7 @@ type ComplexStruct struct {
 	ID       int
 	Name     string
 	Tags     []string
-	Metadata map[string]any
+	Metadata map[string]interface{}
 	Children []ComplexStruct
 }
 
@@ -167,7 +167,7 @@ func BenchmarkComplexTypes(b *testing.B) {
 	b.Run("ComplexStruct", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[ComplexStruct](logger).Information("Complex struct operation")
 		}
 	})
@@ -175,7 +175,7 @@ func BenchmarkComplexTypes(b *testing.B) {
 	b.Run("GenericType[string]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchGeneric[string]](logger).Information("Generic type operation")
 		}
 	})
@@ -183,7 +183,7 @@ func BenchmarkComplexTypes(b *testing.B) {
 	b.Run("GenericType[ComplexStruct]", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchGeneric[ComplexStruct]](logger).Information("Nested generic operation")
 		}
 	})
@@ -191,7 +191,7 @@ func BenchmarkComplexTypes(b *testing.B) {
 	b.Run("NestedGeneric", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[BenchGeneric[BenchGeneric[int]]](logger).Information("Nested generic operation")
 		}
 	})
@@ -199,7 +199,7 @@ func BenchmarkComplexTypes(b *testing.B) {
 	b.Run("AnonymousStruct", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			mtlog.ForType[struct {
 				ID   int
 				Data []string
@@ -214,7 +214,7 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 	// - Cached calls: ~148 ns/op with 3 allocs (cache entry access + lastUsed update)
 	// - Cache provides ~1.4x speedup with LRU tracking overhead
 	// These benchmarks measure the performance impact of different TypeNameOptions configurations.
-
+	
 	// Benchmark ExtractTypeName with different TypeNameOptions configurations
 	tests := []struct {
 		name    string
@@ -258,7 +258,7 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 		b.Run(tt.name+"_BenchUser", func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			for b.Loop() {
+			for i := 0; i < b.N; i++ {
 				_ = mtlog.ExtractTypeName[BenchUser](tt.options)
 			}
 		})
@@ -266,7 +266,7 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 		b.Run(tt.name+"_BenchGeneric[string]", func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			for b.Loop() {
+			for i := 0; i < b.N; i++ {
 				_ = mtlog.ExtractTypeName[BenchGeneric[string]](tt.options)
 			}
 		})
@@ -274,7 +274,7 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 		b.Run(tt.name+"_ComplexStruct", func(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
-			for b.Loop() {
+			for i := 0; i < b.N; i++ {
 				_ = mtlog.ExtractTypeName[ComplexStruct](tt.options)
 			}
 		})
@@ -283,31 +283,31 @@ func BenchmarkExtractTypeNameWithOptions(b *testing.B) {
 
 func BenchmarkCachedVsUncached(b *testing.B) {
 	// Benchmark cached vs uncached type name extraction to measure cache effectiveness
-
+	
 	// Clear cache before benchmark (access through the global variable)
 	mtlog.ResetTypeNameCache()
-
+	
 	b.Run("FirstCall_Uncached", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			// Clear cache each iteration to simulate uncached calls
 			mtlog.ResetTypeNameCache()
 			_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
 		}
 	})
-
+	
 	b.Run("SubsequentCalls_Cached", func(b *testing.B) {
 		// Prime the cache with one call
 		_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
-
+		
 		b.ReportAllocs()
 		b.ResetTimer()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			_ = mtlog.ExtractTypeName[BenchUser](mtlog.DefaultTypeNameOptions)
 		}
 	})
-
+	
 	b.Run("MixedTypes_CacheHitMiss", func(b *testing.B) {
 		// Mix of cached and uncached calls to simulate real usage
 		types := []func() string{
@@ -316,10 +316,10 @@ func BenchmarkCachedVsUncached(b *testing.B) {
 			func() string { return mtlog.ExtractTypeName[ComplexStruct](mtlog.DefaultTypeNameOptions) },
 			func() string { return mtlog.ExtractTypeName[BenchGeneric[string]](mtlog.DefaultTypeNameOptions) },
 		}
-
+		
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; b.Loop(); i++ {
+		for i := 0; i < b.N; i++ {
 			_ = types[i%len(types)]()
 		}
 	})

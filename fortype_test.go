@@ -26,10 +26,11 @@ type ForTypeOrder struct {
 	Products []ForTypeProduct
 }
 
+
 func TestForTypeBasic(t *testing.T) {
 	// Clear cache to ensure test isolation
 	mtlog.ResetTypeNameCache()
-
+	
 	// Create a memory sink to capture events
 	sink := sinks.NewMemorySink()
 	logger := mtlog.New(mtlog.WithSink(sink))
@@ -131,7 +132,7 @@ func TestForTypeDifferentTypes(t *testing.T) {
 			// Create a fresh memory sink for each subtest
 			sink := sinks.NewMemorySink()
 			logger := mtlog.New(mtlog.WithSink(sink))
-
+			
 			// Execute the log function
 			tt.logFunc(logger)
 
@@ -190,7 +191,7 @@ func TestForTypeBuiltinTypes(t *testing.T) {
 			// Create a fresh memory sink for each subtest
 			sink := sinks.NewMemorySink()
 			logger := mtlog.New(mtlog.WithSink(sink))
-
+			
 			// Execute the log function
 			tt.logFunc(logger)
 
@@ -222,17 +223,17 @@ func TestForTypeWithOtherProperties(t *testing.T) {
 	}
 
 	event := events[0]
-
+	
 	// Check SourceContext
 	if sourceContext, ok := event.Properties["SourceContext"]; !ok || sourceContext != "ForTypeUser" {
 		t.Errorf("expected SourceContext=ForTypeUser, got %v", sourceContext)
 	}
-
+	
 	// Check Operation property
 	if operation, ok := event.Properties["Operation"]; !ok || operation != "Create" {
 		t.Errorf("expected Operation=Create, got %v", operation)
 	}
-
+	
 	// Check template argument
 	if userId, ok := event.Properties["UserId"]; !ok || userId != 123 {
 		t.Errorf("expected UserId=123, got %v", userId)
@@ -256,13 +257,13 @@ func TestForTypeChaining(t *testing.T) {
 	}
 
 	event := events[0]
-
-	expected := map[string]any{
+	
+	expected := map[string]interface{}{
 		"SourceContext": "ForTypeUser",
 		"Action":        "Update",
 		"RequestId":     "req-456",
 	}
-
+	
 	for key, expectedValue := range expected {
 		if actualValue, ok := event.Properties[key]; !ok || actualValue != expectedValue {
 			t.Errorf("expected %s=%v, got %v", key, expectedValue, actualValue)
@@ -316,7 +317,7 @@ func TestForTypeAnonymousStructs(t *testing.T) {
 	if !isString {
 		t.Errorf("expected SourceContext to be string, got %T", sourceContext)
 	}
-
+	
 	if !strings.Contains(sourceContextStr, "struct") {
 		t.Errorf("expected SourceContext to contain 'struct', got %v", sourceContext)
 	}

@@ -15,6 +15,7 @@ type Token interface {
 	Render(event *core.LogEvent) string
 }
 
+
 // TextToken represents literal text in the template
 type TextToken struct {
 	Text string
@@ -83,27 +84,28 @@ func (t *Template) Render(event *core.LogEvent) string {
 	return sb.String()
 }
 
+
 // Parse parses an output template string
 func Parse(template string) (*Template, error) {
 	var tokens []Token
 	runes := []rune(template)
 	i := 0
-
+	
 	for i < len(runes) {
 		// Look for built-in syntax ${...}
 		if i+1 < len(runes) && runes[i] == '$' && runes[i+1] == '{' {
 			// Find the closing brace
 			start := i
-			i += 2 // Skip ${
-
+			i += 2 // Skip ${  
+			
 			for i < len(runes) && runes[i] != '}' {
 				i++
 			}
-
+			
 			if i >= len(runes) {
 				return nil, fmt.Errorf("unclosed built-in at position %d", start)
 			}
-
+			
 			// Parse the built-in
 			builtInStr := string(runes[start+2 : i])
 			builtIn := parseBuiltIn(builtInStr)
@@ -111,7 +113,7 @@ func Parse(template string) (*Template, error) {
 			i++ // Skip closing }
 			continue
 		}
-
+		
 		// Look for property start
 		if runes[i] == '{' && i+1 < len(runes) && runes[i+1] == '{' {
 			// Escaped brace
@@ -119,13 +121,13 @@ func Parse(template string) (*Template, error) {
 			i += 2
 			continue
 		}
-
+		
 		if runes[i] == '{' {
 			// Find the closing brace
 			start := i
 			depth := 1
 			i++
-
+			
 			for i < len(runes) && depth > 0 {
 				if runes[i] == '{' {
 					depth++
@@ -134,11 +136,11 @@ func Parse(template string) (*Template, error) {
 				}
 				i++
 			}
-
+			
 			if depth != 0 {
 				return nil, fmt.Errorf("unclosed property at position %d", start)
 			}
-
+			
 			// Parse the property
 			propStr := string(runes[start+1 : i-1])
 			prop := parseProperty(propStr)
@@ -152,7 +154,7 @@ func Parse(template string) (*Template, error) {
 			tokens = append(tokens, &TextToken{Text: string(runes[start:i])})
 		}
 	}
-
+	
 	return &Template{
 		Raw:    template,
 		Tokens: tokens,
@@ -165,11 +167,11 @@ func parseBuiltIn(str string) *BuiltInToken {
 	builtIn := &BuiltInToken{
 		Name: strings.TrimSpace(parts[0]),
 	}
-
+	
 	if len(parts) > 1 {
 		builtIn.Format = strings.TrimSpace(parts[1])
 	}
-
+	
 	return builtIn
 }
 
@@ -179,11 +181,11 @@ func parseProperty(str string) *PropertyToken {
 	prop := &PropertyToken{
 		PropertyName: strings.TrimSpace(parts[0]),
 	}
-
+	
 	if len(parts) > 1 {
 		prop.Format = strings.TrimSpace(parts[1])
 	}
-
+	
 	return prop
 }
 
@@ -192,7 +194,7 @@ func formatTimestamp(t time.Time, format string) string {
 	if format == "" {
 		format = "2006-01-02 15:04:05"
 	}
-
+	
 	// Convert .NET format to Go format
 	format = convertTimeFormat(format)
 	return t.Format(format)
@@ -219,11 +221,11 @@ func convertTimeFormat(format string) string {
 		{"zzz", "-07:00"},
 		{"zz", "-07"},
 	}
-
+	
 	for _, r := range replacements {
 		format = strings.ReplaceAll(format, r.old, r.new)
 	}
-
+	
 	return format
 }
 
@@ -283,9 +285,9 @@ func formatMessage(event *core.LogEvent, format string) string {
 	if err != nil {
 		return event.MessageTemplate
 	}
-
+	
 	message := tmpl.Render(event.Properties)
-
+	
 	switch format {
 	case "lj": // left-justified (default)
 		return message
@@ -297,11 +299,11 @@ func formatMessage(event *core.LogEvent, format string) string {
 }
 
 // formatValue formats a value with the given format
-func formatValue(val any, format string) string {
+func formatValue(val interface{}, format string) string {
 	if format == "" {
 		return fmt.Sprintf("%v", val)
 	}
-
+	
 	// Handle numeric formats
 	switch v := val.(type) {
 	case int, int8, int16, int32, int64:
@@ -320,25 +322,25 @@ func formatValue(val any, format string) string {
 }
 
 // formatNumeric formats numeric values
-func formatNumeric(val any, format string) string {
+func formatNumeric(val interface{}, format string) string {
 	// Handle padding formats like "000" or "D3"
 	if strings.HasPrefix(format, "D") {
 		width := 0
 		_, _ = fmt.Sscanf(format[1:], "%d", &width)
 		return fmt.Sprintf("%0*d", width, val)
 	}
-
+	
 	// Handle format as width specifier (e.g., "000" means width 3)
 	if len(format) > 0 && format[0] == '0' {
 		width := len(format)
 		return fmt.Sprintf("%0*d", width, val)
 	}
-
+	
 	return fmt.Sprintf("%v", val)
 }
 
 // formatFloat formats floating point values
-func formatFloat(val any, format string) string {
+func formatFloat(val interface{}, format string) string {
 	var f float64
 	switch v := val.(type) {
 	case float32:
@@ -348,7 +350,7 @@ func formatFloat(val any, format string) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
-
+	
 	// Handle formats like "F2" (fixed-point with 2 decimals)
 	if strings.HasPrefix(format, "F") {
 		precision := 2
@@ -357,7 +359,7 @@ func formatFloat(val any, format string) string {
 		}
 		return fmt.Sprintf("%.*f", precision, f)
 	}
-
+	
 	// Handle percentage format
 	if format == "P" || strings.HasPrefix(format, "P") {
 		precision := 0
@@ -366,7 +368,7 @@ func formatFloat(val any, format string) string {
 		}
 		return fmt.Sprintf("%.*f%%", precision, f*100)
 	}
-
+	
 	return fmt.Sprintf("%v", f)
 }
 
@@ -389,12 +391,12 @@ func formatProperties(event *core.LogEvent) string {
 	if len(event.Properties) == 0 {
 		return ""
 	}
-
+	
 	var pairs []string
 	for k, v := range event.Properties {
 		pairs = append(pairs, fmt.Sprintf("%s=%v", k, v))
 	}
-
+	
 	// Sort for consistent output
 	sort.Strings(pairs)
 	return strings.Join(pairs, " ")

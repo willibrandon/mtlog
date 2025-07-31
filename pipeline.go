@@ -2,26 +2,26 @@ package mtlog
 
 import (
 	"time"
-
+	
 	"github.com/willibrandon/mtlog/core"
 )
 
 // pipeline represents the immutable logging pipeline.
 // Once created, the pipeline cannot be modified.
 type pipeline struct {
-	enrichers []core.LogEventEnricher
-	filters   []core.LogEventFilter
-	capturer  core.Capturer
-	sinks     []core.LogEventSink
+	enrichers    []core.LogEventEnricher
+	filters      []core.LogEventFilter
+	capturer core.Capturer
+	sinks        []core.LogEventSink
 }
 
 // newPipeline creates a new pipeline with the given stages.
 func newPipeline(enrichers []core.LogEventEnricher, filters []core.LogEventFilter, capturer core.Capturer, sinks []core.LogEventSink) *pipeline {
 	return &pipeline{
-		enrichers: enrichers,
-		filters:   filters,
-		capturer:  capturer,
-		sinks:     sinks,
+		enrichers:    enrichers,
+		filters:      filters,
+		capturer: capturer,
+		sinks:        sinks,
 	}
 }
 
@@ -31,17 +31,17 @@ func (p *pipeline) process(event *core.LogEvent, factory core.LogEventPropertyFa
 	for _, enricher := range p.enrichers {
 		enricher.Enrich(event, factory)
 	}
-
+	
 	// Stage 2: Filtering - determine if event should proceed
 	for _, filter := range p.filters {
 		if !filter.IsEnabled(event) {
 			return // Event filtered out
 		}
 	}
-
+	
 	// Stage 3: Capturing - handled during property extraction for @ hints
 	// The capturer is made available to the logger but not applied here
-
+	
 	// Stage 4: Output - send to sinks
 	for _, sink := range p.sinks {
 		sink.Emit(event)
@@ -60,7 +60,7 @@ func (p *pipeline) processSimple(timestamp time.Time, level core.LogEventLevel, 
 				Timestamp:       timestamp,
 				Level:           level,
 				MessageTemplate: message,
-				Properties:      make(map[string]any),
+				Properties:      make(map[string]interface{}),
 			}
 			sink.Emit(event)
 		}
@@ -70,7 +70,7 @@ func (p *pipeline) processSimple(timestamp time.Time, level core.LogEventLevel, 
 // Close closes all sinks that implement io.Closer.
 func (p *pipeline) Close() error {
 	var firstErr error
-
+	
 	for _, sink := range p.sinks {
 		if closer, ok := sink.(interface{ Close() error }); ok {
 			if err := closer.Close(); err != nil && firstErr == nil {
@@ -78,6 +78,6 @@ func (p *pipeline) Close() error {
 			}
 		}
 	}
-
+	
 	return firstErr
 }

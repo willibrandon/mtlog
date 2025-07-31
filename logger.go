@@ -2,10 +2,9 @@ package mtlog
 
 import (
 	"context"
-	"maps"
 	"sync"
 	"time"
-
+	
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/internal/parser"
@@ -17,7 +16,7 @@ type logger struct {
 	minimumLevel core.LogEventLevel
 	levelSwitch  *LoggingLevelSwitch
 	pipeline     *pipeline
-	properties   map[string]any
+	properties   map[string]interface{}
 	mu           sync.RWMutex
 }
 
@@ -41,22 +40,22 @@ func Build(opts ...Option) (*logger, error) {
 		enrichers:    []core.LogEventEnricher{},
 		filters:      []core.LogEventFilter{},
 		sinks:        []core.LogEventSink{},
-		properties:   make(map[string]any),
+		properties:   make(map[string]interface{}),
 	}
-
+	
 	// Apply options
 	for _, opt := range opts {
 		opt(cfg)
 	}
-
+	
 	// Check for configuration errors
 	if cfg.err != nil {
 		return nil, cfg.err
 	}
-
+	
 	// Create the pipeline
 	p := newPipeline(cfg.enrichers, cfg.filters, cfg.capturer, cfg.sinks)
-
+	
 	return &logger{
 		minimumLevel: cfg.minimumLevel,
 		levelSwitch:  cfg.levelSwitch,
@@ -66,47 +65,47 @@ func Build(opts ...Option) (*logger, error) {
 }
 
 // Verbose writes a verbose-level log event.
-func (l *logger) Verbose(messageTemplate string, args ...any) {
+func (l *logger) Verbose(messageTemplate string, args ...interface{}) {
 	l.Write(core.VerboseLevel, messageTemplate, args...)
 }
 
 // Debug writes a debug-level log event.
-func (l *logger) Debug(messageTemplate string, args ...any) {
+func (l *logger) Debug(messageTemplate string, args ...interface{}) {
 	l.Write(core.DebugLevel, messageTemplate, args...)
 }
 
 // Information writes an information-level log event.
-func (l *logger) Information(messageTemplate string, args ...any) {
+func (l *logger) Information(messageTemplate string, args ...interface{}) {
 	l.Write(core.InformationLevel, messageTemplate, args...)
 }
 
 // Warning writes a warning-level log event.
-func (l *logger) Warning(messageTemplate string, args ...any) {
+func (l *logger) Warning(messageTemplate string, args ...interface{}) {
 	l.Write(core.WarningLevel, messageTemplate, args...)
 }
 
 // Error writes an error-level log event.
-func (l *logger) Error(messageTemplate string, args ...any) {
+func (l *logger) Error(messageTemplate string, args ...interface{}) {
 	l.Write(core.ErrorLevel, messageTemplate, args...)
 }
 
 // Fatal writes a fatal-level log event.
-func (l *logger) Fatal(messageTemplate string, args ...any) {
+func (l *logger) Fatal(messageTemplate string, args ...interface{}) {
 	l.Write(core.FatalLevel, messageTemplate, args...)
 }
 
 // Info writes an information-level log event (alias for Information).
-func (l *logger) Info(messageTemplate string, args ...any) {
+func (l *logger) Info(messageTemplate string, args ...interface{}) {
 	l.Write(core.InformationLevel, messageTemplate, args...)
 }
 
 // Warn writes a warning-level log event (alias for Warning).
-func (l *logger) Warn(messageTemplate string, args ...any) {
+func (l *logger) Warn(messageTemplate string, args ...interface{}) {
 	l.Write(core.WarningLevel, messageTemplate, args...)
 }
 
 // Write writes a log event at the specified level.
-func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ...any) {
+func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ...interface{}) {
 	// Check minimum level (dynamic level switch takes precedence)
 	var minimumLevel core.LogEventLevel
 	if l.levelSwitch != nil {
@@ -114,18 +113,18 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 	} else {
 		minimumLevel = l.minimumLevel
 	}
-
+	
 	if level < minimumLevel {
 		return
 	}
-
+	
 	// Fast path for simple messages (no args, no properties, no enrichers, no filters)
-	if len(args) == 0 && len(l.properties) == 0 && !hasPropertyTokens(messageTemplate) &&
+	if len(args) == 0 && len(l.properties) == 0 && !hasPropertyTokens(messageTemplate) && 
 		len(l.pipeline.enrichers) == 0 && len(l.pipeline.filters) == 0 {
 		l.pipeline.processSimple(time.Now(), level, messageTemplate)
 		return
 	}
-
+	
 	// Validate template for selflog
 	if selflog.IsEnabled() {
 		if err := parser.ValidateTemplate(messageTemplate); err != nil {
@@ -142,7 +141,7 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 			Tokens: []parser.MessageTemplateToken{&parser.TextToken{Text: messageTemplate}},
 		}
 	}
-
+	
 	// Create log event - we can't pool these because sinks may retain references
 	event := &core.LogEvent{
 		Timestamp:       time.Now(),
@@ -150,10 +149,10 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 		MessageTemplate: messageTemplate,
 		Properties:      getPropertyMap(),
 	}
-
+	
 	// Extract properties directly into event
 	l.extractPropertiesInto(tmpl, args, event.Properties)
-
+	
 	// Add context properties
 	l.mu.RLock()
 	for k, v := range l.properties {
@@ -162,29 +161,31 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 		}
 	}
 	l.mu.RUnlock()
-
+	
 	// Process through pipeline
 	factory := &propertyFactory{}
 	l.pipeline.process(event, factory)
 }
 
 // ForContext creates a logger that enriches events with the specified property.
-func (l *logger) ForContext(propertyName string, value any) core.Logger {
+func (l *logger) ForContext(propertyName string, value interface{}) core.Logger {
 	newLogger := &logger{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
 		pipeline:     l.pipeline, // Share the same immutable pipeline
-		properties:   make(map[string]any),
+		properties:   make(map[string]interface{}),
 	}
-
+	
 	// Copy existing properties
 	l.mu.RLock()
-	maps.Copy(newLogger.properties, l.properties)
+	for k, v := range l.properties {
+		newLogger.properties[k] = v
+	}
 	l.mu.RUnlock()
-
+	
 	// Add new property
 	newLogger.properties[propertyName] = value
-
+	
 	return newLogger
 }
 
@@ -194,7 +195,7 @@ func (l *logger) ForSourceContext(sourceContext string) core.Logger {
 	return l.ForContext("SourceContext", sourceContext)
 }
 
-// WithContext creates a logger that enriches events with context values from both
+// WithContext creates a logger that enriches events with context values from both 
 // standard context and LogContext.
 //
 // This method adds two enrichers to the logger:
@@ -203,7 +204,7 @@ func (l *logger) ForSourceContext(sourceContext string) core.Logger {
 //
 // Property precedence (highest to lowest priority):
 // 1. Event-specific properties (passed directly to log methods like Information)
-// 2. ForContext properties (added via ForContext method)
+// 2. ForContext properties (added via ForContext method)  
 // 3. LogContext properties (added via PushProperty)
 // 4. Standard context values
 //
@@ -215,14 +216,14 @@ func (l *logger) ForSourceContext(sourceContext string) core.Logger {
 //	ctx := context.Background()
 //	ctx = mtlog.PushProperty(ctx, "UserId", 123)
 //	ctx = mtlog.PushProperty(ctx, "TenantId", "acme")
-//
+//	
 //	// Both UserId and TenantId will be included
 //	logger.WithContext(ctx).Information("User action")
-//
+//	
 //	// ForContext overrides LogContext
 //	logger.WithContext(ctx).ForContext("UserId", 456).Information("Override test")
 //	// Results in UserId=456, TenantId=acme
-//
+//	
 //	// Event properties override everything
 //	logger.WithContext(ctx).Information("User {UserId} action", 789)
 //	// Results in UserId=789, TenantId=acme
@@ -233,26 +234,28 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 		levelSwitch:  l.levelSwitch,
 		enrichers:    make([]core.LogEventEnricher, len(l.pipeline.enrichers)+2),
 		filters:      l.pipeline.filters,
-		capturer:     l.pipeline.capturer,
+		capturer: l.pipeline.capturer,
 		sinks:        l.pipeline.sinks,
-		properties:   make(map[string]any),
+		properties:   make(map[string]interface{}),
 	}
-
+	
 	// Copy existing enrichers
 	copy(newConfig.enrichers, l.pipeline.enrichers)
-
+	
 	// Add context enrichers
 	newConfig.enrichers[len(l.pipeline.enrichers)] = enrichers.NewContextEnricher(ctx)
 	newConfig.enrichers[len(l.pipeline.enrichers)+1] = enrichers.NewLogContextEnricher(ctx, getLogContextProperties)
-
+	
 	// Copy existing properties
 	l.mu.RLock()
-	maps.Copy(newConfig.properties, l.properties)
+	for k, v := range l.properties {
+		newConfig.properties[k] = v
+	}
 	l.mu.RUnlock()
-
+	
 	// Create new pipeline
 	p := newPipeline(newConfig.enrichers, newConfig.filters, newConfig.capturer, newConfig.sinks)
-
+	
 	return &logger{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
@@ -262,10 +265,10 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 }
 
 // extractPropertiesInto extracts properties from the template and arguments into an existing map.
-func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any, properties map[string]any) {
+func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []interface{}, properties map[string]interface{}) {
 	// Extract property names from already parsed template
 	propNames := parser.ExtractPropertyNamesFromTemplate(tmpl)
-
+	
 	// Also check which properties need capturing
 	captureProps := make(map[string]bool)
 	for _, token := range tmpl.Tokens {
@@ -275,12 +278,12 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 			}
 		}
 	}
-
+	
 	// Match arguments to properties positionally
 	for i, name := range propNames {
 		if i < len(args) {
 			value := args[i]
-
+			
 			// Apply capturing if needed and capturer is available
 			if captureProps[name] && l.pipeline.capturer != nil {
 				factory := &propertyFactory{}
@@ -288,11 +291,11 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 					value = prop.Value
 				}
 			}
-
+			
 			properties[name] = value
 		}
 	}
-
+	
 	// Add any extra arguments as positional properties
 	for i := len(propNames); i < len(args); i++ {
 		properties[string(rune('0'+i))] = args[i]
@@ -300,8 +303,8 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 }
 
 // extractProperties extracts properties from the template and arguments.
-func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []any) map[string]any {
-	properties := make(map[string]any)
+func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []interface{}) map[string]interface{} {
+	properties := make(map[string]interface{})
 	l.extractPropertiesInto(tmpl, args, properties)
 	return properties
 }
@@ -313,7 +316,7 @@ func (l *logger) extractProperties(tmpl *parser.MessageTemplate, args []any) map
 type propertyFactory struct{}
 
 // CreateProperty creates a new log event property.
-func (pf *propertyFactory) CreateProperty(name string, value any) *core.LogEventProperty {
+func (pf *propertyFactory) CreateProperty(name string, value interface{}) *core.LogEventProperty {
 	return &core.LogEventProperty{
 		Name:  name,
 		Value: value,

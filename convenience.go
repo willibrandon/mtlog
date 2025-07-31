@@ -40,6 +40,7 @@ func WithConsoleTheme(theme *sinks.ConsoleTheme) Option {
 	return WithSink(sinks.NewConsoleSinkWithTheme(theme))
 }
 
+
 // WithFile adds a file sink.
 func WithFile(path string) Option {
 	return func(c *config) {
@@ -194,7 +195,7 @@ func WithLevelFilter(minimumLevel core.LogEventLevel) Option {
 }
 
 // WithPropertyFilter adds a filter that matches a specific property value.
-func WithPropertyFilter(propertyName string, expectedValue any) Option {
+func WithPropertyFilter(propertyName string, expectedValue interface{}) Option {
 	return WithFilter(filters.MatchProperty(propertyName, expectedValue))
 }
 
@@ -303,7 +304,7 @@ func WithElasticsearchBasicAuth(url, username, password string) Option {
 		if c.err != nil {
 			return
 		}
-		sink, err := sinks.NewElasticsearchSink(url,
+		sink, err := sinks.NewElasticsearchSink(url, 
 			sinks.WithElasticsearchBasicAuth(username, password))
 		if err != nil {
 			c.err = err
@@ -319,7 +320,7 @@ func WithElasticsearchAPIKey(url, apiKey string) Option {
 		if c.err != nil {
 			return
 		}
-		sink, err := sinks.NewElasticsearchSink(url,
+		sink, err := sinks.NewElasticsearchSink(url, 
 			sinks.WithElasticsearchAPIKey(apiKey))
 		if err != nil {
 			c.err = err
@@ -417,7 +418,7 @@ func WithDurableSeq(serverURL, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		durableSink, err := sinks.NewDurableSink(seqSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
@@ -425,7 +426,7 @@ func WithDurableSeq(serverURL, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		c.sinks = append(c.sinks, durableSink)
 	}
 }
@@ -441,7 +442,7 @@ func WithDurableElasticsearch(url, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		durableSink, err := sinks.NewDurableSink(esSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
@@ -449,7 +450,7 @@ func WithDurableElasticsearch(url, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		c.sinks = append(c.sinks, durableSink)
 	}
 }
@@ -465,7 +466,7 @@ func WithDurableSplunk(url, token, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		durableSink, err := sinks.NewDurableSink(splunkSink, sinks.DurableOptions{
 			BufferPath: bufferPath,
 		})
@@ -473,7 +474,7 @@ func WithDurableSplunk(url, token, bufferPath string) Option {
 			c.err = err
 			return
 		}
-
+		
 		c.sinks = append(c.sinks, durableSink)
 	}
 }

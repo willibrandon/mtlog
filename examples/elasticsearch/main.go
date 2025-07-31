@@ -42,7 +42,7 @@ func basicExample() {
 		return
 	}
 	defer esSink.Close()
-
+	
 	log := mtlog.New(
 		mtlog.WithConsoleProperties(), // Also log to console
 		mtlog.WithSink(esSink),
@@ -54,7 +54,7 @@ func basicExample() {
 	// Log some events
 	log.Information("Application started")
 	log.Information("User {UserId} logged in from {IPAddress}", "user-123", "192.168.1.100")
-
+	
 	// Log structured data
 	order := struct {
 		ID       string
@@ -79,7 +79,7 @@ func basicExample() {
 func authExample() {
 	// Skip if no auth configured
 	// In production, these would come from environment variables or config
-	apiKey := ""   // Set your API key here
+	apiKey := "" // Set your API key here
 	username := "" // Or use basic auth
 	password := ""
 
@@ -90,7 +90,7 @@ func authExample() {
 
 	var esSink *sinks.ElasticsearchSink
 	var err error
-
+	
 	if apiKey != "" {
 		// Using API key authentication
 		esSink, err = sinks.NewElasticsearchSink("http://localhost:9200",
@@ -100,18 +100,18 @@ func authExample() {
 		esSink, err = sinks.NewElasticsearchSink("http://localhost:9200",
 			sinks.WithElasticsearchBasicAuth(username, password))
 	}
-
+	
 	if err != nil {
 		fmt.Printf("Failed to create Elasticsearch sink: %v\n", err)
 		return
 	}
 	defer esSink.Close()
-
+	
 	authMethod := "Basic"
 	if apiKey != "" {
 		authMethod = "APIKey"
 	}
-
+	
 	log := mtlog.New(
 		mtlog.WithSink(esSink),
 		mtlog.WithProperty("AuthMethod", authMethod),
@@ -127,7 +127,7 @@ func advancedExample() {
 		sinks.WithElasticsearchBatchSize(50),
 		sinks.WithElasticsearchBatchTimeout(2*time.Second),
 		sinks.WithElasticsearchURLs("http://localhost:9200", "http://localhost:9201"), // Multiple nodes
-		sinks.WithElasticsearchPipeline("my-ingest-pipeline"),                         // Use ingest pipeline
+		sinks.WithElasticsearchPipeline("my-ingest-pipeline"), // Use ingest pipeline
 	)
 	if err != nil {
 		fmt.Printf("Failed to create Elasticsearch sink: %v\n", err)
@@ -145,11 +145,11 @@ func advancedExample() {
 	defer esSink.Close()
 
 	// Simulate high-volume logging to test batching
-	for i := range 100 {
-		log.Information("Processing order {OrderId} for customer {CustomerId}",
-			fmt.Sprintf("ORD-%04d", i),
+	for i := 0; i < 100; i++ {
+		log.Information("Processing order {OrderId} for customer {CustomerId}", 
+			fmt.Sprintf("ORD-%04d", i), 
 			fmt.Sprintf("CUST-%03d", i%10))
-
+		
 		if i%10 == 0 {
 			log.Debug("Batch progress: {Count} orders processed", i)
 		}
@@ -170,7 +170,7 @@ func ecsExample() {
 		return
 	}
 	defer esSink.Close()
-
+	
 	log := mtlog.New(
 		mtlog.WithSink(esSink),
 		mtlog.WithConsoleProperties(),
@@ -186,14 +186,14 @@ func ecsExample() {
 
 	// Log with context (ECS fields will be added automatically)
 	contextLog := log.WithContext(ctx)
-
+	
 	// The sink automatically maps to ECS fields:
 	// - level -> log.level
 	// - @timestamp -> @timestamp
 	// - Error property -> error.message
-	contextLog.Information("Request received for endpoint {http.request.method} {url.path}",
+	contextLog.Information("Request received for endpoint {http.request.method} {url.path}", 
 		"GET", "/api/orders")
-
+	
 	// Error logging - automatically mapped to error.message
 	dbErr := fmt.Errorf("connection refused")
 	contextLog.Error("Database connection failed: {Error}", dbErr)

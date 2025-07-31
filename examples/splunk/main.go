@@ -104,7 +104,7 @@ func advancedExample() {
 	defer splunkSink.Close()
 
 	// Simulate high-volume logging to test batching
-	for i := range 100 {
+	for i := 0; i < 100; i++ {
 		log.Information("Processing order {OrderId} for customer {CustomerId}",
 			fmt.Sprintf("ORD-%04d", i),
 			fmt.Sprintf("CUST-%03d", i%10))

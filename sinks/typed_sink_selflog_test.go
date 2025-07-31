@@ -42,18 +42,18 @@ func TestTypedSinkSelfLog(t *testing.T) {
 
 		// Create test events
 		event1 := &core.LogEvent{
-			Timestamp:       time.Now(),
-			Level:           core.InformationLevel,
+			Timestamp: time.Now(),
+			Level:     core.InformationLevel,
 			MessageTemplate: "User logged in",
-			Properties:      map[string]any{},
+			Properties: map[string]interface{}{},
 		}
 		data1 := UserActivity{UserID: "user1", Action: "login"}
 
 		event2 := &core.LogEvent{
-			Timestamp:       time.Now(),
-			Level:           core.InformationLevel,
+			Timestamp: time.Now(),
+			Level:     core.InformationLevel,
 			MessageTemplate: "User logged out",
-			Properties:      map[string]any{},
+			Properties: map[string]interface{}{},
 		}
 		data2 := UserActivity{UserID: "user1", Action: "logout"}
 
@@ -62,7 +62,7 @@ func TestTypedSinkSelfLog(t *testing.T) {
 			t.Fatalf("unexpected error emitting first event: %v", err)
 		}
 		err := batchingSink.EmitTyped(event2, data2)
-
+		
 		if err == nil {
 			t.Fatal("expected error from typed batching sink")
 		}
@@ -87,13 +87,13 @@ func TestTypedSinkSelfLog(t *testing.T) {
 
 		// Add one event to the batch
 		event := &core.LogEvent{
-			Timestamp:       time.Now(),
-			Level:           core.InformationLevel,
+			Timestamp: time.Now(),
+			Level:     core.InformationLevel,
 			MessageTemplate: "User action",
-			Properties:      map[string]any{},
+			Properties: map[string]interface{}{},
 		}
 		data := UserActivity{UserID: "user1", Action: "test"}
-
+		
 		if err := batchingSink.EmitTyped(event, data); err != nil {
 			t.Fatalf("unexpected error emitting event: %v", err)
 		}
@@ -127,10 +127,10 @@ func TestTypedSinkSelfLog(t *testing.T) {
 
 		// Create test event that passes filter
 		event := &core.LogEvent{
-			Timestamp:       time.Now(),
-			Level:           core.InformationLevel,
+			Timestamp: time.Now(),
+			Level:     core.InformationLevel,
 			MessageTemplate: "User logged in",
-			Properties:      map[string]any{},
+			Properties: map[string]interface{}{},
 		}
 		data := UserActivity{UserID: "user1", Action: "login"}
 

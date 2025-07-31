@@ -12,7 +12,7 @@ type BenchUser struct {
 	CreatedAt time.Time
 	Profile   BenchProfile
 	Tags      []string
-	Settings  map[string]any
+	Settings  map[string]interface{}
 }
 
 type BenchProfile struct {
@@ -46,8 +46,8 @@ func createBenchUser() BenchUser {
 				ZipCode: "12345",
 			},
 		},
-		Tags: []string{"tag1", "tag2", "tag3"},
-		Settings: map[string]any{
+		Tags:     []string{"tag1", "tag2", "tag3"},
+		Settings: map[string]interface{}{
 			"theme":    "dark",
 			"language": "en",
 			"notifications": map[string]bool{
@@ -62,10 +62,11 @@ func BenchmarkDefaultCapturer(b *testing.B) {
 	d := NewDefaultCapturer()
 	factory := &mockPropertyFactory{}
 	user := createBenchUser()
-
+	
+	b.ResetTimer()
 	b.ReportAllocs()
-
-	for b.Loop() {
+	
+	for i := 0; i < b.N; i++ {
 		d.TryCapture(user, factory)
 	}
 }
@@ -74,10 +75,11 @@ func BenchmarkCachedCapturer(b *testing.B) {
 	d := NewCachedCapturer()
 	factory := &mockPropertyFactory{}
 	user := createBenchUser()
-
+	
+	b.ResetTimer()
 	b.ReportAllocs()
-
-	for b.Loop() {
+	
+	for i := 0; i < b.N; i++ {
 		d.TryCapture(user, factory)
 	}
 }
@@ -85,10 +87,10 @@ func BenchmarkCachedCapturer(b *testing.B) {
 func BenchmarkCachedCapturerParallel(b *testing.B) {
 	d := NewCachedCapturer()
 	factory := &mockPropertyFactory{}
-
+	
 	b.ResetTimer()
 	b.ReportAllocs()
-
+	
 	b.RunParallel(func(pb *testing.PB) {
 		user := createBenchUser()
 		for pb.Next() {
@@ -104,21 +106,21 @@ func BenchmarkCapturerBySize(b *testing.B) {
 		ID   int
 		Name string
 	}
-
+	
 	// Medium struct
 	type Medium struct {
-		ID      int
-		Name    string
-		Email   string
-		Phone   string
-		Address string
-		City    string
-		Country string
-		ZipCode string
-		Active  bool
-		Created time.Time
+		ID       int
+		Name     string
+		Email    string
+		Phone    string
+		Address  string
+		City     string
+		Country  string
+		ZipCode  string
+		Active   bool
+		Created  time.Time
 	}
-
+	
 	// Large struct
 	type Large struct {
 		Field1  string
@@ -142,7 +144,7 @@ func BenchmarkCapturerBySize(b *testing.B) {
 		Field19 time.Time
 		Field20 time.Time
 	}
-
+	
 	small := Small{ID: 1, Name: "test"}
 	medium := Medium{
 		ID: 1, Name: "test", Email: "test@example.com",
@@ -157,59 +159,59 @@ func BenchmarkCapturerBySize(b *testing.B) {
 		Field16: true, Field17: false, Field18: true,
 		Field19: time.Now(), Field20: time.Now(),
 	}
-
+	
 	factory := &mockPropertyFactory{}
-
+	
 	b.Run("Small-Default", func(b *testing.B) {
 		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(small, factory)
 		}
 	})
-
+	
 	b.Run("Small-Cached", func(b *testing.B) {
 		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(small, factory)
 		}
 	})
-
+	
 	b.Run("Medium-Default", func(b *testing.B) {
 		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(medium, factory)
 		}
 	})
-
+	
 	b.Run("Medium-Cached", func(b *testing.B) {
 		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(medium, factory)
 		}
 	})
-
+	
 	b.Run("Large-Default", func(b *testing.B) {
 		d := NewDefaultCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(large, factory)
 		}
 	})
-
+	
 	b.Run("Large-Cached", func(b *testing.B) {
 		d := NewCachedCapturer()
 		b.ResetTimer()
 		b.ReportAllocs()
-		for b.Loop() {
+		for i := 0; i < b.N; i++ {
 			d.TryCapture(large, factory)
 		}
 	})

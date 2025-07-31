@@ -18,7 +18,7 @@ func TestConfigurationSelfLog(t *testing.T) {
 
 		// Parse unknown level
 		level, err := configuration.ParseLevel("SuperVerbose")
-
+		
 		// Should return error but also default level
 		if err == nil {
 			t.Error("expected error for unknown level")
@@ -42,10 +42,10 @@ func TestConfigurationSelfLog(t *testing.T) {
 		defer selflog.Disable()
 
 		// Test GetString with wrong type
-		args := map[string]any{
+		args := map[string]interface{}{
 			"path": 123, // number instead of string
 		}
-
+		
 		result := configuration.GetString(args, "path", "/default/path")
 		if result != "/default/path" {
 			t.Errorf("expected default value, got %s", result)
@@ -66,10 +66,10 @@ func TestConfigurationSelfLog(t *testing.T) {
 		defer selflog.Disable()
 
 		// Test GetInt with unparseable string
-		args := map[string]any{
+		args := map[string]interface{}{
 			"port": "not-a-number",
 		}
-
+		
 		result := configuration.GetInt(args, "port", 8080)
 		if result != 8080 {
 			t.Errorf("expected default value 8080, got %d", result)
@@ -95,7 +95,7 @@ func TestConfigurationSelfLog(t *testing.T) {
 				WriteTo: []configuration.SinkConfiguration{
 					{
 						Name: "UnknownSink",
-						Args: map[string]any{},
+						Args: map[string]interface{}{},
 					},
 				},
 			},
@@ -163,7 +163,7 @@ func TestConfigurationSelfLog(t *testing.T) {
 				Filter: []configuration.FilterConfiguration{
 					{
 						Name: "UnknownFilter",
-						Args: map[string]any{},
+						Args: map[string]interface{}{},
 					},
 				},
 			},
@@ -198,7 +198,7 @@ func TestConfigurationSelfLog(t *testing.T) {
 				WriteTo: []configuration.SinkConfiguration{
 					{
 						Name: "Console",
-						Args: map[string]any{
+						Args: map[string]interface{}{
 							"theme": "SuperColorful",
 						},
 					},

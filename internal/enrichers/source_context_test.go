@@ -32,7 +32,7 @@ func TestSourceContextEnricher(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			enricher := NewSourceContextEnricher(tt.sourceContext)
 			event := &core.LogEvent{
-				Properties: make(map[string]any),
+				Properties: make(map[string]interface{}),
 			}
 			factory := &mockPropertyFactory{}
 
@@ -62,7 +62,7 @@ func TestSourceContextEnricherSkipsInternalPackages(t *testing.T) {
 	// This test verifies that auto-detection skips mtlog internal packages
 	enricher := NewSourceContextEnricher("")
 	event := &core.LogEvent{
-		Properties: make(map[string]any),
+		Properties: make(map[string]interface{}),
 	}
 	factory := &mockPropertyFactory{}
 
@@ -110,12 +110,12 @@ func TestSourceContextEnricherNormalization(t *testing.T) {
 		t.Run(tt.sourceContext, func(t *testing.T) {
 			enricher := NewSourceContextEnricher(tt.sourceContext)
 			event := &core.LogEvent{
-				Properties: make(map[string]any),
+				Properties: make(map[string]interface{}),
 			}
 			factory := &mockPropertyFactory{}
-
+			
 			enricher.Enrich(event, factory)
-
+			
 			if val, ok := event.Properties["SourceContext"]; ok {
 				if !strings.Contains(val.(string), tt.expectedPattern) {
 					t.Errorf("Expected source context to contain %q, got %q", tt.expectedPattern, val)
@@ -129,7 +129,7 @@ func TestSourceContextEnricherDoesNotOverwrite(t *testing.T) {
 	// Verify that the enricher doesn't overwrite existing SourceContext
 	enricher := NewSourceContextEnricher("NewContext")
 	event := &core.LogEvent{
-		Properties: map[string]any{
+		Properties: map[string]interface{}{
 			"SourceContext": "ExistingContext",
 		},
 	}

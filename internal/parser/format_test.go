@@ -7,67 +7,67 @@ import (
 
 func TestParsePropertyWithFormat(t *testing.T) {
 	tests := []struct {
-		name           string
-		propertyText   string
-		expectedName   string
+		name          string
+		propertyText  string
+		expectedName  string
 		expectedFormat string
-		expectedAlign  int
+		expectedAlign int
 	}{
 		{
-			name:           "No format",
-			propertyText:   "UserId",
-			expectedName:   "UserId",
+			name:          "No format",
+			propertyText:  "UserId",
+			expectedName:  "UserId",
 			expectedFormat: "",
-			expectedAlign:  0,
+			expectedAlign: 0,
 		},
 		{
-			name:           "With numeric format",
-			propertyText:   "Count:000",
-			expectedName:   "Count",
+			name:          "With numeric format",
+			propertyText:  "Count:000",
+			expectedName:  "Count",
 			expectedFormat: "000",
-			expectedAlign:  0,
+			expectedAlign: 0,
 		},
 		{
-			name:           "With alignment only",
-			propertyText:   "Name,10",
-			expectedName:   "Name",
+			name:          "With alignment only",
+			propertyText:  "Name,10",
+			expectedName:  "Name",
 			expectedFormat: "",
-			expectedAlign:  10,
+			expectedAlign: 10,
 		},
 		{
-			name:           "With negative alignment",
-			propertyText:   "Name,-10",
-			expectedName:   "Name",
+			name:          "With negative alignment",
+			propertyText:  "Name,-10",
+			expectedName:  "Name",
 			expectedFormat: "",
-			expectedAlign:  -10,
+			expectedAlign: -10,
 		},
 		{
-			name:           "With alignment and format",
-			propertyText:   "Price,8:F2",
-			expectedName:   "Price",
+			name:          "With alignment and format",
+			propertyText:  "Price,8:F2",
+			expectedName:  "Price",
 			expectedFormat: "F2",
-			expectedAlign:  8,
+			expectedAlign: 8,
 		},
 		{
-			name:           "With capturing and format",
-			propertyText:   "@User:json",
-			expectedName:   "User",
+			name:          "With capturing and format",
+			propertyText:  "@User:json",
+			expectedName:  "User",
 			expectedFormat: "json",
-			expectedAlign:  0,
+			expectedAlign: 0,
 		},
 		{
-			name:           "Timestamp format",
-			propertyText:   "Timestamp:yyyy-MM-dd HH:mm:ss",
-			expectedName:   "Timestamp",
+			name:          "Timestamp format",
+			propertyText:  "Timestamp:yyyy-MM-dd HH:mm:ss",
+			expectedName:  "Timestamp",
 			expectedFormat: "yyyy-MM-dd HH:mm:ss",
-			expectedAlign:  0,
+			expectedAlign: 0,
 		},
 		{
-			name:           "Hex format",
-			propertyText:   "Id:X",
-			expectedName:   "Id",
+			name:          "Hex format",
+			propertyText:  "Id:X",
+			expectedName:  "Id",
 			expectedFormat: "X",
-			expectedAlign:  0,
+			expectedAlign: 0,
 		},
 	}
 
@@ -91,7 +91,7 @@ func TestFormatNumber(t *testing.T) {
 	tests := []struct {
 		name     string
 		format   string
-		value    any
+		value    interface{}
 		expected string
 	}{
 		{"No format", "", 42, "42"},
@@ -202,53 +202,53 @@ func TestRenderWithFormat(t *testing.T) {
 	tests := []struct {
 		name       string
 		token      *PropertyToken
-		properties map[string]any
+		properties map[string]interface{}
 		expected   string
 	}{
 		{
 			name: "Number with zero padding",
 			token: &PropertyToken{
 				PropertyName: "Count",
-				Format:       "000",
+				Format:      "000",
 			},
-			properties: map[string]any{"Count": 5},
+			properties: map[string]interface{}{"Count": 5},
 			expected:   "005",
 		},
 		{
 			name: "Float with precision",
 			token: &PropertyToken{
 				PropertyName: "Price",
-				Format:       "F2",
+				Format:      "F2",
 			},
-			properties: map[string]any{"Price": 19.995},
+			properties: map[string]interface{}{"Price": 19.995},
 			expected:   "20.00",
 		},
 		{
 			name: "String with right alignment",
 			token: &PropertyToken{
 				PropertyName: "Name",
-				Alignment:    10,
+				Alignment:   10,
 			},
-			properties: map[string]any{"Name": "Alice"},
+			properties: map[string]interface{}{"Name": "Alice"},
 			expected:   "     Alice",
 		},
 		{
 			name: "Number with alignment and format",
 			token: &PropertyToken{
 				PropertyName: "Id",
-				Format:       "000",
-				Alignment:    8,
+				Format:      "000",
+				Alignment:   8,
 			},
-			properties: map[string]any{"Id": 42},
+			properties: map[string]interface{}{"Id": 42},
 			expected:   "     042",
 		},
 		{
 			name: "Time with format",
 			token: &PropertyToken{
 				PropertyName: "Timestamp",
-				Format:       "yyyy-MM-dd",
+				Format:      "yyyy-MM-dd",
 			},
-			properties: map[string]any{
+			properties: map[string]interface{}{
 				"Timestamp": time.Date(2025, 1, 22, 0, 0, 0, 0, time.UTC),
 			},
 			expected: "2025-01-22",
@@ -257,9 +257,9 @@ func TestRenderWithFormat(t *testing.T) {
 			name: "Missing property",
 			token: &PropertyToken{
 				PropertyName: "Missing",
-				Format:       "000",
+				Format:      "000",
 			},
-			properties: map[string]any{},
+			properties: map[string]interface{}{},
 			expected:   "{Missing}",
 		},
 	}

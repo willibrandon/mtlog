@@ -46,7 +46,7 @@ func TestElasticsearchSinkSelfLog(t *testing.T) {
 		output := selflogBuf.String()
 		t.Logf("selflog output: %q", output)
 		if !strings.Contains(output, "[elasticsearch] HTTP request failed") ||
-			!strings.Contains(output, "[elasticsearch] failed to send batch") {
+		   !strings.Contains(output, "[elasticsearch] failed to send batch") {
 			t.Errorf("expected HTTP request failure in selflog, got: %s", output)
 		}
 	})
@@ -59,16 +59,16 @@ func TestElasticsearchSinkSelfLog(t *testing.T) {
 
 		// Create test server that returns bulk response with errors
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := map[string]any{
+			response := map[string]interface{}{
 				"took":   100,
 				"errors": true,
-				"items": []map[string]any{
+				"items": []map[string]interface{}{
 					{
-						"index": map[string]any{
-							"_index": "logs",
-							"_id":    "1",
-							"status": 400,
-							"error": map[string]any{
+						"index": map[string]interface{}{
+							"_index":  "logs",
+							"_id":     "1",
+							"status":  400,
+							"error": map[string]interface{}{
 								"type":   "mapper_parsing_exception",
 								"reason": "failed to parse field [count] of type [long]",
 							},
