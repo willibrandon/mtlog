@@ -126,7 +126,7 @@ jobs:
     name: VS Code Extension
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15]
         node-version: [18.x, 20.x]
     runs-on: ${{ matrix.os }}
     defaults:
