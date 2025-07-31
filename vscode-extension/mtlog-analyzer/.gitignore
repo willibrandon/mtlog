@@ -1,0 +1,10 @@
+out/
+dist/
+node_modules/
+.vscode-test/
+*.vsix
+.vscode-test-web/
+*.log
+.DS_Store
+Thumbs.db
+package-lock.json

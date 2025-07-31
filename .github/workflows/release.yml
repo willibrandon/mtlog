@@ -58,6 +58,21 @@ jobs:
         GOOS=darwin GOARCH=amd64 go build -o ../../mtlog-analyzer-darwin-amd64 .
         GOOS=windows GOARCH=amd64 go build -o ../../mtlog-analyzer-windows-amd64.exe .
 
+    - name: Setup Node.js for VS Code Extension
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: vscode-extension/mtlog-analyzer/package-lock.json
+
+    - name: Build VS Code Extension
+      run: |
+        cd vscode-extension/mtlog-analyzer
+        npm ci
+        npm run compile
+        npm install -g @vscode/vsce
+        vsce package --no-dependencies
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -78,10 +93,22 @@ jobs:
           ### mtlog-analyzer Tool
           Download the binary for your platform below.
           
+          ### VS Code Extension
+          Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer) or download the `.vsix` file below.
+          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...${{ steps.version.outputs.version }}
         files: |
           mtlog-analyzer-linux-amd64
           mtlog-analyzer-darwin-amd64
           mtlog-analyzer-windows-amd64.exe
+          vscode-extension/mtlog-analyzer/*.vsix
         draft: false
         prerelease: false
+
+    - name: Publish VS Code Extension
+      if: startsWith(github.ref, 'refs/tags/ext/v')
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      run: |
+        cd vscode-extension/mtlog-analyzer
+        vsce publish -p $VSCE_PAT

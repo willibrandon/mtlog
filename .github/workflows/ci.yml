@@ -122,6 +122,61 @@ jobs:
         name: benchmark-results
         path: benchmark.txt
 
+  vscode-extension:
+    name: VS Code Extension
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18.x, 20.x]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: vscode-extension/mtlog-analyzer
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: vscode-extension/mtlog-analyzer/package-lock.json
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Install mtlog-analyzer
+      run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Compile TypeScript
+      run: npm run compile
+
+    - name: Run tests
+      run: npm test
+      if: matrix.os != 'ubuntu-latest' || matrix.node-version != '20.x'
+      
+    - name: Run tests with coverage
+      run: npm test -- --coverage
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+
+    - name: Package extension
+      run: |
+        npm install -g @vscode/vsce
+        vsce package --no-dependencies
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+
+    - name: Upload VSIX
+      uses: actions/upload-artifact@v4
+      with:
+        name: mtlog-analyzer-vsix
+        path: vscode-extension/mtlog-analyzer/*.vsix
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
