@@ -177,6 +177,45 @@ jobs:
         path: vscode-extension/mtlog-analyzer/*.vsix
       if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
 
+  goland-plugin:
+    name: GoLand Plugin
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+    
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+    
+    - name: Install mtlog-analyzer
+      run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+    
+    - name: Build Plugin
+      working-directory: goland-plugin
+      run: ./gradlew buildPlugin
+    
+    - name: Run Tests
+      working-directory: goland-plugin
+      run: ./gradlew test
+    
+    - name: Run Plugin Verifier
+      working-directory: goland-plugin
+      run: ./gradlew verifyPlugin -PverifierIdeVersions=GO-2024.2,GO-2025.1
+      continue-on-error: true  # Don't fail on future IDE version issues
+    
+    - name: Upload Plugin
+      uses: actions/upload-artifact@v4
+      with:
+        name: mtlog-analyzer-goland-plugin
+        path: goland-plugin/build/distributions/*.zip
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
