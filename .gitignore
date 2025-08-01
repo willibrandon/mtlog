@@ -47,3 +47,11 @@ dist/
 coverage.txt
 coverage.html
 *.cover
+
+# VS Code extension build artifacts
+vscode-extension/mtlog-analyzer/out/
+vscode-extension/mtlog-analyzer/node_modules/
+vscode-extension/mtlog-analyzer/.vscode-test/
+vscode-extension/mtlog-analyzer/*.vsix
+vscode-extension/mtlog-analyzer/**/*.js
+vscode-extension/mtlog-analyzer/**/*.js.map
