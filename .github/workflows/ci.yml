@@ -203,7 +203,10 @@ jobs:
     
     - name: Run Tests
       working-directory: goland-plugin
-      run: ./gradlew test
+      run: |
+        # Run tests with real mtlog-analyzer
+        export PATH=$HOME/go/bin:$PATH
+        ./gradlew test --info
     
     - name: Run Plugin Verifier
       working-directory: goland-plugin

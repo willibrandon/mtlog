@@ -26,7 +26,10 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
     }
     
+    implementation("com.google.code.gson:gson:2.10.1")
+    
     testImplementation(kotlin("test"))
+    testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
 
 kotlin {
@@ -94,15 +97,15 @@ intellijPlatform {
 }
 
 tasks {
-    test {
-        useJUnitPlatform()
-    }
-    
     buildSearchableOptions {
         enabled = false  // Disable for initial development
     }
     
     instrumentCode {
+        enabled = false  // Disable due to Java path issues
+    }
+    
+    instrumentTestCode {
         enabled = false  // Disable due to Java path issues
     }
 }

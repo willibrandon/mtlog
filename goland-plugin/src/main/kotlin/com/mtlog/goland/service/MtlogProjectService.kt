@@ -182,6 +182,12 @@ class MtlogProjectService(
     fun runAnalyzer(filePath: String, goModPath: String): List<AnalyzerDiagnostic>? {
         LOG.debug("runAnalyzer called for file: $filePath")
         
+        // Check if analyzer is enabled
+        if (!state.enabled) {
+            LOG.debug("Analyzer is disabled")
+            return emptyList()
+        }
+        
         val analyzerPath = findAnalyzerPath()
         if (analyzerPath == null) {
             LOG.error("Could not find mtlog-analyzer")
@@ -292,6 +298,8 @@ class MtlogProjectService(
                             val severity = when {
                                 message.startsWith("suggestion:") -> "suggestion"
                                 message.contains("error") -> "error"
+                                message.contains("template has") && message.contains("but") && message.contains("provided") -> "error"
+                                message.contains("properties but") && message.contains("argument") -> "error"
                                 else -> "warning"
                             }
                             
