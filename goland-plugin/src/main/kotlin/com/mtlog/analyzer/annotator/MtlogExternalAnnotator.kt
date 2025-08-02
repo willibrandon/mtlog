@@ -1,4 +1,4 @@
-package com.mtlog.goland.annotator
+package com.mtlog.analyzer.annotator
 
 import com.goide.psi.GoFile
 import com.goide.psi.GoStringLiteral
@@ -17,8 +17,8 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.IncorrectOperationException
-import com.mtlog.goland.MtlogBundle
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.service.MtlogProjectService
 import kotlinx.coroutines.*
 import org.jetbrains.annotations.Blocking
 import java.security.MessageDigest
@@ -169,10 +169,10 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             // Add quick fixes based on diagnostic type
             when {
                 diagnostic.message.contains("PascalCase") && diagnostic.propertyName != null -> {
-                    builder.withFix(com.mtlog.goland.quickfix.PascalCaseQuickFix(anchor, diagnostic.propertyName))
+                    builder.withFix(com.mtlog.analyzer.quickfix.PascalCaseQuickFix(anchor, diagnostic.propertyName))
                 }
                 diagnostic.message.contains("arguments") -> {
-                    builder.withFix(com.mtlog.goland.quickfix.TemplateArgumentQuickFix(anchor))
+                    builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(anchor))
                 }
             }
             

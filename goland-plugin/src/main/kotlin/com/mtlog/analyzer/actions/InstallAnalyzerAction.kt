@@ -1,4 +1,4 @@
-package com.mtlog.goland.actions
+package com.mtlog.analyzer.actions
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -9,8 +9,8 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.mtlog.goland.MtlogBundle
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.service.MtlogProjectService
 import java.io.BufferedReader
 import java.io.InputStreamReader
 

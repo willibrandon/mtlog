@@ -1,4 +1,4 @@
-package com.mtlog.goland.quickfix
+package com.mtlog.analyzer.quickfix
 
 import com.goide.psi.GoCallExpr
 import com.goide.psi.GoStringLiteral
@@ -12,7 +12,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
-import com.mtlog.goland.MtlogBundle
+import com.mtlog.analyzer.MtlogBundle
 
 class TemplateArgumentQuickFix(
     element: PsiElement? = null

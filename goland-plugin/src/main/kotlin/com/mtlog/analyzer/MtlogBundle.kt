@@ -1,4 +1,4 @@
-package com.mtlog.goland
+package com.mtlog.analyzer
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.PropertyKey

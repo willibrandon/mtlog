@@ -1,4 +1,4 @@
-package com.mtlog.goland.integration
+package com.mtlog.analyzer.integration
 
 import com.goide.GoLanguage
 import com.intellij.openapi.application.ApplicationManager
@@ -7,7 +7,7 @@ import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory
 import com.intellij.testFramework.fixtures.impl.LightTempDirTestFixtureImpl
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.service.MtlogProjectService
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path

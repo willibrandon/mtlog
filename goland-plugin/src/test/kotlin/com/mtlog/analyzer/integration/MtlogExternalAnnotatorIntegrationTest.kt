@@ -1,9 +1,9 @@
-package com.mtlog.goland.integration
+package com.mtlog.analyzer.integration
 
 import com.intellij.openapi.components.service
-import com.mtlog.goland.service.AnalyzerDiagnostic
-import com.mtlog.goland.service.MtlogProjectService
-import com.mtlog.goland.settings.MtlogSettingsState
+import com.mtlog.analyzer.service.AnalyzerDiagnostic
+import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.settings.MtlogSettingsState
 import java.io.File
 
 class MtlogExternalAnnotatorIntegrationTest : MtlogIntegrationTestBase() {

@@ -1,9 +1,9 @@
-package com.mtlog.goland.integration
+package com.mtlog.analyzer.integration
 
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.PsiTestUtil
-import com.mtlog.goland.service.AnalyzerDiagnostic
+import com.mtlog.analyzer.service.AnalyzerDiagnostic
 import java.io.File
 
 class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {

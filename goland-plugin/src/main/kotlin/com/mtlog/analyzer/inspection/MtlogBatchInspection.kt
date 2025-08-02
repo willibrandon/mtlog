@@ -1,4 +1,4 @@
-package com.mtlog.goland.inspection
+package com.mtlog.analyzer.inspection
 
 import com.goide.inspections.core.GoInspectionBase
 import com.goide.psi.GoFile
@@ -6,9 +6,9 @@ import com.intellij.codeInspection.*
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
-import com.mtlog.goland.MtlogBundle
-import com.mtlog.goland.annotator.MtlogExternalAnnotator
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
+import com.mtlog.analyzer.service.MtlogProjectService
 
 class MtlogBatchInspection : LocalInspectionTool() {
     
@@ -44,9 +44,9 @@ class MtlogBatchInspection : LocalInspectionTool() {
             val element = file.findElementAt(diagnostic.range.startOffset) ?: continue
             
             val severity = when (diagnostic.severity) {
-                com.mtlog.goland.annotator.DiagnosticSeverity.ERROR -> ProblemHighlightType.ERROR
-                com.mtlog.goland.annotator.DiagnosticSeverity.WARNING -> ProblemHighlightType.WARNING
-                com.mtlog.goland.annotator.DiagnosticSeverity.SUGGESTION -> ProblemHighlightType.WEAK_WARNING
+                com.mtlog.analyzer.annotator.DiagnosticSeverity.ERROR -> ProblemHighlightType.ERROR
+                com.mtlog.analyzer.annotator.DiagnosticSeverity.WARNING -> ProblemHighlightType.WARNING
+                com.mtlog.analyzer.annotator.DiagnosticSeverity.SUGGESTION -> ProblemHighlightType.WEAK_WARNING
             }
             
             val fixes = mutableListOf<LocalQuickFix>()
@@ -83,7 +83,7 @@ class MtlogBatchInspection : LocalInspectionTool() {
         
         override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
             val element = descriptor.psiElement ?: return
-            com.mtlog.goland.quickfix.PascalCaseQuickFix(element, propertyName)
+            com.mtlog.analyzer.quickfix.PascalCaseQuickFix(element, propertyName)
                 .invoke(project, element.containingFile, null, element, element)
         }
     }
@@ -94,7 +94,7 @@ class MtlogBatchInspection : LocalInspectionTool() {
         
         override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
             val element = descriptor.psiElement ?: return
-            com.mtlog.goland.quickfix.TemplateArgumentQuickFix(element)
+            com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(element)
                 .invoke(project, element.containingFile, null, element, element)
         }
     }

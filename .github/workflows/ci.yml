@@ -215,7 +215,6 @@ jobs:
     - name: Run Plugin Verifier
       working-directory: goland-plugin
       run: ./gradlew verifyPlugin -PverifierIdeVersions=GO-2024.2,GO-2025.1
-      continue-on-error: true  # Don't fail on future IDE version issues
     
     - name: Upload Plugin
       uses: actions/upload-artifact@v4

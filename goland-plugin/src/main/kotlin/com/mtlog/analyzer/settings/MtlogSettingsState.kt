@@ -1,4 +1,4 @@
-package com.mtlog.goland.settings
+package com.mtlog.analyzer.settings
 
 import com.intellij.openapi.components.BaseState
 import com.intellij.util.xmlb.annotations.Tag

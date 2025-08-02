@@ -1,9 +1,9 @@
-package com.mtlog.goland.integration
+package com.mtlog.analyzer.integration
 
 import com.intellij.openapi.components.service
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.service.MtlogProjectService
 import java.io.File
 
 class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {

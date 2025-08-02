@@ -1,12 +1,12 @@
-package com.mtlog.goland.settings
+package com.mtlog.analyzer.settings
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.dsl.builder.*
-import com.mtlog.goland.MtlogBundle
-import com.mtlog.goland.service.MtlogProjectService
+import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.service.MtlogProjectService
 import javax.swing.DefaultComboBoxModel
 
 class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurable(

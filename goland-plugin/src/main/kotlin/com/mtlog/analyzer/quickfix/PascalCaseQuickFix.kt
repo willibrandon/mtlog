@@ -1,4 +1,4 @@
-package com.mtlog.goland.quickfix
+package com.mtlog.analyzer.quickfix
 
 import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
 import com.intellij.openapi.command.WriteCommandAction

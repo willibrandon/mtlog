@@ -1,6 +1,6 @@
 <idea-plugin>
   <extensions defaultExtensionNs="com.intellij">
     <externalAnnotator language="Go"
-                       implementationClass="com.mtlog.goland.annotator.MtlogExternalAnnotator"/>
+                       implementationClass="com.mtlog.analyzer.annotator.MtlogExternalAnnotator"/>
   </extensions>
 </idea-plugin>

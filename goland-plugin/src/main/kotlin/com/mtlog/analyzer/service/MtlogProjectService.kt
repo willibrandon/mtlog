@@ -1,4 +1,4 @@
-package com.mtlog.goland.service
+package com.mtlog.analyzer.service
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.*
@@ -10,7 +10,7 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.mtlog.goland.settings.MtlogSettingsState
+import com.mtlog.analyzer.settings.MtlogSettingsState
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
