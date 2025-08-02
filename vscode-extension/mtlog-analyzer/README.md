@@ -73,19 +73,19 @@ This extension is built and released through the main mtlog repository's CI/CD p
 
 ### Release Process
 
-The extension follows a dual-tagging strategy:
-
-- **Library releases** (`v1.0.0`): Creates GitHub release with Go binaries and VSIX file
-- **Extension releases** (`ext/v0.1.0`): Same as above but also publishes to VS Code Marketplace
-
-To release the extension to the marketplace, create a tag with the `ext/v` prefix:
+All components (library, analyzer, and IDE extensions) are released together with the same version:
 
 ```bash
-git tag ext/v0.1.0
-git push origin ext/v0.1.0
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
-The CI workflow automatically builds, tests, and packages the extension on every push. Extension-specific releases are published to the VS Code Marketplace only when using `ext/v*` tags.
+This will:
+- Release the mtlog library to Go modules
+- Build mtlog-analyzer binaries for all platforms
+- Publish the VS Code extension to the marketplace
+- Publish the GoLand plugin to JetBrains Marketplace
+- Create a GitHub release with all artifacts
 
 ## License
 

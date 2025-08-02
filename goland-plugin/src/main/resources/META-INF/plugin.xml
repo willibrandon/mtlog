@@ -1,0 +1,60 @@
+<idea-plugin>
+    <id>com.mtlog.analyzer</id>
+    <name>mtlog-analyzer</name>
+    <vendor email="support@mtlog.com" url="https://github.com/willibrandon/mtlog">mtlog</vendor>
+    
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>org.jetbrains.plugins.go</depends>
+    <depends>com.intellij.modules.go-capable</depends>
+    
+    <resource-bundle>messages.MtlogBundle</resource-bundle>
+    
+    <extensions defaultExtensionNs="com.intellij">
+        <externalAnnotator 
+            language="go"
+            implementationClass="com.mtlog.analyzer.annotator.MtlogExternalAnnotator"/>
+            
+        <localInspection 
+            language="go"
+            implementationClass="com.mtlog.analyzer.inspection.MtlogBatchInspection"
+            runForWholeFile="true"
+            displayName="mtlog template validation"
+            groupName="Go"
+            enabledByDefault="false"
+            level="ERROR"
+            shortName="MtlogTemplateValidation">
+            <quickFix order="first" displayName="Convert to PascalCase" 
+                     familyName="mtlog quick fixes"
+                     implementationClass="com.mtlog.analyzer.quickfix.PascalCaseQuickFix"/>
+            <quickFix order="first" displayName="Fix template arguments" 
+                     familyName="mtlog quick fixes"
+                     implementationClass="com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix"/>
+        </localInspection>
+        
+        <projectService 
+            serviceImplementation="com.mtlog.analyzer.service.MtlogProjectService"/>
+            
+        <projectConfigurable
+            parentId="tools"
+            instance="com.mtlog.analyzer.settings.MtlogSettingsConfigurable"
+            id="mtlog.settings"
+            displayName="mtlog-analyzer"/>
+            
+        <advancedSetting 
+            id="mtlog.debounce.delay"
+            service="com.mtlog.analyzer.settings.MtlogAdvancedSettings"
+            default="300"/>
+            
+        <notificationGroup id="mtlog.notifications" displayType="BALLOON"/>
+    </extensions>
+    
+    <actions>
+        <action id="mtlog.analyzer.install"
+                class="com.mtlog.analyzer.actions.InstallAnalyzerAction"
+                text="Install mtlog-analyzer"
+                description="Install mtlog-analyzer using go install">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

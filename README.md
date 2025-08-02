@@ -794,7 +794,9 @@ log.Information("User {@User} has {Count} items", user, count)
 
 See [mtlog-analyzer README](./cmd/mtlog-analyzer/README.md) for detailed documentation and CI integration.
 
-### VS Code Extension
+### IDE Extensions
+
+#### VS Code Extension
 
 For real-time validation in Visual Studio Code, install the [mtlog-analyzer extension](./vscode-extension/mtlog-analyzer/README.md):
 
@@ -807,6 +809,21 @@ The extension provides:
 - 🎯 Precise error locations - click to jump to issues
 - 📊 Three severity levels: errors, warnings, and suggestions
 - ⚙️ Configurable analyzer path and flags
+
+#### GoLand Plugin
+
+For real-time validation in GoLand and other JetBrains IDEs with Go support, install the [mtlog-analyzer plugin](./goland-plugin/README.md):
+
+1. Install mtlog-analyzer: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+2. Install the plugin from JetBrains Marketplace (search for "mtlog-analyzer")
+3. Get instant feedback on template errors as you type
+
+The plugin provides:
+- 🔍 Real-time template validation as you type
+- 🎯 Intelligent highlighting (template errors highlight the full string, property warnings highlight just the property)
+- 🔧 Quick fixes for common issues (Alt+Enter for PascalCase conversion, argument count fixes)
+- ⚙️ Configurable analyzer path, flags, and severity levels
+- 🚀 Performance optimized with caching and debouncing
 
 ## Advanced Usage
 
