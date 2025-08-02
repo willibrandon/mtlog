@@ -64,7 +64,7 @@ class TemplateArgumentQuickFix(
         
         if (propertyCount == currentArgCount) return // Already correct
         
-        WriteCommandAction.runWriteCommandAction(project, text, null, Runnable {
+        WriteCommandAction.runWriteCommandAction(project, getText(), null, Runnable {
             when {
                 propertyCount > currentArgCount -> {
                     // Add missing nil arguments

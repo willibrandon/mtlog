@@ -125,6 +125,23 @@ mtlog-analyzer -strict -common-keys=tenant_id,org_id ./...
 - `-strict-logger-types` - Only analyze exact mtlog types
 - `-downgrade-errors` - Downgrade errors to warnings for CI migration
 
+### IDE Integration
+
+#### VS Code Extension
+The mtlog-analyzer is integrated into VS Code through the official extension:
+- Real-time validation with inline diagnostics
+- Quick fixes for common issues
+- Available in VS Code marketplace
+- Zero configuration - automatically uses installed mtlog-analyzer
+
+#### GoLand Plugin
+The mtlog-analyzer is integrated into GoLand/IntelliJ IDEA through the official plugin:
+- Real-time external annotation with appropriate severity levels
+- Quick fixes for PascalCase conversion and template argument mismatches
+- Configurable analyzer path and flags
+- Available in JetBrains Marketplace
+- Supports GoLand 2024.2+ and IntelliJ IDEA Ultimate with Go plugin
+
 ## Project Structure
 
 ```
@@ -150,8 +167,10 @@ mtlog/
 ├── configuration/     # JSON/YAML configuration support
 ├── integration/       # Integration tests
 ├── examples/          # Usage examples
-└── cmd/
-    └── mtlog-analyzer/  # Static analysis tool for mtlog usage
+├── cmd/
+│   └── mtlog-analyzer/  # Static analysis tool for mtlog usage
+├── vscode-extension/  # VS Code extension for mtlog-analyzer
+└── goland-plugin/     # GoLand/IntelliJ IDEA plugin for mtlog-analyzer
 ```
 
 ## Performance Achievements

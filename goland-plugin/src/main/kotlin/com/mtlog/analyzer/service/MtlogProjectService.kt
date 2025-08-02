@@ -33,6 +33,16 @@ data class AnalyzerDiagnostic(
 
 /**
  * Project-level service managing mtlog-analyzer processes and configuration.
+ * 
+ * This service acts as the central manager for all mtlog-analyzer functionality within a project:
+ * - Manages a pool of analyzer processes per Go module to avoid process startup overhead
+ * - Handles analyzer discovery and execution with automatic PATH resolution
+ * - Provides persistent configuration storage for analyzer settings
+ * - Implements caching and version mismatch detection for analyzer updates
+ * - Ensures proper resource cleanup through the Disposable interface
+ * 
+ * The service maintains one analyzer process per go.mod file to support multi-module projects
+ * efficiently. Processes are reused for multiple analysis runs within the same module.
  */
 @Service(Service.Level.PROJECT)
 @State(
@@ -45,7 +55,7 @@ class MtlogProjectService(
     
     companion object {
         private val LOG = logger<MtlogProjectService>()
-        private const val ANALYZER_VERSION_PREFIX = "mtlog-analyzer version:"
+        private val ANALYZER_VERSION_REGEX = Regex("""mtlog-analyzer\s+version[:\s]+([^\s]+)""")
     }
     
     private val processPool = ConcurrentHashMap<String, OSProcessHandler>()
@@ -154,11 +164,11 @@ class MtlogProjectService(
     }
     
     private fun checkVersionMismatch(stderr: String) {
-        if (stderr.contains(ANALYZER_VERSION_PREFIX)) {
-            val versionLine = stderr.lines().find { it.contains(ANALYZER_VERSION_PREFIX) }
-            val version = versionLine?.substringAfter(ANALYZER_VERSION_PREFIX)?.trim()
+        val matchResult = ANALYZER_VERSION_REGEX.find(stderr)
+        if (matchResult != null) {
+            val version = matchResult.groupValues[1]
             
-            if (version != null && cachedVersion != null && cachedVersion != version) {
+            if (cachedVersion != null && cachedVersion != version) {
                 LOG.info("Analyzer version changed from $cachedVersion to $version, restarting process pool")
                 disposeProcessPool()
                 cachedVersion = version
@@ -173,7 +183,7 @@ class MtlogProjectService(
     }
     
     private fun disposeProcessPool() {
-        processPool.values.forEach { 
+        processPool.values.toList().forEach { 
             try {
                 it.destroyProcess()
             } catch (e: Exception) {
@@ -301,12 +311,12 @@ class MtlogProjectService(
                         
                 LOG.debug("Parsed position - file: $diagnosticFilePath, line: $lineNum, col: $columnNum")
                         
-                        // Normalize paths for comparison (Windows path issue - case insensitive)
-                        val diagnosticPath = diagnosticFilePath.replace('\\', '/').lowercase()
-                        val normalizedFilePath = filePath.replace('\\', '/').lowercase()
-                LOG.debug("Normalized paths - diagnostic: $diagnosticPath, file: $normalizedFilePath")
+                        // Normalize paths for comparison using proper path normalization
+                        val diagnosticPathObj = Paths.get(diagnosticFilePath).toAbsolutePath().normalize()
+                        val normalizedFilePathObj = Paths.get(filePath).toAbsolutePath().normalize()
+                LOG.debug("Normalized paths - diagnostic: ${diagnosticPathObj}, file: ${normalizedFilePathObj}")
                         
-                        if (diagnosticPath == normalizedFilePath) {
+                        if (diagnosticPathObj == normalizedFilePathObj) {
                             val message = diagnostic.get("message").asString
                             LOG.debug("Found matching diagnostic: $message at line $lineNum, col $columnNum")
                             

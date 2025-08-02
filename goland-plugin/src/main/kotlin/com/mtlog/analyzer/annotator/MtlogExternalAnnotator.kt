@@ -66,7 +66,6 @@ enum class DiagnosticSeverity {
 class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
     companion object {
         private val LOG = logger<MtlogExternalAnnotator>()
-        private val analysisScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         private val fileHashCache = ConcurrentHashMap<String, String>()
         private val resultCache = ConcurrentHashMap<String, CachedResult>()
         private const val CACHE_TTL_MS = 60_000L // 1 minute
@@ -137,17 +136,13 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         }
         
         return try {
-            runBlocking {
-                withTimeout(10_000L) { // 10 second timeout
-                    analyzeFile(info)?.also { result ->
-                        // Cache the result
-                        resultCache[filePath] = CachedResult(fileHash, result, System.currentTimeMillis())
-                    }
-                }
+            // doAnnotate already runs on a background thread, no need for runBlocking
+            val result = analyzeFileBlocking(info)
+            if (result != null) {
+                // Cache the result
+                resultCache[filePath] = CachedResult(fileHash, result, System.currentTimeMillis())
             }
-        } catch (e: CancellationException) {
-            LOG.debug("Analysis cancelled for ${info.file.name}")
-            null
+            result
         } catch (e: Exception) {
             LOG.error("Failed to analyze ${info.file.name}", e)
             null
@@ -224,7 +219,7 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         }
     }
     
-    private suspend fun analyzeFile(info: MtlogInfo): MtlogResult? = coroutineScope {
+    private fun analyzeFileBlocking(info: MtlogInfo): MtlogResult? {
         val project = info.file.project
         val service = project.service<MtlogProjectService>()
         
@@ -237,7 +232,7 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         val result = service.runAnalyzer(ioFile.absolutePath, info.goModPath)
         if (result == null) {
             LOG.warn("Analyzer returned no result for ${info.file.name}")
-            return@coroutineScope null
+            return null
         }
         
         LOG.debug("Analyzer returned ${result.size} diagnostics")
@@ -325,7 +320,7 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             )
         }
         
-        if (diagnostics.isNotEmpty()) {
+        return if (diagnostics.isNotEmpty()) {
             MtlogResult(diagnostics)
         } else {
             null
