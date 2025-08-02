@@ -146,6 +146,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: false
 
     - name: Install mtlog-analyzer
       run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
@@ -193,6 +194,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
+        cache: false
     
     - name: Install mtlog-analyzer
       run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
