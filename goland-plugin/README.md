@@ -76,6 +76,26 @@ You can suppress diagnostics using:
 ./gradlew test
 ```
 
+## Development & Releases
+
+This plugin is built and released through the main mtlog repository's CI/CD pipeline.
+
+### Release Process
+
+All components (library, analyzer, and IDE extensions) are released together with the same version:
+
+```bash
+git tag v0.7.0
+git push origin v0.7.0
+```
+
+This will:
+- Release the mtlog library to Go modules
+- Build mtlog-analyzer binaries for all platforms
+- Publish the VS Code extension to the marketplace
+- Publish the GoLand plugin to JetBrains Marketplace
+- Create a GitHub release with all artifacts
+
 ## License
 
 Same as the main mtlog project.
