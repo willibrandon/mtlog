@@ -109,16 +109,3 @@ tasks {
         enabled = false  // Disable due to Java path issues
     }
 }
-
-tasks.test {
-    testLogging {
-        events("passed", "skipped", "failed")
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-        
-        // Only show output for failed tests
-        showStandardStreams = false
-        showExceptions = true
-        showCauses = true
-        showStackTraces = true
-    }
-}
