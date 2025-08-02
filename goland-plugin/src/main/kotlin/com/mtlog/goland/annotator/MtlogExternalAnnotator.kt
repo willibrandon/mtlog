@@ -317,15 +317,6 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         }
     }
     
-    private fun parseAnalyzerOutput(
-        process: com.intellij.execution.process.OSProcessHandler,
-        info: MtlogInfo,
-        diagnostics: MutableList<MtlogDiagnostic>
-    ) {
-        // Simplified - actual implementation would parse JSON and create diagnostics
-        // Format: { "packageName": { "mtlog": [ { "posn": "file:line:col", "message": "..." } ] } }
-    }
-    
     private fun findGoModPath(file: PsiFile): String? {
         var dir = file.virtualFile.parent
         while (dir != null) {
