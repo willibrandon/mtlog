@@ -73,6 +73,18 @@ jobs:
         npm install -g @vscode/vsce
         vsce package --no-dependencies
 
+    - name: Setup Java for GoLand Plugin
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Build GoLand Plugin
+      run: |
+        cd goland-plugin
+        chmod +x ./gradlew
+        ./gradlew buildPlugin
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -96,19 +108,29 @@ jobs:
           ### VS Code Extension
           Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer) or download the `.vsix` file below.
           
+          ### GoLand Plugin
+          Install from JetBrains Marketplace or download the `.zip` file below.
+          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...${{ steps.version.outputs.version }}
         files: |
           mtlog-analyzer-linux-amd64
           mtlog-analyzer-darwin-amd64
           mtlog-analyzer-windows-amd64.exe
           vscode-extension/mtlog-analyzer/*.vsix
+          goland-plugin/build/distributions/*.zip
         draft: false
         prerelease: false
 
     - name: Publish VS Code Extension
-      if: startsWith(github.ref, 'refs/tags/ext/v')
       env:
         VSCE_PAT: ${{ secrets.VSCE_PAT }}
       run: |
         cd vscode-extension/mtlog-analyzer
         vsce publish -p $VSCE_PAT
+
+    - name: Publish GoLand Plugin
+      env:
+        JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN }}
+      run: |
+        cd goland-plugin
+        ./gradlew publishPlugin
