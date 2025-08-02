@@ -1,9 +1,11 @@
 package com.mtlog.analyzer.settings
 
 import com.intellij.openapi.components.service
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.dsl.builder.*
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
@@ -25,12 +27,23 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
         separator()
         
         row(MtlogBundle.message("settings.analyzer.path")) {
-            textFieldWithBrowseButton(
-                fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor()
-            ).bindText(
-                getter = { state.analyzerPath ?: "" },
-                setter = { state.analyzerPath = it }
-            )
+            val textField = TextFieldWithBrowseButton()
+            val descriptor = FileChooserDescriptor(true, false, false, false, false, false)
+            descriptor.title = MtlogBundle.message("settings.analyzer.path.choose")
+            descriptor.description = MtlogBundle.message("settings.analyzer.path.description")
+            
+            textField.addActionListener {
+                val file = FileChooser.chooseFile(descriptor, project, null)
+                if (file != null) {
+                    textField.text = file.path
+                }
+            }
+            
+            cell(textField)
+                .bindText(
+                    getter = { state.analyzerPath ?: "" },
+                    setter = { state.analyzerPath = it }
+                )
         }
         
         row(MtlogBundle.message("settings.analyzer.flags")) {
