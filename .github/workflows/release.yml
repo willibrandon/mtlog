@@ -82,6 +82,7 @@ jobs:
     - name: Build GoLand Plugin
       run: |
         cd goland-plugin
+        chmod +x ./gradlew
         ./gradlew buildPlugin
 
     - name: Create GitHub Release

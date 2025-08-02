@@ -197,6 +197,10 @@ jobs:
     - name: Install mtlog-analyzer
       run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
     
+    - name: Make gradlew executable
+      working-directory: goland-plugin
+      run: chmod +x ./gradlew
+    
     - name: Build Plugin
       working-directory: goland-plugin
       run: ./gradlew buildPlugin
