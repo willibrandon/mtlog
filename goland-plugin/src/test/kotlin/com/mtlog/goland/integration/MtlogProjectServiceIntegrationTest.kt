@@ -38,13 +38,11 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
             }
         """.trimIndent())
         
-        val goModPath = getGoModPath()
-        
-        // Write files to disk for go vet
-        val dir = File(goModPath)
+        // Use the realProjectDir that was set up in base class
+        val dir = realProjectDir
         writeFilesToDisk(dir)
         
-        val diagnostics = service.runAnalyzer(File(dir, "test.go").absolutePath, goModPath)
+        val diagnostics = service.runAnalyzer(File(dir, "test.go").absolutePath, dir.absolutePath)
         
         assertNotNull("Should get diagnostics from analyzer", diagnostics)
         assertTrue("Should have at least one diagnostic", diagnostics!!.isNotEmpty())
@@ -56,8 +54,7 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
     }
     
     fun testRunAnalyzerWithInvalidFile() {
-        val goModPath = getGoModPath()
-        val diagnostics = service.runAnalyzer("/non/existent/file.go", goModPath)
+        val diagnostics = service.runAnalyzer("/non/existent/file.go", realProjectDir.absolutePath)
         
         // Should handle gracefully - either null or empty list
         assertTrue("Should handle non-existent file gracefully", 
@@ -82,13 +79,11 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
                 }
             """.trimIndent())
             
-            val goModPath = getGoModPath()
-            
             // Write files to disk for go vet
-            val dir = File(goModPath)
+            val dir = realProjectDir
             writeFilesToDisk(dir)
             
-            val diagnostics = service.runAnalyzer(File(dir, "test.go").absolutePath, goModPath)
+            val diagnostics = service.runAnalyzer(File(dir, "test.go").absolutePath, dir.absolutePath)
             
             // With -strict flag, might get additional diagnostics
             assertNotNull("Should get diagnostics", diagnostics)
@@ -114,13 +109,11 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
             }
         """.trimIndent())
         
-        val goModPath = getGoModPath()
-        
         // Write files to disk for go vet
-        val dir = File(goModPath)
+        val dir = realProjectDir
         writeFilesToDisk(dir)
         
-        val diagnostics = service.runAnalyzer(File(dir, "parsing_test.go").absolutePath, goModPath)
+        val diagnostics = service.runAnalyzer(File(dir, "parsing_test.go").absolutePath, dir.absolutePath)
         
         assertNotNull("Should parse diagnostics", diagnostics)
         assertTrue("Should find multiple diagnostics", diagnostics!!.size >= 2)
@@ -157,13 +150,11 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
             }
         """.trimIndent())
         
-        val goModPath = getGoModPath()
-        
         // Write files to disk for go vet
-        val dir = File(goModPath)
+        val dir = realProjectDir
         writeFilesToDisk(dir)
         
-        val diagnostics = service.runAnalyzer(File(dir, "windows_test.go").absolutePath, goModPath)
+        val diagnostics = service.runAnalyzer(File(dir, "windows_test.go").absolutePath, dir.absolutePath)
         
         assertNotNull("Should handle Windows paths", diagnostics)
         if (diagnostics!!.isNotEmpty()) {
@@ -193,20 +184,18 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
             }
         """.trimIndent())
         
-        val goModPath = getGoModPath()
-        
         // Write files to disk for go vet
-        val dir = File(goModPath)
+        val dir = realProjectDir
         writeFilesToDisk(dir)
         
         // Run analyzers concurrently
         val thread1 = Thread {
-            val diags = service.runAnalyzer(File(dir, "concurrent1.go").absolutePath, goModPath)
+            val diags = service.runAnalyzer(File(dir, "concurrent1.go").absolutePath, dir.absolutePath)
             assertNotNull("Thread 1 should get diagnostics", diags)
         }
         
         val thread2 = Thread {
-            val diags = service.runAnalyzer(File(dir, "concurrent2.go").absolutePath, goModPath)
+            val diags = service.runAnalyzer(File(dir, "concurrent2.go").absolutePath, dir.absolutePath)
             assertNotNull("Thread 2 should get diagnostics", diags)
         }
         
