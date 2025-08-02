@@ -189,19 +189,41 @@ async function analyzeDocument(document: vscode.TextDocument) {
     let analyzerPath = config.get<string>('analyzerPath', 'mtlog-analyzer');
     const analyzerFlags = config.get<string[]>('analyzerFlags', []);
     
-    // If analyzer path is just the name, find it using 'where' command
+    // If analyzer path is just the name, find it in common locations
     if (!analyzerPath.includes(path.sep) && !analyzerPath.includes('/')) {
+        // Try direct execution first
         try {
-            analyzerPath = execSync(`where ${analyzerPath}`, { encoding: 'utf8' }).trim().split('\n')[0];
+            execSync(`${analyzerPath} -V`, { encoding: 'utf8', stdio: 'pipe' });
+            // It works, keep using the name
         } catch (e) {
-            // Analyzer not found, offer to install
-            const message = 'mtlog-analyzer not found. Would you like to install it?';
-            vscode.window.showErrorMessage(message, 'Install mtlog-analyzer').then(selection => {
-                if (selection === 'Install mtlog-analyzer') {
-                    installAnalyzer();
+            // Check common Go binary locations
+            const goBinPaths = [
+                process.env.GOPATH && path.join(process.env.GOPATH, 'bin'),
+                path.join(os.homedir(), 'go', 'bin'),
+                process.env.GOBIN
+            ].filter(Boolean);
+            
+            let found = false;
+            for (const binPath of goBinPaths) {
+                if (!binPath) continue;
+                const fullPath = path.join(binPath, process.platform === 'win32' ? `${analyzerPath}.exe` : analyzerPath);
+                if (fs.existsSync(fullPath)) {
+                    analyzerPath = fullPath;
+                    found = true;
+                    break;
                 }
-            });
-            return;
+            }
+            
+            if (!found) {
+                // Analyzer not found, offer to install
+                const message = 'mtlog-analyzer not found. Would you like to install it?';
+                vscode.window.showErrorMessage(message, 'Install mtlog-analyzer').then(selection => {
+                    if (selection === 'Install mtlog-analyzer') {
+                        installAnalyzer();
+                    }
+                });
+                return;
+            }
         }
     }
     
@@ -440,10 +462,33 @@ function checkAnalyzerAvailable() {
         return;
     }
     
-    // Check if analyzer is in PATH
+    // Try to execute the analyzer directly to check if it's available
     try {
-        execSync(`where ${analyzerPath}`, { encoding: 'utf8' });
+        execSync(`${analyzerPath} -V`, { 
+            encoding: 'utf8',
+            stdio: 'pipe',
+            windowsHide: true
+        });
+        // Success - analyzer is available
+        return;
     } catch (e) {
+        // Check common Go binary locations as fallback
+        const goBinPaths = [
+            process.env.GOPATH && path.join(process.env.GOPATH, 'bin'),
+            path.join(os.homedir(), 'go', 'bin'),
+            process.env.GOBIN
+        ].filter(Boolean);
+        
+        for (const binPath of goBinPaths) {
+            if (!binPath) continue;
+            const fullPath = path.join(binPath, process.platform === 'win32' ? `${analyzerPath}.exe` : analyzerPath);
+            if (fs.existsSync(fullPath)) {
+                // Found it - update config to use full path
+                config.update('analyzerPath', fullPath, vscode.ConfigurationTarget.Global);
+                return;
+            }
+        }
+        
         // Not found, show notification
         vscode.window.showInformationMessage(
             'mtlog-analyzer not found. Install it to enable real-time template validation.',
