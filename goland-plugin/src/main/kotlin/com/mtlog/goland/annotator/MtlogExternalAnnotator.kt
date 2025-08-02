@@ -12,6 +12,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
@@ -214,7 +215,11 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         
         LOG.debug("Running mtlog-analyzer on file: ${info.file.virtualFile.path}")
         
-        val result = service.runAnalyzer(info.file.virtualFile.path, info.goModPath)
+        // Convert to a real file path for the external analyzer
+        val ioFile = VfsUtilCore.virtualToIoFile(info.file.virtualFile)
+            ?: throw IllegalStateException("Not a real file: ${info.file.virtualFile.path}")
+        
+        val result = service.runAnalyzer(ioFile.absolutePath, info.goModPath)
         if (result == null) {
             LOG.warn("Analyzer returned no result for ${info.file.name}")
             return@coroutineScope null

@@ -1,9 +1,10 @@
 package com.mtlog.goland.integration
 
-import com.intellij.codeInsight.daemon.impl.HighlightInfo
-import com.intellij.codeInsight.intention.IntentionAction
-import com.intellij.lang.annotation.HighlightSeverity
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.testFramework.PsiTestUtil
 import com.mtlog.goland.service.AnalyzerDiagnostic
+import java.io.File
 
 class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
     
@@ -115,5 +116,143 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
         
         // The log.Debug call starts at line 8 (line 7 is comment, line 8 is log.Debug)
         assertEquals("Should be at line 8", 8, warning.lineNumber)
+    }
+    
+    fun testApplyPascalCaseQuickFixOnRealFile() {
+        // Write go.mod to disk first
+        File(realProjectDir, "go.mod").writeText("""
+            module testproject
+            go 1.21
+        """.trimIndent())
+        
+        // Write the test file to disk
+        val code = """
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Debug("Processing {us<caret>er_id}", 456)
+            }
+            """.trimIndent()
+        
+        val file = File(realProjectDir, "main.go").apply { writeText(code) }
+        val vFile = LocalFileSystem.getInstance()
+            .refreshAndFindFileByIoFile(file)!!
+        
+        // Add the directory as a source root
+        PsiTestUtil.addSourceRoot(myFixture.module, vFile.parent)
+        VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
+        
+        myFixture.configureFromExistingVirtualFile(vFile)
+        myFixture.doHighlighting()
+        
+        myFixture.findSingleIntention("Convert to PascalCase").let {
+            myFixture.launchAction(it)
+        }
+        
+        myFixture.checkResult("""
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Debug("Processing {UserId}", 456)
+            }
+            """.trimIndent())
+    }
+    
+    fun testApplyTemplateArgumentQuickFixOnRealFile() {
+        // Write go.mod to disk first
+        File(realProjectDir, "go.mod").writeText("""
+            module testproject
+            go 1.21
+        """.trimIndent())
+        
+        // Write the test file to disk
+        val code = """
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Information("User {Us<caret>erId} logged in at {Time}", 123)
+            }
+            """.trimIndent()
+        
+        val file = File(realProjectDir, "main.go").apply { writeText(code) }
+        val vFile = LocalFileSystem.getInstance()
+            .refreshAndFindFileByIoFile(file)!!
+        
+        // Add the directory as a source root
+        PsiTestUtil.addSourceRoot(myFixture.module, vFile.parent)
+        VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
+        
+        myFixture.configureFromExistingVirtualFile(vFile)
+        myFixture.doHighlighting()
+        
+        myFixture.findSingleIntention("Fix template arguments").let {
+            myFixture.launchAction(it)
+        }
+        
+        myFixture.checkResult("""
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Information("User {UserId} logged in at {Time}", 123, nil)
+            }
+            """.trimIndent())
+    }
+    
+    fun testApplyTemplateArgumentQuickFixRemovesExtras() {
+        // Write go.mod to disk first
+        File(realProjectDir, "go.mod").writeText("""
+            module testproject
+            go 1.21
+        """.trimIndent())
+        
+        // Write the test file to disk
+        val code = """
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Warning("Disk usage at {Per<caret>centage:P1}", 0.85, "extra1", "extra2")
+            }
+            """.trimIndent()
+        
+        val file = File(realProjectDir, "main.go").apply { writeText(code) }
+        val vFile = LocalFileSystem.getInstance()
+            .refreshAndFindFileByIoFile(file)!!
+        
+        // Add the directory as a source root
+        PsiTestUtil.addSourceRoot(myFixture.module, vFile.parent)
+        VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
+        
+        myFixture.configureFromExistingVirtualFile(vFile)
+        myFixture.doHighlighting()
+        
+        myFixture.findSingleIntention("Fix template arguments").let {
+            myFixture.launchAction(it)
+        }
+        
+        myFixture.checkResult("""
+            package main
+
+            import "github.com/willibrandon/mtlog"
+
+            func main() {
+                log := mtlog.New()
+                log.Warning("Disk usage at {Percentage:P1}", 0.85)
+            }
+            """.trimIndent())
     }
 }

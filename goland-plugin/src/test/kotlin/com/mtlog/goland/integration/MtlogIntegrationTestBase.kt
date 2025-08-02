@@ -40,7 +40,7 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
         }
     }
     
-    override fun getTestDataPath(): String = realProjectDir.absolutePath
+    override fun getTestDataPath(): String = "src/test/resources/testData"
     
     override fun getProjectDescriptor(): LightProjectDescriptor = GoProjectDescriptor
     
