@@ -1,6 +1,7 @@
 package com.mtlog.goland.annotator
 
 import com.goide.psi.GoFile
+import com.goide.psi.GoStringLiteral
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.ExternalAnnotator
@@ -13,6 +14,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.util.parentOfType
 import com.intellij.util.IncorrectOperationException
 import com.mtlog.goland.MtlogBundle
 import com.mtlog.goland.service.MtlogProjectService
@@ -154,17 +156,22 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 DiagnosticSeverity.SUGGESTION -> getSeverity(state.suggestionSeverity ?: "WEAK_WARNING")
             }
             
+            // Find the PSI element at the diagnostic range
+            val leaf = file.findElementAt(diagnostic.range.startOffset) ?: continue
+            val literal = leaf.parentOfType<GoStringLiteral>() ?: leaf  // fallback
+            val anchor = literal  // underline sticks to literal
+            
             val builder = holder.newAnnotation(severity, diagnostic.message)
-                .range(diagnostic.range)
-                .needsUpdateOnTyping(false)
+                .range(anchor)  // Anchor to whole literal, not leaf
+                .needsUpdateOnTyping(true)
             
             // Add quick fixes based on diagnostic type
             when {
                 diagnostic.message.contains("PascalCase") && diagnostic.propertyName != null -> {
-                    builder.withFix(com.mtlog.goland.quickfix.PascalCaseQuickFix(null, diagnostic.propertyName))
+                    builder.withFix(com.mtlog.goland.quickfix.PascalCaseQuickFix(anchor, diagnostic.propertyName))
                 }
                 diagnostic.message.contains("arguments") -> {
-                    builder.withFix(com.mtlog.goland.quickfix.TemplateArgumentQuickFix())
+                    builder.withFix(com.mtlog.goland.quickfix.TemplateArgumentQuickFix(anchor))
                 }
             }
             
@@ -190,7 +197,7 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                             
                             holder.newAnnotation(severity, "Incorrect number of arguments")
                                 .range(TextRange(argsStart, argsEnd))
-                                .needsUpdateOnTyping(false)
+                                .needsUpdateOnTyping(true)
                                 .create()
                         }
                     }

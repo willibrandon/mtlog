@@ -1,10 +1,17 @@
 package com.mtlog.goland.quickfix
 
+import com.goide.psi.GoCallExpr
+import com.goide.psi.GoStringLiteral
+import com.goide.psi.impl.GoElementFactory
 import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.util.PsiTreeUtil
 import com.mtlog.goland.MtlogBundle
 
 class TemplateArgumentQuickFix(
@@ -22,18 +29,77 @@ class TemplateArgumentQuickFix(
         startElement: PsiElement,
         endElement: PsiElement
     ) {
-        // This is a simplified implementation
-        // A real implementation would:
-        // 1. Parse the template to count properties
-        // 2. Parse the arguments to count provided values
-        // 3. Add placeholder arguments or remove extra properties
+        // Find the string literal and call expression
+        var stringLiteral: PsiElement? = startElement
+        while (stringLiteral != null && stringLiteral !is GoStringLiteral) {
+            stringLiteral = stringLiteral.parent
+        }
+        val goStringLiteral = stringLiteral as? GoStringLiteral ?: return
         
-        val document = editor?.document ?: return
+        val callExpr = PsiTreeUtil.getParentOfType(goStringLiteral, GoCallExpr::class.java) ?: return
         
-        // For now, just add a comment indicating the fix is needed
-        val lineNumber = document.getLineNumber(startElement.textRange.startOffset)
-        val lineStart = document.getLineStartOffset(lineNumber)
+        val doc = editor?.document 
+            ?: PsiDocumentManager.getInstance(project).getDocument(file) 
+            ?: return
         
-        document.insertString(lineStart, "// TODO: Fix template arguments\n")
+        // Get template text and count properties
+        val templateText = goStringLiteral.text
+        val templateContent = when {
+            templateText.startsWith("\"") && templateText.endsWith("\"") -> 
+                templateText.substring(1, templateText.length - 1)
+            templateText.startsWith("`") && templateText.endsWith("`") -> 
+                templateText.substring(1, templateText.length - 1)
+            else -> return
+        }
+        
+        // Count properties in template (anything in {})
+        val propertyCount = "\\{[^}]+\\}".toRegex().findAll(templateContent).count()
+        
+        // Get current argument count (excluding the template string itself)
+        val argList = callExpr.argumentList?.expressionList ?: emptyList()
+        val currentArgCount = argList.size - 1 // Subtract template string
+        
+        if (propertyCount == currentArgCount) return // Already correct
+        
+        WriteCommandAction.runWriteCommandAction(project, text, null, Runnable {
+            when {
+                propertyCount > currentArgCount -> {
+                    // Add missing nil arguments
+                    val lastArg = argList.lastOrNull() ?: return@Runnable
+                    val insertPos = lastArg.textRange.endOffset
+                    val missingCount = propertyCount - currentArgCount
+                    
+                    // Build the text to insert: ", nil, nil, ..."
+                    val nilArgs = List(missingCount) { "nil" }.joinToString(", ", ", ")
+                    doc.insertString(insertPos, nilArgs)
+                }
+                propertyCount < currentArgCount -> {
+                    // Remove extra arguments
+                    val extraCount = currentArgCount - propertyCount
+                    val argsToRemove = argList.takeLast(extraCount)
+                    
+                    if (argsToRemove.isNotEmpty()) {
+                        val firstToRemove = argsToRemove.first()
+                        val lastToRemove = argsToRemove.last()
+                        
+                        // Find the comma before the first argument to remove
+                        var deleteStart = firstToRemove.textRange.startOffset
+                        var searchPos = deleteStart - 1
+                        while (searchPos >= 0 && doc.charsSequence[searchPos].isWhitespace()) {
+                            searchPos--
+                        }
+                        if (searchPos >= 0 && doc.charsSequence[searchPos] == ',') {
+                            deleteStart = searchPos
+                        }
+                        
+                        val deleteEnd = lastToRemove.textRange.endOffset
+                        doc.deleteString(deleteStart, deleteEnd)
+                    }
+                }
+            }
+            PsiDocumentManager.getInstance(project).commitDocument(doc)
+        }, file)
+        
+        FileDocumentManager.getInstance().saveDocument(doc)
     }
 }
