@@ -10,6 +10,9 @@ import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
 import com.mtlog.analyzer.service.MtlogProjectService
 
+/**
+ * Batch inspection for mtlog template validation.
+ */
 class MtlogBatchInspection : LocalInspectionTool() {
     
     override fun getShortName(): String = "MtlogTemplateValidation"

@@ -20,6 +20,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import java.io.BufferedReader
 
+/**
+ * Diagnostic information from mtlog-analyzer.
+ */
 data class AnalyzerDiagnostic(
     val lineNumber: Int,
     val columnNumber: Int,
@@ -28,6 +31,9 @@ data class AnalyzerDiagnostic(
     val propertyName: String? = null
 )
 
+/**
+ * Project-level service managing mtlog-analyzer processes and configuration.
+ */
 @Service(Service.Level.PROJECT)
 @State(
     name = "MtlogProjectSettings",
@@ -52,6 +58,9 @@ class MtlogProjectService(
         this.state = state
     }
     
+    /**
+     * Gets or creates analyzer process for the given module path.
+     */
     fun getAnalyzerProcess(goModPath: String): OSProcessHandler? {
         LOG.debug("getAnalyzerProcess called for: $goModPath, enabled: ${state.enabled}")
         if (!state.enabled) return null
@@ -174,11 +183,17 @@ class MtlogProjectService(
         processPool.clear()
     }
     
+    /**
+     * Clears analyzer cache and restarts processes.
+     */
     fun clearCache() {
         cachedVersion = null
         disposeProcessPool()
     }
     
+    /**
+     * Runs analyzer on specific file and returns diagnostics.
+     */
     fun runAnalyzer(filePath: String, goModPath: String): List<AnalyzerDiagnostic>? {
         LOG.debug("runAnalyzer called for file: $filePath")
         

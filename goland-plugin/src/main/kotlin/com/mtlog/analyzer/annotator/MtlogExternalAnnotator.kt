@@ -25,6 +25,9 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
+/**
+ * Analysis input data.
+ */
 data class MtlogInfo(
     val file: PsiFile,
     val document: Document,
@@ -32,10 +35,16 @@ data class MtlogInfo(
     val goModPath: String
 )
 
+/**
+ * Analysis results.
+ */
 data class MtlogResult(
     val diagnostics: List<MtlogDiagnostic>
 )
 
+/**
+ * Editor diagnostic with highlighting info.
+ */
 data class MtlogDiagnostic(
     val range: TextRange,
     val message: String,
@@ -44,10 +53,16 @@ data class MtlogDiagnostic(
     val isTemplateError: Boolean = false
 )
 
+/**
+ * Diagnostic severity levels.
+ */
 enum class DiagnosticSeverity {
     ERROR, WARNING, SUGGESTION
 }
 
+/**
+ * External annotator running mtlog-analyzer asynchronously.
+ */
 class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
     companion object {
         private val LOG = logger<MtlogExternalAnnotator>()

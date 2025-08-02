@@ -14,6 +14,9 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
 import com.mtlog.analyzer.MtlogBundle
 
+/**
+ * Quick fix to match template properties with arguments.
+ */
 class TemplateArgumentQuickFix(
     element: PsiElement? = null
 ) : LocalQuickFixAndIntentionActionOnPsiElement(element) {

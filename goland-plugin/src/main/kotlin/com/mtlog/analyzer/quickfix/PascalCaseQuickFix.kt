@@ -9,6 +9,9 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 
+/**
+ * Quick fix to convert property names to PascalCase.
+ */
 class PascalCaseQuickFix(
     element: PsiElement?,
     private val propertyName: String
@@ -47,6 +50,9 @@ class PascalCaseQuickFix(
         FileDocumentManager.getInstance().saveDocument(doc)      // external analyzer sees change
     }
 
+    /**
+     * Converts snake_case or kebab-case to PascalCase.
+     */
     private fun toPascalCase(s: String) =
         s.split('_', '-', ' ').joinToString("") { it.replaceFirstChar(Char::uppercase) }
 }

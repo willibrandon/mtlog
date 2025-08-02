@@ -14,6 +14,9 @@ import com.mtlog.analyzer.service.MtlogProjectService
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
+/**
+ * Action to install mtlog-analyzer via go install.
+ */
 class InstallAnalyzerAction : AnAction() {
     
     override fun actionPerformed(e: AnActionEvent) {

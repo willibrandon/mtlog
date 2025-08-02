@@ -3,6 +3,9 @@ package com.mtlog.analyzer.settings
 import com.intellij.openapi.components.BaseState
 import com.intellij.util.xmlb.annotations.Tag
 
+/**
+ * Persistent plugin settings.
+ */
 class MtlogSettingsState : BaseState() {
     @get:Tag("analyzerPath")
     var analyzerPath by string("mtlog-analyzer")

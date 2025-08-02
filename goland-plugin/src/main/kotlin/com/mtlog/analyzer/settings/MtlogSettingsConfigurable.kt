@@ -11,6 +11,9 @@ import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
 import javax.swing.DefaultComboBoxModel
 
+/**
+ * Settings UI for mtlog-analyzer configuration.
+ */
 class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurable(
     MtlogBundle.message("settings.display.name")
 ) {
