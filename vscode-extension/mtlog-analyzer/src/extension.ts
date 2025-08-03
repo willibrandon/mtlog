@@ -22,6 +22,7 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 let outputChannel: vscode.OutputChannel;
 let statusBarItem: vscode.StatusBarItem;
 let activeProcesses = new Map<string, ChildProcess>();
+let analysisVersions = new Map<string, number>();
 let analysisQueue: string[] = [];
 let runningAnalyses = 0;
 const maxConcurrentAnalyses = Math.max(1, os.cpus().length - 1);
@@ -32,6 +33,7 @@ interface CacheEntry {
     hash: string;
     diagnostics: vscode.Diagnostic[];
     timestamp: number;
+    documentVersion: number;
 }
 const diagnosticsCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
@@ -217,6 +219,14 @@ async function processQueue() {
 async function analyzeDocument(document: vscode.TextDocument) {
     const filePath = document.fileName;
     
+    // Increment analysis version for this file
+    const currentVersion = (analysisVersions.get(filePath) || 0) + 1;
+    analysisVersions.set(filePath, currentVersion);
+    
+    // Clear existing diagnostics immediately to prevent phantom diagnostics
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] CLEARING diagnostics for ${document.uri.fsPath} (version ${currentVersion})`);
+    diagnosticCollection.delete(document.uri);
+    
     // Cancel any existing analysis for this file
     const existingProcess = activeProcesses.get(filePath);
     if (existingProcess) {
@@ -224,24 +234,9 @@ async function analyzeDocument(document: vscode.TextDocument) {
         activeProcesses.delete(filePath);
     }
     
-    // Check cache first
+    // We need to always re-analyze to detect when problems are fixed
+    // Don't use cache - it causes stale diagnostics to persist after fixes
     const fileContent = document.getText();
-    const currentHash = crypto.createHash('sha256').update(fileContent).digest('hex');
-    const cacheEntry = diagnosticsCache.get(filePath);
-    
-    if (cacheEntry && cacheEntry.hash === currentHash) {
-        const age = Date.now() - cacheEntry.timestamp;
-        if (age < CACHE_TTL) {
-            // Use cached diagnostics
-            diagnosticCollection.set(document.uri, cacheEntry.diagnostics);
-            updateTotalIssueCount();
-            
-            // Log cache hit
-            const relPath = vscode.workspace.asRelativePath(filePath);
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Using cached results for ${relPath}`);
-            return;
-        }
-    }
     
     const diagnostics: vscode.Diagnostic[] = [];
     const fileUri = document.uri;
@@ -266,8 +261,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
         // Fall back to single file if not in a module
     }
     
-    // Store file hash for cache comparison
-    fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+    // Not using cache anymore - causes stale diagnostics
     
     // Get the analyzer path and flags from config
     const config = vscode.workspace.getConfiguration('mtlog');
@@ -338,15 +332,21 @@ async function analyzeDocument(document: vscode.TextDocument) {
         // Clean up process tracking
         activeProcesses.delete(filePath);
         
+        // Only apply diagnostics if this is the latest analysis version
+        const latestVersion = analysisVersions.get(filePath) || 0;
+        if (currentVersion < latestVersion) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Discarding stale analysis results (version ${currentVersion} < ${latestVersion})`);
+            return;
+        }
+        
         // Update diagnostics for this file
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] SETTING ${diagnostics.length} diagnostics for ${fileUri.fsPath} (version ${currentVersion})`);
+        for (const diag of diagnostics) {
+            outputChannel.appendLine(`  - Line ${diag.range.start.line + 1}: ${diag.message}`);
+        }
         diagnosticCollection.set(fileUri, diagnostics);
         
-        // Update cache
-        diagnosticsCache.set(filePath, {
-            hash: fileHash,
-            diagnostics: [...diagnostics],
-            timestamp: Date.now()
-        });
+        // Not caching anymore - it causes stale diagnostics to persist
         
         // Update total issue count
         updateTotalIssueCount();
@@ -444,6 +444,16 @@ function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diag
             const cat = category.toLowerCase();
             if (cat.includes('warn')) severity = vscode.DiagnosticSeverity.Warning;
             else if (cat.includes('suggest') || cat.includes('info')) severity = vscode.DiagnosticSeverity.Information;
+        }
+        
+        // Validate line number exists in document
+        const document = vscode.workspace.textDocuments.find(d => d.uri.fsPath === uri.fsPath);
+        if (!document || line - 1 >= document.lineCount) {
+            // Log filtered diagnostic for debugging
+            if (outputChannel) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtered out-of-range diagnostic: line ${line} (doc has ${document?.lineCount || 0} lines)`);
+            }
+            return;
         }
         
         const diag = new vscode.Diagnostic(
