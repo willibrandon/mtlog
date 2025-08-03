@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
 import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
 import { execSync } from "child_process";
 
 /**
@@ -54,10 +56,31 @@ suite("mtlog‑analyzer diagnostics", () => {
     
     // Find the actual analyzer path dynamically
     let analyzerPath = 'mtlog-analyzer';
+    const platform = process.platform;
+    const isWindows = platform === 'win32';
+    const binaryName = isWindows ? 'mtlog-analyzer.exe' : 'mtlog-analyzer';
+    
+    // Try to find in PATH first
+    const whereCmd = isWindows ? 'where' : 'which';
     try {
-      analyzerPath = execSync('where mtlog-analyzer', { encoding: 'utf8' }).trim().split('\n')[0];
+      analyzerPath = execSync(`${whereCmd} ${binaryName}`, { encoding: 'utf8' }).trim().split('\n')[0];
     } catch (e) {
-      console.error('Could not find mtlog-analyzer:', e);
+      // If not in PATH, check common Go binary locations
+      const goPaths = [
+        process.env.GOPATH ? path.join(process.env.GOPATH, 'bin') : null,
+        path.join(os.homedir(), 'go', 'bin'),
+        isWindows ? 'C:\\Go\\bin' : '/usr/local/go/bin'
+      ].filter(Boolean);
+      
+      for (const goPath of goPaths) {
+        if (goPath) {
+          const fullPath = path.join(goPath, binaryName);
+          if (fs.existsSync(fullPath)) {
+            analyzerPath = fullPath;
+            break;
+          }
+        }
+      }
     }
     
     // Set the analyzer path explicitly to the full path
