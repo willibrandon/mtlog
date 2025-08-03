@@ -24,6 +24,14 @@
       {
         "command": "mtlog.showOutput",
         "title": "Show mtlog analyzer output"
+      },
+      {
+        "command": "mtlog.analyzeNow",
+        "title": "Analyze current file with mtlog-analyzer"
+      },
+      {
+        "command": "mtlog.saveAndAnalyze",
+        "title": "Save and Analyze File"
       }
     ],
     "configuration": {

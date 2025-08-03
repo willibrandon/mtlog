@@ -130,7 +130,8 @@ mtlog-analyzer -strict -common-keys=tenant_id,org_id ./...
 #### VS Code Extension
 The mtlog-analyzer is integrated into VS Code through the official extension:
 - Real-time validation with inline diagnostics
-- Quick fixes for common issues
+- Quick fixes for common issues (PascalCase properties, argument mismatches)
+- Automatic save and reanalysis after applying fixes
 - Available in VS Code marketplace
 - Zero configuration - automatically uses installed mtlog-analyzer
 

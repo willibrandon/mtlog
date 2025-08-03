@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VS Code Extension** - Real-time validation for mtlog message templates (#7)
   - Automatic diagnostics on save and file changes with 500ms debounce
   - Three severity levels: errors (red), warnings (yellow), suggestions (blue)
+  - Quick fixes for property naming (PascalCase) and argument count mismatches
+  - Automatic save and reanalysis after applying fixes
   - Status bar indicator showing analysis state and issue count
   - SHA-256 based caching to skip redundant analysis
   - CPU-based concurrency control (uses half of logical cores)

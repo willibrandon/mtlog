@@ -808,6 +808,7 @@ The extension provides:
 - 🔍 Real-time diagnostics with squiggly underlines
 - 🎯 Precise error locations - click to jump to issues
 - 📊 Three severity levels: errors, warnings, and suggestions
+- 🔧 Quick fixes for common issues (Ctrl+. for PascalCase conversion, argument count fixes)
 - ⚙️ Configurable analyzer path and flags
 
 #### GoLand Plugin
