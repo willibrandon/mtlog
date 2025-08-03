@@ -93,11 +93,11 @@ class MtlogProjectService(
                         }
                         
                         override fun processTerminated(event: ProcessEvent) {
-                            // No action needed on termination
+                            // Required by ProcessListener interface, but this service does not need to handle process termination events
                         }
                         
                         override fun startNotified(event: ProcessEvent) {
-                            // No action needed on start
+                            // Required by ProcessListener interface, but this service does not need to handle process start events
                         }
                     })
                     LOG.debug("Successfully created analyzer process")
