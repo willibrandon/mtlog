@@ -149,12 +149,15 @@ jobs:
       run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
 
     - name: Install dependencies
+      working-directory: vscode-extension/mtlog-analyzer
       run: npm ci
 
     - name: Compile TypeScript
+      working-directory: vscode-extension/mtlog-analyzer
       run: npm run compile
 
     - name: Package extension
+      working-directory: vscode-extension/mtlog-analyzer
       run: |
         npm install -g @vscode/vsce
         vsce package --no-dependencies
