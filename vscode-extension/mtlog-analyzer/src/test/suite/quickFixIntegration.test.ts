@@ -40,12 +40,15 @@ go 1.21
     });
 }
 
+// Resolve the path to the mtlog-analyzer binary
+// This will check the PATH, GOBIN, GOPATH/bin and home directory for the binary
+// If not found, it will return null
 function resolveAnalyzerPath(analyzerName: string): string | null {
     const isWindows = process.platform === 'win32';
     const binaryName = isWindows ? `${analyzerName}.exe` : analyzerName;
 
     try {
-        execSync(`${binaryName} -V`, { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
+        execSync(`${binaryName} -V=full`, { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
         console.log(`Found ${binaryName} in PATH`);
         return binaryName;
     } catch (e) {
@@ -67,6 +70,7 @@ function resolveAnalyzerPath(analyzerName: string): string | null {
         }
     }
 
+    console.log(`Failed to resolve ${binaryName} in PATH, GOBIN or GOPATH/bin`);
     return null;
 }
 

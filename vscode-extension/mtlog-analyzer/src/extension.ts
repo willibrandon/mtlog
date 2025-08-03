@@ -594,7 +594,7 @@ function resolveAnalyzerPath(analyzerName: string): string | null {
 
     // Check PATH first
     try {
-        execSync(`${binaryName} -V`, { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
+        execSync(`${binaryName} -V=full`, { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
         outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found ${binaryName} in PATH`);
         return binaryName;
     } catch (e) {
