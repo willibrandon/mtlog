@@ -35,7 +35,9 @@ go 1.21
     execSync(`go mod edit -require=github.com/willibrandon/mtlog@v0.0.0`, { 
         cwd: workspaceRoot 
     });
-    execSync(`go mod edit -replace=github.com/willibrandon/mtlog=${mtlogRoot.replace(/\\/g, '/')}`, { 
+    // Use relative path for cross-platform compatibility
+    const relativePath = '../../../..';
+    execSync(`go mod edit -replace=github.com/willibrandon/mtlog=${relativePath}`, { 
         cwd: workspaceRoot 
     });
 }
