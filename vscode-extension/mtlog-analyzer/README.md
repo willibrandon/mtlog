@@ -7,6 +7,7 @@ Real-time validation for [mtlog](https://github.com/willibrandon/mtlog) message 
 - 🔍 **Real-time diagnostics** - See template errors as you type
 - 🎯 **Precise error locations** - Jump directly to problematic code
 - 📊 **Severity levels** - Errors, warnings, and suggestions
+- ⚡ **Quick fixes** - Automatic fixes for common issues
 - ⚙️ **Configurable** - Customize analyzer path and flags
 
 ## What it catches
@@ -14,13 +15,24 @@ Real-time validation for [mtlog](https://github.com/willibrandon/mtlog) message 
 ```go
 // ❌ Error: Template has 2 properties but 1 argument
 logger.Information("User {UserId} logged in from {IP}", userId)
+//                                                      ^^^^^^ Quick fix: Add 1 missing argument
 
 // ⚠️ Warning: Using @ prefix with basic type
 logger.Debug("Count is {@Count}", 42)
 
 // 💡 Suggestion: Property name should be PascalCase
 logger.Information("User {userId} completed action", "user123")
+//                        ^^^^^^ Quick fix: Change to 'UserId'
 ```
+
+### Quick Fixes
+
+The extension provides automatic fixes for common issues:
+
+- **PascalCase property names** - Converts `userId` to `UserId`, `user_id` to `UserId`, etc.
+- **Argument mismatches** - Adds placeholder arguments for missing properties or removes excess arguments
+
+Apply fixes by clicking the light bulb (💡) or pressing `Ctrl+.` (Windows/Linux) or `Cmd+.` (macOS) when your cursor is on the diagnostic.
 
 ## Requirements
 

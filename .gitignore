@@ -1,4 +1,5 @@
 .claude/settings.local.json
+CLAUDE.local.md
 
 # Binaries for programs and plugins
 *.exe
@@ -55,3 +56,14 @@ vscode-extension/mtlog-analyzer/.vscode-test/
 vscode-extension/mtlog-analyzer/*.vsix
 vscode-extension/mtlog-analyzer/**/*.js
 vscode-extension/mtlog-analyzer/**/*.js.map
+
+# VS Code extension tests
+vscode-extension-tests/out/
+vscode-extension-tests/node_modules/
+vscode-extension-tests/.vscode-test/
+vscode-extension-tests/.vscode-test-cache/
+vscode-extension-tests/package-lock.json
+vscode-extension-tests/**/.vscode-test/
+vscode-extension-tests/*.vscode-testuser-data/
+vscode-extension-tests/**/*.vscode-testuser-data/
+**/SRCmtlogvscode-extension-tests.vscode-test*/

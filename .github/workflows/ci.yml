@@ -129,9 +129,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-15]
         node-version: [18.x, 20.x]
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: vscode-extension/mtlog-analyzer
     steps:
     - uses: actions/checkout@v4
 
@@ -152,20 +149,15 @@ jobs:
       run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
 
     - name: Install dependencies
+      working-directory: vscode-extension/mtlog-analyzer
       run: npm ci
 
     - name: Compile TypeScript
+      working-directory: vscode-extension/mtlog-analyzer
       run: npm run compile
 
-    - name: Run tests
-      run: npm test
-      if: matrix.os != 'ubuntu-latest' || matrix.node-version != '20.x'
-      
-    - name: Run tests with coverage
-      run: npm test -- --coverage
-      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
-
     - name: Package extension
+      working-directory: vscode-extension/mtlog-analyzer
       run: |
         npm install -g @vscode/vsce
         vsce package --no-dependencies
