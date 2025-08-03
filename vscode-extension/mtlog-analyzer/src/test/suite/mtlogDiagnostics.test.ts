@@ -16,9 +16,6 @@ suite("mtlog‑analyzer diagnostics", () => {
   // Replace with the real ID from your package.json (publisher.name)
   const EXTENSION_ID = "mtlog.mtlog-analyzer";
 
-  // Relative path (from workspace folder) to the Go fixture file
-  const FIXTURE_RELATIVE = path.join("src", "test", "fixtures", "test.go");
-
   // Polling parameters – tweak if your CI is slow
   const POLL_INTERVAL_MS = 250;
   const TIMEOUT_MS = 10_000;

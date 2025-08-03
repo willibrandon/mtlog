@@ -58,10 +58,6 @@ suite('Quick Fix Integration Tests', () => {
         }
         
         const workspaceRoot = workspaceFolders[0].uri.fsPath;
-        testDir = path.join(workspaceRoot, 'fixtures');
-        if (!fs.existsSync(testDir)) {
-            fs.mkdirSync(testDir);
-        }
         
         ensureGoModExists(workspaceRoot);
         
@@ -96,10 +92,6 @@ suite('Quick Fix Integration Tests', () => {
     
     test('PascalCase quick fix should be available', async function() {
         this.timeout(20000);
-        
-        // Use the pre-existing fixture file instead of creating dynamically
-        const testFile = path.join(__dirname, '..', '..', '..', 'src', 'test', 'fixtures', 'quickfix_pascal.go');
-        console.log('Using fixture file:', testFile);
         
         try {
             // Use URI to open the document (like the working test)
@@ -148,7 +140,6 @@ suite('Quick Fix Integration Tests', () => {
                     }
                 }
                 
-                const testCmd = `go vet -json -vettool="${analyzerPath}" ./fixtures`;
                 console.log(`Running manual test: ${testCmd}`);
                 const testOutput = execSync(testCmd, {
                     cwd: workspaceRoot,
@@ -213,10 +204,6 @@ suite('Quick Fix Integration Tests', () => {
     
     test('Argument mismatch quick fix should be available', async function() {
         this.timeout(20000);
-        
-        // Use the pre-existing fixture file instead of creating dynamically
-        const testFile = path.join(__dirname, '..', '..', '..', 'src', 'test', 'fixtures', 'quickfix_args.go');
-        console.log('Using fixture file:', testFile);
         
         try {
             // Use URI to open the document (like the working test)
