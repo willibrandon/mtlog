@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.6.0"
+version = "0.7.0"
 
 repositories {
     mavenCentral()
@@ -48,7 +48,7 @@ intellijPlatform {
         
         vendor {
             name = "mtlog"
-            email = "support@mtlog.com"
+            email = ""
             url = "https://github.com/willibrandon/mtlog"
         }
         
@@ -66,7 +66,7 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
-            <h2>1.0.0</h2>
+            <h2>0.7.0</h2>
             <ul>
                 <li>Initial release</li>
                 <li>Real-time template validation with proper text highlighting</li>

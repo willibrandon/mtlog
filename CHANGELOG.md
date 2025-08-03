@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-08-03
+
 ### Added
-- **GoLand Plugin** - Real-time validation for mtlog message templates in JetBrains IDEs
+- **VS Code Quick Fixes** - Enhanced VS Code extension with quick fixes for mtlog diagnostics (#11)
+  - PascalCase property name conversion (e.g., `user_id` → `UserId`)
+  - Template/argument mismatch resolution (add/remove arguments)
+  - Automatic save and reanalysis after applying fixes
+  - Fixed parseDiagnostic for modern go vet JSON output formats
+  - Quick fixes now work identically to the GoLand plugin implementation
+
+- **GoLand Plugin** - Real-time validation for mtlog message templates in JetBrains IDEs (#9)
   - Automatic template/argument validation with intelligent highlighting
   - Quick fixes for property naming (PascalCase) and argument count mismatches
   - Three severity levels with configurable mappings
@@ -21,15 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VS Code Extension** - Real-time validation for mtlog message templates (#7)
   - Automatic diagnostics on save and file changes with 500ms debounce
   - Three severity levels: errors (red), warnings (yellow), suggestions (blue)
-  - Quick fixes for property naming (PascalCase) and argument count mismatches
-  - Automatic save and reanalysis after applying fixes
   - Status bar indicator showing analysis state and issue count
   - SHA-256 based caching to skip redundant analysis
   - CPU-based concurrency control (uses half of logical cores)
   - Automatic installation prompt when mtlog-analyzer not found
   - Configurable analyzer path and flags via settings
   - Published to VS Code Marketplace under publisher ID "mtlog"
-  - Originally released with dual-tagging strategy (`ext/v*`), now uses unified release process
 
 ### Changed
 - **Unified Release Process** - All components now release together
@@ -287,6 +293,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.7.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.0
 [0.6.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.6.0
 [0.5.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.5.0
 [0.4.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.4.0

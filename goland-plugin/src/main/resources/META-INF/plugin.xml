@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mtlog.analyzer</id>
     <name>mtlog-analyzer</name>
-    <vendor email="support@mtlog.com" url="https://github.com/willibrandon/mtlog">mtlog</vendor>
+    <vendor url="https://github.com/willibrandon/mtlog">mtlog</vendor>
     
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
