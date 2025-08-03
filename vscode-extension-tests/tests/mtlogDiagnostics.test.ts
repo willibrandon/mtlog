@@ -8,7 +8,7 @@ import { execSync } from "child_process";
 /**
  * Integration tests for the mtlog‑analyzer VS Code extension.
  *
- * The test suite opens a Go fixture that is known to produce three
+ * The test suite opens a Go file that is known to produce multiple
  * diagnostics, waits for the extension to publish them, and verifies
  * message text as well as DiagnosticSeverity for each entry.
  */
@@ -87,15 +87,16 @@ suite("mtlog‑analyzer diagnostics", () => {
     // Wait for the extension to react to configuration change
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Open and display the fixture using absolute path
-    const fixturePath = path.join(__dirname, '..', '..', '..', FIXTURE_RELATIVE);
-    console.log('Opening fixture at:', fixturePath);
+    // Open and display the test file using absolute path
+    // Use an existing test file that has multiple diagnostics
+    const testFilePath = path.join(__dirname, '..', '..', '..', '..', 'cmd', 'mtlog-analyzer', 'analyzer', 'testdata', 'src', 'integration', 'integration.go');
+    console.log('Opening test file at:', testFilePath);
     
     // Check workspace folders
     console.log('Workspace folders:', vscode.workspace.workspaceFolders?.map(f => f.uri.toString()));
     
     // Use URI to open the document
-    const fileUri = vscode.Uri.file(fixturePath);
+    const fileUri = vscode.Uri.file(testFilePath);
     document = await vscode.workspace.openTextDocument(fileUri);
     console.log('Document language:', document.languageId);
     console.log('Document URI:', document.uri.toString());

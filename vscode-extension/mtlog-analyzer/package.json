@@ -55,7 +55,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node ./out/test/runTest.js"
+    "test": "cd ../../vscode-extension-tests && npm install && npm run compile && npm test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",

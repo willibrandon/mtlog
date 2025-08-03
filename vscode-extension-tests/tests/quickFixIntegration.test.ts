@@ -94,7 +94,8 @@ suite('Quick Fix Integration Tests', () => {
         this.timeout(20000);
         
         try {
-            // Use URI to open the document (like the working test)
+            // Use an existing Go file from the project that has PascalCase issues
+            const testFile = path.join(__dirname, '..', '..', '..', '..', 'cmd', 'mtlog-analyzer', 'analyzer', 'testdata', 'src', 'integration', 'integration.go');
             const fileUri = vscode.Uri.file(testFile);
             const doc = await vscode.workspace.openTextDocument(fileUri);
             const editor = await vscode.window.showTextDocument(doc, { preview: false });
@@ -140,6 +141,7 @@ suite('Quick Fix Integration Tests', () => {
                     }
                 }
                 
+                const testCmd = `go vet -json -vettool="${analyzerPath}" ${testFile}`;
                 console.log(`Running manual test: ${testCmd}`);
                 const testOutput = execSync(testCmd, {
                     cwd: workspaceRoot,
@@ -206,7 +208,8 @@ suite('Quick Fix Integration Tests', () => {
         this.timeout(20000);
         
         try {
-            // Use URI to open the document (like the working test)
+            // Use an existing Go file from the project that has argument mismatch issues
+            const testFile = path.join(__dirname, '..', '..', '..', '..', 'cmd', 'mtlog-analyzer', 'analyzer', 'testdata', 'src', 'integration', 'integration.go');
             const fileUri = vscode.Uri.file(testFile);
             const doc = await vscode.workspace.openTextDocument(fileUri);
             const editor = await vscode.window.showTextDocument(doc, { preview: false });
