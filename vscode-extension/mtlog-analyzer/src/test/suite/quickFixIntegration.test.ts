@@ -81,17 +81,17 @@ suite('Quick Fix Integration Tests', () => {
         }
         
         const workspaceRoot = workspaceFolders[0].uri.fsPath;
-        testDir = path.join(workspaceRoot, 'testpkg');
+        testDir = path.join(workspaceRoot, 'fixtures');
         if (!fs.existsSync(testDir)) {
             fs.mkdirSync(testDir);
         }
         
         ensureGoModExists(workspaceRoot);
         
-        // Also ensure the testpkg has at least one valid .go file to make it a valid package
+        // Also ensure the fixtures directory has at least one valid .go file to make it a valid package
         const initFile = path.join(testDir, 'init.go');
         if (!fs.existsSync(initFile)) {
-            fs.writeFileSync(initFile, 'package testpkg\n');
+            fs.writeFileSync(initFile, 'package fixtures\n');
         }
         
         // Don't run go mod tidy as it removes the require directive when there's no go.sum
@@ -122,8 +122,11 @@ suite('Quick Fix Integration Tests', () => {
     });
     
     suiteTeardown(() => {
-        if (fs.existsSync(testDir)) {
-            fs.rmSync(testDir, { recursive: true, force: true });
+        // Don't delete the fixtures directory - it contains our test files
+        // Only clean up the init.go file we might have created
+        const initFile = path.join(testDir, 'init.go');
+        if (fs.existsSync(initFile)) {
+            fs.unlinkSync(initFile);
         }
     });
     
@@ -165,7 +168,7 @@ suite('Quick Fix Integration Tests', () => {
             console.log(`Workspace root: ${workspaceRoot}`);
             
             try {
-                const testCmd = `go vet -json -vettool="${resolveAnalyzerPath('mtlog-analyzer') || 'mtlog-analyzer'}" ./testpkg`;
+                const testCmd = `go vet -json -vettool="${resolveAnalyzerPath('mtlog-analyzer') || 'mtlog-analyzer'}" ./fixtures`;
                 console.log(`Running manual test: ${testCmd}`);
                 const testOutput = execSync(testCmd, {
                     cwd: workspaceRoot,
