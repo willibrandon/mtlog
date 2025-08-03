@@ -172,7 +172,23 @@ suite('Quick Fix Integration Tests', () => {
             console.log(`Workspace root: ${workspaceRoot}`);
             
             try {
-                const testCmd = `go vet -json -vettool="${resolveAnalyzerPath('mtlog-analyzer') || 'mtlog-analyzer'}" ./fixtures`;
+                // Get the full path to mtlog-analyzer
+                let analyzerPath = resolveAnalyzerPath('mtlog-analyzer') || 'mtlog-analyzer';
+                
+                // If it's just the binary name (found in PATH), get the full path
+                if (!analyzerPath.includes('/') && !analyzerPath.includes('\\')) {
+                    try {
+                        const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+                        const fullPath = execSync(`${whichCmd} ${analyzerPath}`, { encoding: 'utf8' }).trim().split('\n')[0];
+                        if (fullPath) {
+                            analyzerPath = fullPath;
+                        }
+                    } catch (e) {
+                        // which/where failed, stick with the binary name
+                    }
+                }
+                
+                const testCmd = `go vet -json -vettool="${analyzerPath}" ./fixtures`;
                 console.log(`Running manual test: ${testCmd}`);
                 const testOutput = execSync(testCmd, {
                     cwd: workspaceRoot,

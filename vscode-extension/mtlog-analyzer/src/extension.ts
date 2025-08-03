@@ -292,7 +292,20 @@ async function analyzeDocument(document: vscode.TextDocument) {
     fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
     
     // Analyze package or single file
-    const args = ['vet', '-json', `-vettool=${analyzerPath}`, ...analyzerFlags, packagePath];
+    // If analyzerPath is just a binary name (found in PATH), get the full path
+    let fullAnalyzerPath = analyzerPath;
+    if (!analyzerPath.includes('/') && !analyzerPath.includes('\\')) {
+        try {
+            const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+            fullAnalyzerPath = execSync(`${whichCmd} ${analyzerPath}`, { encoding: 'utf8' }).trim().split('\n')[0];
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Resolved ${analyzerPath} to ${fullAnalyzerPath}`);
+        } catch (e) {
+            // If which/where fails, stick with the binary name
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Could not resolve full path for ${analyzerPath}, using as-is`);
+        }
+    }
+    
+    const args = ['vet', '-json', `-vettool=${fullAnalyzerPath}`, ...analyzerFlags, packagePath];
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
     
     const proc = spawn('go', args, {
