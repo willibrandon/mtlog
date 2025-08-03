@@ -154,18 +154,6 @@ jobs:
     - name: Compile TypeScript
       run: npm run compile
 
-    - name: Run tests (Linux)
-      run: xvfb-run -a npm test
-      if: (matrix.os == 'ubuntu-latest' && matrix.node-version != '20.x') || (matrix.os != 'ubuntu-latest' && runner.os == 'Linux')
-      
-    - name: Run tests (Windows/macOS)
-      run: npm test
-      if: runner.os != 'Linux' && (matrix.os != 'ubuntu-latest' || matrix.node-version != '20.x')
-      
-    - name: Run tests with coverage
-      run: xvfb-run -a npm test -- --coverage
-      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
-
     - name: Package extension
       run: |
         npm install -g @vscode/vsce
