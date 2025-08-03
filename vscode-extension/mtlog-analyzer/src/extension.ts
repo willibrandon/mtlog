@@ -244,27 +244,8 @@ async function analyzeDocument(document: vscode.TextDocument) {
     }
     
     const config = vscode.workspace.getConfiguration('mtlog');
-    let analyzerPath = config.get<string>('analyzerPath', 'mtlog-analyzer');
     const analyzerFlags = config.get<string[]>('analyzerFlags', []);
-    
-    // Resolve analyzer path dynamically
-    if (!analyzerPath.includes(path.sep) && !analyzerPath.includes('/')) {
-        const resolvedPath = resolveAnalyzerPath(analyzerPath);
-        if (!resolvedPath) {
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Error: mtlog-analyzer not found`);
-            vscode.window.showErrorMessage('mtlog-analyzer not found. Please install it or update mtlog.analyzerPath setting.');
-            return;
-        }
-        analyzerPath = resolvedPath;
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Resolved analyzer path to ${analyzerPath}`);
-    }
 
-    if (!fs.existsSync(analyzerPath)) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Error: Analyzer not found at ${analyzerPath}`);
-        vscode.window.showErrorMessage(`mtlog-analyzer not found at ${analyzerPath}. Please check mtlog.analyzerPath setting.`);
-        return;
-    }
-    
     const diagnostics: vscode.Diagnostic[] = [];
     const fileUri = document.uri;
     let fileHash = '';
@@ -291,21 +272,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     // Store file hash for cache comparison
     fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
     
-    // Analyze package or single file
-    // If analyzerPath is just a binary name (found in PATH), get the full path
-    let fullAnalyzerPath = analyzerPath;
-    if (!analyzerPath.includes('/') && !analyzerPath.includes('\\')) {
-        try {
-            const whichCmd = process.platform === 'win32' ? 'where' : 'which';
-            fullAnalyzerPath = execSync(`${whichCmd} ${analyzerPath}`, { encoding: 'utf8' }).trim().split('\n')[0];
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Resolved ${analyzerPath} to ${fullAnalyzerPath}`);
-        } catch (e) {
-            // If which/where fails, stick with the binary name
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Could not resolve full path for ${analyzerPath}, using as-is`);
-        }
-    }
-    
-    const args = ['vet', '-json', `-vettool=${fullAnalyzerPath}`, ...analyzerFlags, packagePath];
+    const args = ['vet', '-json', `-vettool=mtlog-analyzer`, ...analyzerFlags, packagePath];
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
     
     const proc = spawn('go', args, {
@@ -582,13 +549,6 @@ function checkAnalyzerAvailable() {
         }
     }
 
-    const resolvedPath = resolveAnalyzerPath(analyzerPath);
-    if (resolvedPath) {
-        config.update('analyzerPath', resolvedPath, vscode.ConfigurationTarget.Global);
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Updated analyzerPath to ${resolvedPath}`);
-        return;
-    }
-
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Analyzer not found`);
     vscode.window.showInformationMessage(
         'mtlog-analyzer not found. Install it to enable real-time template validation.',
@@ -599,38 +559,6 @@ function checkAnalyzerAvailable() {
             installAnalyzer();
         }
     });
-}
-
-function resolveAnalyzerPath(analyzerName: string): string | null {
-    const isWindows = process.platform === 'win32';
-    const binaryName = isWindows ? `${analyzerName}.exe` : analyzerName;
-
-    // Check PATH first
-    try {
-        execSync(`${binaryName} -V=full`, { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found ${binaryName} in PATH`);
-        return binaryName;
-    } catch (e) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${binaryName} not found in PATH: ${e}`);
-    }
-
-    // Check common Go binary locations
-    const goBinPaths = [
-        process.env.GOBIN,
-        process.env.GOPATH && path.join(process.env.GOPATH, 'bin'),
-        path.join(os.homedir(), 'go', 'bin')
-    ].filter(Boolean);
-
-    for (const binPath of goBinPaths) {
-        if (!binPath) continue;
-        const fullPath = path.join(binPath, binaryName);
-        if (fs.existsSync(fullPath)) {
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found ${binaryName} at ${fullPath}`);
-            return fullPath;
-        }
-    }
-
-    return null;
 }
 
 async function installAnalyzer() {

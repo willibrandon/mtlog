@@ -6,40 +6,11 @@ import { execSync } from 'child_process';
 import * as os from 'os';
 
 function ensureGoModExists(workspaceRoot: string) {
+    // DO NOT MODIFY go.mod - it should already exist in the repository
     const goModPath = path.join(workspaceRoot, 'go.mod');
-    
-    // Calculate the correct path to mtlog root (D:\SRC\mtlog)
-    // From test workspace: D:\SRC\mtlog\vscode-extension\mtlog-analyzer\src\test
-    // Up 4 levels to get to D:\SRC\mtlog
-    const mtlogRoot = path.resolve(workspaceRoot, '../../../..');
-    
-    // Check if go.mod already exists with correct content
-    if (fs.existsSync(goModPath)) {
-        const content = fs.readFileSync(goModPath, 'utf8');
-        if (content.includes('module testproject') && 
-            content.includes('replace github.com/willibrandon/mtlog')) {
-            // go.mod already set up correctly, don't modify it
-            return;
-        }
-    }
-    
-    // Only create/modify if needed
     if (!fs.existsSync(goModPath)) {
-        fs.writeFileSync(goModPath, `module testproject
-
-go 1.21
-`);
+        throw new Error('go.mod is missing from test directory - it should be committed to the repository');
     }
-    
-    // Use go mod edit to add require and replace
-    execSync(`go mod edit -require=github.com/willibrandon/mtlog@v0.0.0`, { 
-        cwd: workspaceRoot 
-    });
-    // Use relative path for cross-platform compatibility
-    const relativePath = '../../../..';
-    execSync(`go mod edit -replace=github.com/willibrandon/mtlog=${relativePath}`, { 
-        cwd: workspaceRoot 
-    });
 }
 
 // Resolve the path to the mtlog-analyzer binary
@@ -94,14 +65,6 @@ suite('Quick Fix Integration Tests', () => {
         
         ensureGoModExists(workspaceRoot);
         
-        // Also ensure the fixtures directory has at least one valid .go file to make it a valid package
-        const initFile = path.join(testDir, 'init.go');
-        if (!fs.existsSync(initFile)) {
-            fs.writeFileSync(initFile, 'package fixtures\n');
-        }
-        
-        // Don't run go mod tidy as it removes the require directive when there's no go.sum
-        
         // Wait a bit for the extension to do initial analysis
         await new Promise(resolve => setTimeout(resolve, 3000));
         
@@ -128,12 +91,7 @@ suite('Quick Fix Integration Tests', () => {
     });
     
     suiteTeardown(() => {
-        // Don't delete the fixtures directory - it contains our test files
-        // Only clean up the init.go file we might have created
-        const initFile = path.join(testDir, 'init.go');
-        if (fs.existsSync(initFile)) {
-            fs.unlinkSync(initFile);
-        }
+        // Don't delete or modify any files
     });
     
     test('PascalCase quick fix should be available', async function() {
