@@ -1,4 +1,4 @@
-module testfixtures
+module fixtures
 
 go 1.24.1
 
