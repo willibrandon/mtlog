@@ -122,6 +122,7 @@ jobs:
         prerelease: false
 
     - name: Publish VS Code Extension
+      continue-on-error: true  # Don't fail the whole workflow if marketplace publish fails
       env:
         VSCE_PAT: ${{ secrets.VSCE_PAT }}
       run: |
@@ -129,6 +130,7 @@ jobs:
         vsce publish -p $VSCE_PAT
 
     - name: Publish GoLand Plugin
+      continue-on-error: true  # Don't fail the whole workflow if marketplace publish fails
       env:
         JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN }}
       run: |

@@ -37,7 +37,7 @@ Apply fixes by clicking the light bulb (💡) or pressing `Ctrl+.` (Windows/Linu
 ## Requirements
 
 - Go 1.21 or later
-- [mtlog-analyzer](https://github.com/willibrandon/mtlog/cmd/mtlog-analyzer) installed and in PATH
+- [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer) installed and in PATH
 
 ## Installation
 
@@ -79,26 +79,6 @@ The extension runs `mtlog-analyzer` when you save Go files, parsing the output a
 - Verify the analyzer works: `mtlog-analyzer your-file.go`
 - Ensure you're saving the file (analysis runs on save)
 
-## Development & Releases
-
-This extension is built and released through the main mtlog repository's CI/CD pipeline.
-
-### Release Process
-
-All components (library, analyzer, and IDE extensions) are released together with the same version:
-
-```bash
-git tag v0.7.0
-git push origin v0.7.0
-```
-
-This will:
-- Release the mtlog library to Go modules
-- Build mtlog-analyzer binaries for all platforms
-- Publish the VS Code extension to the marketplace
-- Publish the GoLand plugin to JetBrains Marketplace
-- Create a GitHub release with all artifacts
-
 ## License
 
-MIT
+[MIT](https://github.com/willibrandon/mtlog/blob/main/LICENSE)
