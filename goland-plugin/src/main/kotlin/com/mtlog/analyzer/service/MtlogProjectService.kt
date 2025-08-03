@@ -85,11 +85,19 @@ class MtlogProjectService(
                 }
                 
                 process.also { handler ->
-                    handler.addProcessListener(object : ProcessAdapter() {
+                    handler.addProcessListener(object : ProcessListener {
                         override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
                             if (outputType == ProcessOutputTypes.STDERR) {
                                 checkVersionMismatch(event.text)
                             }
+                        }
+                        
+                        override fun processTerminated(event: ProcessEvent) {
+                            // No action needed on termination
+                        }
+                        
+                        override fun startNotified(event: ProcessEvent) {
+                            // No action needed on start
                         }
                     })
                     LOG.debug("Successfully created analyzer process")
