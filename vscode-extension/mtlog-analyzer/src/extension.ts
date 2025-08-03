@@ -28,15 +28,7 @@ let runningAnalyses = 0;
 const maxConcurrentAnalyses = Math.max(1, os.cpus().length - 1);
 let totalIssueCount = 0;
 
-// Cache for file hashes and their diagnostics
-interface CacheEntry {
-    hash: string;
-    diagnostics: vscode.Diagnostic[];
-    timestamp: number;
-    documentVersion: number;
-}
-const diagnosticsCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+// Cache removed - was causing stale diagnostics to persist
 
 export function activate(context: vscode.ExtensionContext) {
     // Create output channel for error logging and diagnostics
@@ -135,8 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(event => {
             if (event.affectsConfiguration('mtlog')) {
-                // Clear cache when configuration changes
-                diagnosticsCache.clear();
+                // Cache removed - no longer needed
                 
                 // Cancel all active processes
                 for (const [file, proc] of activeProcesses) {
@@ -177,9 +168,6 @@ export function deactivate() {
     if (statusBarItem) {
         statusBarItem.hide();
     }
-    
-    // Clear cache
-    diagnosticsCache.clear();
 }
 
 function queueAnalysis(document: vscode.TextDocument) {
@@ -364,8 +352,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
         // Clean up process tracking
         activeProcesses.delete(filePath);
         
-        // Clear cache entry on error
-        diagnosticsCache.delete(filePath);
+        // Cache removed - no longer needed
         
         vscode.window.showErrorMessage(`mtlog-analyzer: ${err.message}`);
     });
@@ -456,8 +443,10 @@ function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diag
             return;
         }
         
+        // Use actual line length for end column
+        const lineText = document.lineAt(line - 1).text;
         const diag = new vscode.Diagnostic(
-            new vscode.Range(line - 1, col - 1, line - 1, 999),
+            new vscode.Range(line - 1, col - 1, line - 1, lineText.length),
             cleanMessage,
             severity
         ) as MtlogDiagnostic;
@@ -662,13 +651,6 @@ function showDiagnosticsSummary() {
     
     outputChannel.appendLine('');
     outputChannel.appendLine('View all issues in the Problems panel (Ctrl+Shift+M)');
-    
-    // Show cache statistics
-    const cacheSize = diagnosticsCache.size;
-    if (cacheSize > 0) {
-        outputChannel.appendLine('');
-        outputChannel.appendLine(`Cache: ${cacheSize} file${cacheSize !== 1 ? 's' : ''} cached`);
-    }
 }
 
 // Code action provider for quick fixes
