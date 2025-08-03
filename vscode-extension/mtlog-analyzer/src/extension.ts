@@ -243,9 +243,6 @@ async function analyzeDocument(document: vscode.TextDocument) {
         }
     }
     
-    const config = vscode.workspace.getConfiguration('mtlog');
-    const analyzerFlags = config.get<string[]>('analyzerFlags', []);
-
     const diagnostics: vscode.Diagnostic[] = [];
     const fileUri = document.uri;
     let fileHash = '';
@@ -272,7 +269,12 @@ async function analyzeDocument(document: vscode.TextDocument) {
     // Store file hash for cache comparison
     fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
     
-    const args = ['vet', '-json', `-vettool=mtlog-analyzer`, ...analyzerFlags, packagePath];
+    // Get the analyzer path and flags from config
+    const config = vscode.workspace.getConfiguration('mtlog');
+    const analyzerPath = config.get<string>('analyzerPath', 'mtlog-analyzer');
+    const analyzerFlags = config.get<string[]>('analyzerFlags', []);
+    
+    const args = ['vet', '-json', `-vettool=${analyzerPath}`, ...analyzerFlags, packagePath];
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
     
     const proc = spawn('go', args, {
@@ -304,6 +306,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     
     proc.stderr.on('data', (data) => {
         const text = data.toString();
+        
         
         // go vet outputs JSON to stderr, need to collect full JSON object
         for (const char of text) {
