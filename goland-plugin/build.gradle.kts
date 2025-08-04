@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.1"
+version = "0.7.2"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,15 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.7.2</h2>
+            <ul>
+                <li>Added diagnostic kill switch for quick enable/disable</li>
+                <li>Added status bar widget with visual state indicator</li>
+                <li>Added notification bar with Disable/Settings actions</li>
+                <li>Added diagnostic suppression with immediate UI updates</li>
+                <li>Fixed critical deadlock in template argument quick fix</li>
+                <li>Inspection now enabled by default</li>
+            </ul>
             <h2>0.7.0</h2>
             <ul>
                 <li>Initial release</li>
