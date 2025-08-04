@@ -149,8 +149,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for _, id := range strings.Split(envSuppress, ",") {
 			trimmedID := strings.TrimSpace(strings.ToUpper(id))
 			config.SuppressedDiagnostics[trimmedID] = true
-			// Debug: Print to stderr so VS Code can see it
-			fmt.Fprintf(os.Stderr, "[mtlog-analyzer] Suppressing diagnostic %s from environment\n", trimmedID)
 		}
 	}
 	

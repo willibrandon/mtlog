@@ -4,6 +4,7 @@ import com.goide.psi.GoCallExpr
 import com.goide.psi.GoStringLiteral
 import com.goide.psi.impl.GoElementFactory
 import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -64,7 +65,8 @@ class TemplateArgumentQuickFix(
         
         if (propertyCount == currentArgCount) return // Already correct
         
-        WriteCommandAction.runWriteCommandAction(project, getText(), null, Runnable {
+        // Check if we're already in a write action (e.g., during preview generation)
+        val runnable = Runnable {
             when {
                 propertyCount > currentArgCount -> {
                     // Add missing nil arguments
@@ -101,7 +103,14 @@ class TemplateArgumentQuickFix(
                 }
             }
             PsiDocumentManager.getInstance(project).commitDocument(doc)
-        }, file)
+        }
+        
+        // Only wrap in WriteCommandAction if not already in write action
+        if (ApplicationManager.getApplication().isWriteAccessAllowed) {
+            runnable.run()
+        } else {
+            WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
+        }
         
         FileDocumentManager.getInstance().saveDocument(doc)
     }

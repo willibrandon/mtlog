@@ -56,5 +56,12 @@
                 description="Install mtlog-analyzer using go install">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+        
+        <action id="mtlog.analyzer.manageSuppressed"
+                class="com.mtlog.analyzer.actions.ManageSuppressedDiagnosticsAction"
+                text="Manage Suppressed mtlog Diagnostics"
+                description="Manage which mtlog diagnostics are suppressed">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>

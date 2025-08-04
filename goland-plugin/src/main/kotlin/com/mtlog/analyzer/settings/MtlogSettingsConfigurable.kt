@@ -63,6 +63,19 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
         
         separator()
         
+        row("Suppressed Diagnostics") {
+            button("Manage Suppressed Diagnostics...") {
+                val dialog = com.mtlog.analyzer.actions.SuppressionManagerDialog(project)
+                if (dialog.showAndGet()) {
+                    // Dialog handles the updates
+                    service.clearCache()
+                }
+            }
+            comment("Configure which diagnostic types to suppress project-wide")
+        }
+        
+        separator()
+        
         group("Severity Mapping") {
             row(MtlogBundle.message("settings.severity.error")) {
                 comboBox(severityModel())

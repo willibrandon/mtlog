@@ -24,4 +24,7 @@ class MtlogSettingsState : BaseState() {
     
     @get:Tag("enabled")
     var enabled by property(true)
+    
+    @get:Tag("suppressedDiagnostics")
+    var suppressedDiagnostics by list<String>()
 }

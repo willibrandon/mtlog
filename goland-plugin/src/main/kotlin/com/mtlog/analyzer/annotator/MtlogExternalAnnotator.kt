@@ -50,7 +50,8 @@ data class MtlogDiagnostic(
     val message: String,
     val severity: DiagnosticSeverity,
     val propertyName: String? = null,
-    val isTemplateError: Boolean = false
+    val isTemplateError: Boolean = false,
+    val diagnosticId: String? = null
 )
 
 /**
@@ -186,6 +187,11 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 }
             }
             
+            // Add suppression quick fix if diagnostic ID is available
+            if (diagnostic.diagnosticId != null) {
+                builder.withFix(com.mtlog.analyzer.quickfix.SuppressDiagnosticQuickFix(diagnostic.diagnosticId))
+            }
+            
             builder.create()
             
             // For template errors, also highlight the arguments
@@ -307,6 +313,9 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 return@mapNotNull null
             }
             
+            // Extract diagnostic ID from message
+            val diagnosticId = extractDiagnosticId(diagnostic.message)
+            
             MtlogDiagnostic(
                 range = TextRange(startOffset, endOffset),
                 message = diagnostic.message,
@@ -316,7 +325,8 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                     else -> DiagnosticSeverity.SUGGESTION
                 },
                 propertyName = diagnostic.propertyName,
-                isTemplateError = diagnostic.message.contains("arguments") || diagnostic.message.contains("properties")
+                isTemplateError = diagnostic.message.contains("arguments") || diagnostic.message.contains("properties"),
+                diagnosticId = diagnosticId
             )
         }
         
@@ -345,6 +355,28 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             "WEAK_WARNING" -> HighlightSeverity.WEAK_WARNING
             "INFO" -> HighlightSeverity.INFORMATION
             else -> HighlightSeverity.WARNING
+        }
+    }
+    
+    private fun extractDiagnosticId(message: String): String? {
+        // First try to extract from [MTLOG00X] format
+        val idMatch = Regex("\\[(MTLOG\\d{3})\\]").find(message)
+        if (idMatch != null) {
+            return idMatch.groupValues[1]
+        }
+        
+        // Otherwise, determine from message content
+        val msgLower = message.lowercase()
+        return when {
+            msgLower.contains("template has") && msgLower.contains("properties") && msgLower.contains("arguments") -> "MTLOG001"
+            msgLower.contains("invalid format specifier") -> "MTLOG002"
+            msgLower.contains("duplicate property") -> "MTLOG003"
+            msgLower.contains("pascalcase") -> "MTLOG004"
+            msgLower.contains("capturing") || msgLower.contains("@ prefix") || msgLower.contains("$ prefix") -> "MTLOG005"
+            msgLower.contains("error level log without error") || msgLower.contains("error logging without error") -> "MTLOG006"
+            msgLower.contains("context key") -> "MTLOG007"
+            msgLower.contains("dynamic template") -> "MTLOG008"
+            else -> null
         }
     }
 }
