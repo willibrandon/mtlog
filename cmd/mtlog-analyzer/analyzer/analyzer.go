@@ -35,6 +35,9 @@ const (
 	DiagIDDynamicTemplate   = "MTLOG008" // Dynamic template warning
 )
 
+// Environment variable for diagnostic suppression
+const EnvMtlogSuppress = "MTLOG_SUPPRESS"
+
 func init() {
 	// Register flags directly on the analyzer
 	Analyzer.Flags.Bool("strict", false, "enable strict format specifier validation")
@@ -74,6 +77,30 @@ const (
 	SeveritySuggestion = "suggestion"
 )
 
+// getBoolFlag is a helper function to lookup and extract boolean flag values
+func getBoolFlag(pass *analysis.Pass, flagName string) (bool, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if b, ok := getter.Get().(bool); ok {
+				return b, true
+			}
+		}
+	}
+	return false, false
+}
+
+// getStringFlag is a helper function to lookup and extract string flag values
+func getStringFlag(pass *analysis.Pass, flagName string) (string, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if s, ok := getter.Get().(string); ok {
+				return s, true
+			}
+		}
+	}
+	return "", false
+}
+
 // run executes the analyzer on the given pass.
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Build configuration from flags
@@ -81,70 +108,42 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	config := &defaultConfig
 	
 	// Check for global kill switch first
-	if disableAllFlag := pass.Analyzer.Flags.Lookup("disable-all"); disableAllFlag != nil {
-		if disableAll, ok := disableAllFlag.Value.(flag.Getter); ok {
-			if b, ok := disableAll.Get().(bool); ok && b {
-				// Global kill switch enabled - skip all analysis
-				return nil, nil
-			}
-		}
+	if disableAll, found := getBoolFlag(pass, "disable-all"); found && disableAll {
+		// Global kill switch enabled - skip all analysis
+		return nil, nil
 	}
 	
 	// Get flag values
-	if strictFlag := pass.Analyzer.Flags.Lookup("strict"); strictFlag != nil {
-		if strict, ok := strictFlag.Value.(flag.Getter); ok {
-			if b, ok := strict.Get().(bool); ok {
-				config.StrictMode = b
-			}
+	if strict, found := getBoolFlag(pass, "strict"); found {
+		config.StrictMode = strict
+	}
+	
+	if commonKeys, found := getStringFlag(pass, "common-keys"); found && commonKeys != "" {
+		// Append to existing defaults instead of replacing
+		config.CommonContextKeys = append(config.CommonContextKeys, strings.Split(commonKeys, ",")...)
+	}
+	
+	if disable, found := getStringFlag(pass, "disable"); found && disable != "" {
+		for _, check := range strings.Split(disable, ",") {
+			// Normalize to lowercase for case-insensitive matching
+			config.DisabledChecks[strings.ToLower(strings.TrimSpace(check))] = true
 		}
 	}
 	
-	if commonKeysFlag := pass.Analyzer.Flags.Lookup("common-keys"); commonKeysFlag != nil {
-		if commonKeys, ok := commonKeysFlag.Value.(flag.Getter); ok {
-			if s, ok := commonKeys.Get().(string); ok && s != "" {
-				// Append to existing defaults instead of replacing
-				config.CommonContextKeys = append(config.CommonContextKeys, strings.Split(s, ",")...)
-			}
-		}
+	if ignoreDynamic, found := getBoolFlag(pass, "ignore-dynamic-templates"); found {
+		config.IgnoreDynamicTemplates = ignoreDynamic
 	}
 	
-	if disableFlag := pass.Analyzer.Flags.Lookup("disable"); disableFlag != nil {
-		if disable, ok := disableFlag.Value.(flag.Getter); ok {
-			if s, ok := disable.Get().(string); ok && s != "" {
-				for _, check := range strings.Split(s, ",") {
-					// Normalize to lowercase for case-insensitive matching
-					config.DisabledChecks[strings.ToLower(strings.TrimSpace(check))] = true
-				}
-			}
-		}
+	if strictTypes, found := getBoolFlag(pass, "strict-logger-types"); found {
+		config.StrictLoggerTypes = strictTypes
 	}
 	
-	if ignoreDynamicFlag := pass.Analyzer.Flags.Lookup("ignore-dynamic-templates"); ignoreDynamicFlag != nil {
-		if ignoreDynamic, ok := ignoreDynamicFlag.Value.(flag.Getter); ok {
-			if b, ok := ignoreDynamic.Get().(bool); ok {
-				config.IgnoreDynamicTemplates = b
-			}
-		}
-	}
-	
-	if strictTypesFlag := pass.Analyzer.Flags.Lookup("strict-logger-types"); strictTypesFlag != nil {
-		if strictTypes, ok := strictTypesFlag.Value.(flag.Getter); ok {
-			if b, ok := strictTypes.Get().(bool); ok {
-				config.StrictLoggerTypes = b
-			}
-		}
-	}
-	
-	if downgradeFlag := pass.Analyzer.Flags.Lookup("downgrade-errors"); downgradeFlag != nil {
-		if downgrade, ok := downgradeFlag.Value.(flag.Getter); ok {
-			if b, ok := downgrade.Get().(bool); ok {
-				config.DowngradeErrors = b
-			}
-		}
+	if downgrade, found := getBoolFlag(pass, "downgrade-errors"); found {
+		config.DowngradeErrors = downgrade
 	}
 	
 	// Check environment variable for suppression (for VS Code integration)
-	if envSuppress := os.Getenv("MTLOG_SUPPRESS"); envSuppress != "" {
+	if envSuppress := os.Getenv(EnvMtlogSuppress); envSuppress != "" {
 		// Parse comma-separated diagnostic IDs from environment
 		for _, id := range strings.Split(envSuppress, ",") {
 			trimmedID := strings.TrimSpace(strings.ToUpper(id))
@@ -153,14 +152,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	
 	// Also check flags for suppression
-	if suppressFlag := pass.Analyzer.Flags.Lookup("suppress"); suppressFlag != nil {
-		if suppress, ok := suppressFlag.Value.(flag.Getter); ok {
-			if s, ok := suppress.Get().(string); ok && s != "" {
-				// Parse comma-separated diagnostic IDs
-				for _, id := range strings.Split(s, ",") {
-					config.SuppressedDiagnostics[strings.TrimSpace(strings.ToUpper(id))] = true
-				}
-			}
+	if suppress, found := getStringFlag(pass, "suppress"); found && suppress != "" {
+		// Parse comma-separated diagnostic IDs
+		for _, id := range strings.Split(suppress, ",") {
+			config.SuppressedDiagnostics[strings.TrimSpace(strings.ToUpper(id))] = true
 		}
 	}
 	

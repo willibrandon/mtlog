@@ -58,6 +58,19 @@ class MtlogProjectService(
     companion object {
         private val LOG = logger<MtlogProjectService>()
         private val ANALYZER_VERSION_REGEX = Regex("""mtlog-analyzer\s+version[:\s]+([^\s]+)""")
+        private const val ENV_MTLOG_SUPPRESS = "MTLOG_SUPPRESS"  // Environment variable for diagnostic suppression
+        private const val LOG_TRUNCATION_LENGTH = 500  // Maximum length for debug log output
+        
+        /**
+         * Truncates a string for debug logging to prevent excessively long log entries.
+         */
+        private fun truncateForLog(text: String, maxLength: Int = LOG_TRUNCATION_LENGTH): String {
+            return if (text.length <= maxLength) {
+                text
+            } else {
+                "${text.substring(0, maxLength)}... (truncated ${text.length - maxLength} chars)"
+            }
+        }
     }
     
     private val processPool = ConcurrentHashMap<String, OSProcessHandler>()
@@ -257,7 +270,7 @@ class MtlogProjectService(
             if (state.suppressedDiagnostics.isNotEmpty()) {
                 val suppressedList = state.suppressedDiagnostics.joinToString(",")
                 withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-                environment["MTLOG_SUPPRESS"] = suppressedList
+                environment[ENV_MTLOG_SUPPRESS] = suppressedList
                 LOG.debug("Setting MTLOG_SUPPRESS environment variable: $suppressedList")
             } else {
                 withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
@@ -275,10 +288,10 @@ class MtlogProjectService(
             LOG.debug("Analyzer exit code: $exitCode")
             
             if (errors.isNotEmpty()) {
-                LOG.debug("Analyzer stderr (${errors.length} chars): $errors")
+                LOG.debug("Analyzer stderr (${errors.length} chars): ${truncateForLog(errors)}")
             }
             if (output.isNotEmpty()) {
-                LOG.debug("Analyzer stdout (${output.length} chars): $output")
+                LOG.debug("Analyzer stdout (${output.length} chars): ${truncateForLog(output)}")
             }
             
             // mtlog-analyzer outputs to either stderr or stdout depending on format
@@ -307,10 +320,10 @@ class MtlogProjectService(
                 LOG.warn("No diagnostics found. stderr had ${stderrDiagnostics.size}, stdout had ${stdoutDiagnostics.size}")
                 LOG.warn("Analyzer command was: ${commandLine.commandLineString}")
                 if (errors.isNotEmpty()) {
-                    LOG.warn("Stderr output: $errors")
+                    LOG.warn("Stderr output: ${truncateForLog(errors)}")
                 }
                 if (output.isNotEmpty()) {
-                    LOG.warn("Stdout output: $output")
+                    LOG.warn("Stdout output: ${truncateForLog(output)}")
                 }
             }
             result

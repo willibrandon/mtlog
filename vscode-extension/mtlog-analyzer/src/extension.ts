@@ -5,6 +5,17 @@ import * as os from 'os';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 
+// Constants
+const LOG_TRUNCATION_LENGTH = 200;  // Maximum length for log output in debug messages
+const STATUS_BAR_WIDTH = 23;         // Fixed width for status bar to prevent jumping
+const ENV_MTLOG_SUPPRESS = 'MTLOG_SUPPRESS';  // Environment variable for diagnostic suppression
+const ENV_MTLOG_DISABLE_ALL = 'MTLOG_DISABLE_ALL';  // Environment variable to disable all diagnostics
+
+// Logging utility for consistent timestamp formatting
+function logWithTimestamp(channel: vscode.OutputChannel, message: string): void {
+    channel.appendLine(`[${new Date().toLocaleTimeString()}] ${message}`);
+}
+
 // Extended diagnostic interface to store fix data
 interface MtlogDiagnostic extends vscode.Diagnostic {
     mtlogData?: {
@@ -34,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Create output channel for error logging and diagnostics
     outputChannel = vscode.window.createOutputChannel('mtlog-analyzer');
     context.subscriptions.push(outputChannel);
-    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] mtlog-analyzer extension activated`);
+    logWithTimestamp(outputChannel, 'mtlog-analyzer extension activated');
     
     diagnosticCollection = vscode.languages.createDiagnosticCollection('mtlog');
     context.subscriptions.push(diagnosticCollection);
@@ -58,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('mtlog.analyzeNow', async () => {
             const document = vscode.window.activeTextEditor?.document;
             if (document && document.languageId === 'go') {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Manual analysis triggered for ${document.fileName}`);
+                logWithTimestamp(outputChannel, `Manual analysis triggered for ${document.fileName}`);
                 diagnosticCollection.delete(document.uri);
                 await analyzeDocument(document);
             }
@@ -70,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('mtlog.saveAndAnalyze', async () => {
             const document = vscode.window.activeTextEditor?.document;
             if (document && document.languageId === 'go') {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Save and analyze triggered for ${document.fileName}`);
+                logWithTimestamp(outputChannel, `Save and analyze triggered for ${document.fileName}`);
                 await document.save();
                 // Small delay to ensure file is saved
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -89,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
             
             const newState = !currentState ? 'enabled' : 'disabled';
             vscode.window.showInformationMessage(`mtlog analyzer ${newState}`);
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostics ${newState}`);
+            logWithTimestamp(outputChannel, `Diagnostics ${newState}`);
             
             // Re-analyze all open files
             diagnosticCollection.clear();
@@ -104,11 +115,11 @@ export function activate(context: vscode.ExtensionContext) {
     // Register suppress diagnostic command
     context.subscriptions.push(
         vscode.commands.registerCommand('mtlog.suppressDiagnostic', async (diagnosticId?: string) => {
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Suppress diagnostic command called with: ${diagnosticId || 'no ID'}`);
+            logWithTimestamp(outputChannel, `Suppress diagnostic command called with: ${diagnosticId || 'no ID'}`);
             
             // If we got a URI instead of a diagnostic ID, ignore it
             if (diagnosticId && (diagnosticId.startsWith('file://') || diagnosticId.includes('://'))) {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Ignoring URI passed as diagnostic ID: ${diagnosticId}`);
+                logWithTimestamp(outputChannel, `Ignoring URI passed as diagnostic ID: ${diagnosticId}`);
                 diagnosticId = undefined;
             }
             
@@ -117,16 +128,16 @@ export function activate(context: vscode.ExtensionContext) {
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     const diagnostics = diagnosticCollection.get(editor.document.uri);
-                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found ${diagnostics?.length || 0} diagnostics in current file`);
+                    logWithTimestamp(outputChannel, `Found ${diagnostics?.length || 0} diagnostics in current file`);
                     
                     if (diagnostics) {
                         const position = editor.selection.active;
                         const diagnostic = diagnostics.find(d => d.range.contains(position));
                         
                         if (diagnostic) {
-                            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found diagnostic at cursor: ${diagnostic.message}`);
-                            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostic code: ${(diagnostic as any).code}`);
-                            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostic full object: ${JSON.stringify(diagnostic)}`);
+                            logWithTimestamp(outputChannel, `Found diagnostic at cursor: ${diagnostic.message}`);
+                            logWithTimestamp(outputChannel, `Diagnostic code: ${(diagnostic as any).code}`);
+                            logWithTimestamp(outputChannel, `Diagnostic full object: ${JSON.stringify(diagnostic)}`);
                             
                             // First try to use the code property
                             if ((diagnostic as any).code) {
@@ -165,17 +176,26 @@ export function activate(context: vscode.ExtensionContext) {
                 const currentValue = config.inspect('suppressedDiagnostics');
                 outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Current config value: ${JSON.stringify(currentValue)}`);
                 
-                // Start fresh - just use simple string array
-                const suppressed: string[] = [];
-                
-                // Try to salvage any existing valid IDs
+                // Try to get existing valid IDs
                 const existing = config.get('suppressedDiagnostics');
-                if (Array.isArray(existing)) {
+                let suppressed: string[] = [];
+                
+                if (existing === undefined || existing === null) {
+                    // No config exists yet, start with empty array
+                    suppressed = [];
+                } else if (Array.isArray(existing)) {
+                    // Valid array, filter for valid IDs
                     for (const item of existing) {
                         if (typeof item === 'string' && item.startsWith('MTLOG')) {
                             suppressed.push(item);
                         }
                     }
+                } else {
+                    // Config is corrupted, abort to avoid data loss
+                    vscode.window.showErrorMessage('Failed to parse suppressed diagnostics configuration. Suppression aborted to avoid losing existing suppressed diagnostics.');
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ERROR: suppressedDiagnostics config is not a valid array: ${typeof existing}. Aborting suppression.`);
+                    outputChannel.show();
+                    return;
                 }
                 
                 if (!suppressed.includes(diagnosticId)) {
@@ -465,19 +485,19 @@ async function analyzeDocument(document: vscode.TextDocument) {
     let envVars = { ...process.env };
     
     if (!diagnosticsEnabled) {
-        envVars['MTLOG_DISABLE_ALL'] = 'true';
+        envVars[ENV_MTLOG_DISABLE_ALL] = 'true';
     } else if (suppressedArray.length > 0) {
-        envVars['MTLOG_SUPPRESS'] = suppressedArray.join(',');
+        envVars[ENV_MTLOG_SUPPRESS] = suppressedArray.join(',');
     }
     
     args.push(packagePath);
     
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
-    if (envVars['MTLOG_SUPPRESS']) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With MTLOG_SUPPRESS=${envVars['MTLOG_SUPPRESS']}`);
+    if (envVars[ENV_MTLOG_SUPPRESS]) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_SUPPRESS}=${envVars[ENV_MTLOG_SUPPRESS]}`);
     }
-    if (envVars['MTLOG_DISABLE_ALL']) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With MTLOG_DISABLE_ALL=${envVars['MTLOG_DISABLE_ALL']}`);
+    if (envVars[ENV_MTLOG_DISABLE_ALL]) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_DISABLE_ALL}=${envVars[ENV_MTLOG_DISABLE_ALL]}`);
     }
     
     const proc = spawn('go', args, {
@@ -496,7 +516,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     let outJson = '', outBrace = 0, outIn = false;
     proc.stdout.on('data', data => {
         const text = data.toString();
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stdout: ${text.substring(0, 200)}`);
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stdout: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
         for (const ch of text) {
             if (ch === '{') { outBrace++; outIn = true; }
             if (outIn) outJson += ch;
@@ -511,7 +531,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     
     proc.stderr.on('data', (data) => {
         const text = data.toString();
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stderr: ${text.substring(0, 200)}`);
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stderr: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
         
         // go vet outputs JSON to stderr, need to collect full JSON object
         for (const char of text) {
@@ -789,11 +809,11 @@ function updateStatusBar() {
     
     if (!diagnosticsEnabled) {
         // When disabled, just show the disabled icon
-        text = '$(circle-slash)        '; // 17 chars + 6 spaces = 23 total
+        text = '$(circle-slash)        '; // 17 chars + 6 spaces = STATUS_BAR_WIDTH total
         tooltip = 'mtlog disabled';
     } else if (runningAnalyses > 0 || analysisQueue.length > 0) {
         // Show spinning icon during analysis
-        text = '$(sync~spin)           '; // 15 chars + 8 spaces = 23 total  
+        text = '$(sync~spin)           '; // 15 chars + 8 spaces = STATUS_BAR_WIDTH total  
         tooltip = `mtlog: Analyzing ${runningAnalyses} file(s)`;
     } else {
         // Always show the 3 main icons with counts
@@ -804,7 +824,7 @@ function updateStatusBar() {
         if (s > 0) parts.push(`$(eye-closed) ${s}`);
         
         const content = parts.join(' ');
-        text = content.padEnd(23, ' '); // Always exactly 23 characters
+        text = content.padEnd(STATUS_BAR_WIDTH, ' '); // Always exactly STATUS_BAR_WIDTH characters
         
         // Build tooltip
         const tooltipParts = [];
@@ -893,13 +913,30 @@ async function installAnalyzer() {
         let binaryUrl = '';
         let binaryName = 'mtlog-analyzer';
         
+        // Check if we have a pre-built binary for this architecture
+        const supportedArch = (arch === 'x64' || arch === 'amd64') ? 'amd64' : null;
+        
+        if (!supportedArch) {
+            vscode.window.showWarningMessage(
+                `Pre-built binaries are only available for amd64/x64 architecture. Your system is ${arch}.\n\nPlease install via Go instead: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`,
+                'Install with Go'
+            ).then(selection => {
+                if (selection === 'Install with Go') {
+                    const terminal = vscode.window.createTerminal('Install mtlog-analyzer');
+                    terminal.show();
+                    terminal.sendText('go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest');
+                }
+            });
+            return;
+        }
+        
         if (platform === 'win32') {
             binaryName = 'mtlog-analyzer.exe';
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-windows-${arch}.exe`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-windows-amd64.exe';
         } else if (platform === 'darwin') {
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-darwin-${arch}`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-darwin-amd64';
         } else {
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-linux-${arch}`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-linux-amd64';
         }
         
         vscode.window.showInformationMessage(

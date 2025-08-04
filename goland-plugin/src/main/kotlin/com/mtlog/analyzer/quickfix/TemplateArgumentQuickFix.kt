@@ -106,19 +106,32 @@ class TemplateArgumentQuickFix(
             PsiDocumentManager.getInstance(project).commitDocument(doc)
         }
         
-        // Check if we're already in a write action (e.g., during actual fix application)
-        // or in a read action (e.g., during preview generation)
+        executeWithAppropriateWriteAction(project, file, runnable)
+    }
+    
+    /**
+     * Executes the given runnable with the appropriate write action context.
+     * Handles three scenarios:
+     * 1. Already in write action - runs directly
+     * 2. Not in any action - wraps in WriteCommandAction
+     * 3. In read action (preview) - runs without wrapping to avoid deadlock
+     */
+    private fun executeWithAppropriateWriteAction(project: Project, file: PsiFile, runnable: Runnable) {
         val app = ApplicationManager.getApplication()
-        if (app.isWriteAccessAllowed) {
-            // Already in write action, just run directly
-            runnable.run()
-        } else if (!app.isReadAccessAllowed) {
-            // Not in any action, wrap in WriteCommandAction
-            WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
-        } else {
-            // In read action (preview generation), just run without wrapping
-            // The preview system will handle the write action properly
-            runnable.run()
+        when {
+            app.isWriteAccessAllowed -> {
+                // Already in write action, just run directly
+                runnable.run()
+            }
+            !app.isReadAccessAllowed -> {
+                // Not in any action, wrap in WriteCommandAction
+                WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
+            }
+            else -> {
+                // In read action (preview generation), just run without wrapping
+                // The preview system will handle the write action properly
+                runnable.run()
+            }
         }
     }
 }
