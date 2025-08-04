@@ -9,6 +9,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.ui.Messages
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
 
 /**
  * Action to suppress a specific mtlog diagnostic.
@@ -51,16 +52,12 @@ class SuppressDiagnosticAction(
             
             LOG.info("Suppressed diagnostic: $diagnosticId")
             
-            // Clear cache and re-analyze
+            // Clear both caches to ensure fresh analysis
             service.clearCache()
+            MtlogExternalAnnotator.clearCache()
             
-            // Trigger re-analysis of all open files
-            val file = e.getData(CommonDataKeys.PSI_FILE)
-            if (file != null) {
-                DaemonCodeAnalyzer.getInstance(project).restart(file)
-            } else {
-                DaemonCodeAnalyzer.getInstance(project).restart()
-            }
+            // Force immediate re-analysis of all open files
+            DaemonCodeAnalyzer.getInstance(project).restart()
         }
     }
     

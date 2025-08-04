@@ -9,6 +9,7 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.dsl.builder.*
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
 import javax.swing.DefaultComboBoxModel
 
 /**
@@ -104,9 +105,19 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
     }
     
     override fun apply() {
+        val wasEnabled = service.state.enabled
         super.apply()
-        // Clear cache when settings change
+        val isEnabled = service.state.enabled
+        
+        // Clear both caches when settings change
         service.clearCache()
+        MtlogExternalAnnotator.clearCache()
+        
+        // If enabled state changed, trigger re-analysis or clear annotations
+        if (wasEnabled != isEnabled) {
+            com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project).restart()
+            service.updateStatusBarWidget()
+        }
     }
     
     private fun severityModel() = DefaultComboBoxModel(

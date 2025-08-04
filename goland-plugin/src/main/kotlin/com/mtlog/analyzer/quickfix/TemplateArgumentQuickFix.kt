@@ -65,7 +65,7 @@ class TemplateArgumentQuickFix(
         
         if (propertyCount == currentArgCount) return // Already correct
         
-        // Check if we're already in a write action (e.g., during preview generation)
+        // The actual modification logic
         val runnable = Runnable {
             when {
                 propertyCount > currentArgCount -> {
@@ -102,16 +102,23 @@ class TemplateArgumentQuickFix(
                     }
                 }
             }
+            
             PsiDocumentManager.getInstance(project).commitDocument(doc)
         }
         
-        // Only wrap in WriteCommandAction if not already in write action
-        if (ApplicationManager.getApplication().isWriteAccessAllowed) {
+        // Check if we're already in a write action (e.g., during actual fix application)
+        // or in a read action (e.g., during preview generation)
+        val app = ApplicationManager.getApplication()
+        if (app.isWriteAccessAllowed) {
+            // Already in write action, just run directly
             runnable.run()
-        } else {
+        } else if (!app.isReadAccessAllowed) {
+            // Not in any action, wrap in WriteCommandAction
             WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
+        } else {
+            // In read action (preview generation), just run without wrapping
+            // The preview system will handle the write action properly
+            runnable.run()
         }
-        
-        FileDocumentManager.getInstance().saveDocument(doc)
     }
 }

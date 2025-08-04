@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
 import java.awt.BorderLayout
 import java.awt.Dimension
 import javax.swing.*
@@ -93,6 +94,10 @@ open class SuppressionManagerDialog(private val project: Project) : DialogWrappe
         
         service.state.suppressedDiagnostics = newSuppressed
         service.clearCache()
+        MtlogExternalAnnotator.clearCache()
+        
+        // Trigger re-analysis
+        DaemonCodeAnalyzer.getInstance(project).restart()
         
         super.doOKAction()
     }

@@ -47,15 +47,12 @@ class SuppressDiagnosticQuickFix(private val diagnosticId: String) : IntentionAc
             
             LOG.info("Suppressed diagnostic: $diagnosticId")
             
-            // Clear cache and re-analyze
+            // Clear both service cache and annotator cache
             service.clearCache()
+            com.mtlog.analyzer.annotator.MtlogExternalAnnotator.clearCache()
             
-            // Trigger re-analysis
-            if (file != null) {
-                DaemonCodeAnalyzer.getInstance(project).restart(file)
-            } else {
-                DaemonCodeAnalyzer.getInstance(project).restart()
-            }
+            // Force immediate re-analysis of the current file and all open files
+            DaemonCodeAnalyzer.getInstance(project).restart()
         }
     }
     

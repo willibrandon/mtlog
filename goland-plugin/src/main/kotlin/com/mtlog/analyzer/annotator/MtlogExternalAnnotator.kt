@@ -19,6 +19,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.util.IncorrectOperationException
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.notification.MtlogNotificationService
 import kotlinx.coroutines.*
 import org.jetbrains.annotations.Blocking
 import java.security.MessageDigest
@@ -76,6 +77,13 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             val result: MtlogResult,
             val timestamp: Long
         )
+        
+        /**
+         * Clears the result cache. Call this when settings change.
+         */
+        fun clearCache() {
+            resultCache.clear()
+        }
         
         private fun getFileHash(text: String): String {
             val digest = MessageDigest.getInstance("SHA-256")
@@ -160,6 +168,8 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         val service = project.service<MtlogProjectService>()
         val state = service.state
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
+        
+        // Removed - notification is now only shown on startup via MtlogStartupActivity
         
         for (diagnostic in result.diagnostics) {
             val severity = when (diagnostic.severity) {

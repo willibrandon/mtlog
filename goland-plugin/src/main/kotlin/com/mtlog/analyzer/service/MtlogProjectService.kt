@@ -9,6 +9,7 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.util.Key
 import com.mtlog.analyzer.settings.MtlogSettingsState
 import java.nio.file.Path
@@ -28,7 +29,8 @@ data class AnalyzerDiagnostic(
     val columnNumber: Int,
     val message: String,
     val severity: String,
-    val propertyName: String? = null
+    val propertyName: String? = null,
+    val diagnosticId: String? = null
 )
 
 /**
@@ -65,7 +67,20 @@ class MtlogProjectService(
     override fun getState(): MtlogSettingsState = state
     
     override fun loadState(state: MtlogSettingsState) {
+        val oldEnabled = this.state.enabled
         this.state = state
+        
+        // Update status bar widget if enabled state changed
+        if (oldEnabled != state.enabled) {
+            updateStatusBarWidget()
+        }
+    }
+    
+    /**
+     * Updates the status bar widget to reflect current state.
+     */
+    fun updateStatusBarWidget() {
+        WindowManager.getInstance().getStatusBar(project)?.updateWidget("MtlogAnalyzer")
     }
     
     /**
@@ -288,6 +303,16 @@ class MtlogProjectService(
             }
             
             LOG.debug("Total diagnostics found: ${result.size}")
+            if (result.isEmpty()) {
+                LOG.warn("No diagnostics found. stderr had ${stderrDiagnostics.size}, stdout had ${stdoutDiagnostics.size}")
+                LOG.warn("Analyzer command was: ${commandLine.commandLineString}")
+                if (errors.isNotEmpty()) {
+                    LOG.warn("Stderr output: $errors")
+                }
+                if (output.isNotEmpty()) {
+                    LOG.warn("Stdout output: $output")
+                }
+            }
             result
         } catch (e: Exception) {
             LOG.error("Failed to run analyzer", e)
@@ -369,6 +394,16 @@ class MtlogProjectService(
                             val message = diagnostic.get("message").asString
                             LOG.debug("Found matching diagnostic: $message at line $lineNum, col $columnNum")
                             
+                            // Extract diagnostic ID if present
+                            val diagnosticIdMatch = Regex("^\\[(MTLOG\\d+)\\]\\s*").find(message)
+                            val diagnosticId = diagnosticIdMatch?.groupValues?.get(1)
+                            
+                            // Check if this diagnostic is suppressed
+                            if (diagnosticId != null && state.suppressedDiagnostics.contains(diagnosticId)) {
+                                LOG.debug("Skipping suppressed diagnostic: $diagnosticId")
+                                return@forEach
+                            }
+                            
                             // Remove [MTLOGXXX] prefix if present to check the actual message content
                             val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
                             
@@ -390,7 +425,8 @@ class MtlogProjectService(
                                 columnNumber = columnNum,
                                 message = message,
                                 severity = severity,
-                                propertyName = propertyName
+                                propertyName = propertyName,
+                                diagnosticId = diagnosticId
                             ))
                         }
                     }
@@ -418,11 +454,25 @@ class MtlogProjectService(
             
             LOG.debug("Processing line: $line")
             
-            // Extract file path, line, column, and message
-            val regex = Regex("""^(.+\.go):(\d+):(\d+):\s*(?:\[MTLOG\d+\]\s*)?(.+)$""")
+            // Extract file path, line, column, and message (with optional diagnostic ID)
+            val regex = Regex("""^(.+\.go):(\d+):(\d+):\s*(.+)$""")
             val match = regex.find(line) ?: continue
             
-            val (diagnosticFile, lineStr, columnStr, message) = match.destructured
+            val groups = match.groupValues
+            val diagnosticFile = groups[1]
+            val lineStr = groups[2]
+            val columnStr = groups[3]
+            val fullMessage = groups[4]
+            
+            // Extract diagnostic ID if present in the message
+            val diagnosticIdMatch = Regex("""^\[(MTLOG\d+)\]\s*""").find(fullMessage)
+            val diagnosticId = diagnosticIdMatch?.groupValues?.get(1)
+            // Remove the diagnostic ID from the message if present
+            val message = if (diagnosticId != null) {
+                fullMessage.removePrefix("[${diagnosticId}]").trim()
+            } else {
+                fullMessage
+            }
             
             // Check if this diagnostic is for our file
             // The diagnostic file might be relative (test.go, ./test.go) or absolute (D:/path/test.go)
@@ -437,7 +487,7 @@ class MtlogProjectService(
                 val lineNum = lineStr.toIntOrNull() ?: 1
                 val columnNum = columnStr.toIntOrNull() ?: 1
                 
-                LOG.debug("Found diagnostic: $message at line $lineNum, col $columnNum")
+                LOG.debug("Found diagnostic: $message at line $lineNum, col $columnNum, diagnosticId=$diagnosticId")
                 
                 // Clean message for severity detection (remove [MTLOGXXX] prefix if in message)
                 val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
@@ -450,17 +500,27 @@ class MtlogProjectService(
                     else -> "warning"
                 }
                 
+                // Check if this diagnostic is suppressed
+                if (diagnosticId != null && state.suppressedDiagnostics.contains(diagnosticId)) {
+                    LOG.debug("Skipping suppressed diagnostic: $diagnosticId from suppressed list: ${state.suppressedDiagnostics}")
+                    continue
+                }
+                LOG.debug("Diagnostic $diagnosticId is not suppressed, adding to results")
+                
                 // Extract property name from PascalCase suggestions
                 val propertyName = if (message.contains("property '")) {
                     message.substringAfter("property '").substringBefore("'")
                 } else null
                 
+                // Add the diagnostic with the original message format
+                val displayMessage = if (diagnosticId != null) "[$diagnosticId] $message" else message
                 diagnostics.add(AnalyzerDiagnostic(
                     lineNumber = lineNum,
                     columnNumber = columnNum,
-                    message = message,
+                    message = displayMessage,
                     severity = severity,
-                    propertyName = propertyName
+                    propertyName = propertyName,
+                    diagnosticId = diagnosticId
                 ))
             }
         }
