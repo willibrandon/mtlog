@@ -9,6 +9,7 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.util.Key
 import com.mtlog.analyzer.settings.MtlogSettingsState
 import java.nio.file.Path
@@ -28,7 +29,8 @@ data class AnalyzerDiagnostic(
     val columnNumber: Int,
     val message: String,
     val severity: String,
-    val propertyName: String? = null
+    val propertyName: String? = null,
+    val diagnosticId: String? = null
 )
 
 /**
@@ -56,6 +58,19 @@ class MtlogProjectService(
     companion object {
         private val LOG = logger<MtlogProjectService>()
         private val ANALYZER_VERSION_REGEX = Regex("""mtlog-analyzer\s+version[:\s]+([^\s]+)""")
+        private const val ENV_MTLOG_SUPPRESS = "MTLOG_SUPPRESS"  // Environment variable for diagnostic suppression
+        private const val LOG_TRUNCATION_LENGTH = 500  // Maximum length for debug log output
+        
+        /**
+         * Truncates a string for debug logging to prevent excessively long log entries.
+         */
+        private fun truncateForLog(text: String, maxLength: Int = LOG_TRUNCATION_LENGTH): String {
+            return if (text.length <= maxLength) {
+                text
+            } else {
+                "${text.substring(0, maxLength)}... (truncated ${text.length - maxLength} chars)"
+            }
+        }
     }
     
     private val processPool = ConcurrentHashMap<String, OSProcessHandler>()
@@ -65,7 +80,20 @@ class MtlogProjectService(
     override fun getState(): MtlogSettingsState = state
     
     override fun loadState(state: MtlogSettingsState) {
+        val oldEnabled = this.state.enabled
         this.state = state
+        
+        // Update status bar widget if enabled state changed
+        if (oldEnabled != state.enabled) {
+            updateStatusBarWidget()
+        }
+    }
+    
+    /**
+     * Updates the status bar widget to reflect current state.
+     */
+    fun updateStatusBarWidget() {
+        WindowManager.getInstance().getStatusBar(project)?.updateWidget("MtlogAnalyzer")
     }
     
     /**
@@ -232,14 +260,26 @@ class MtlogProjectService(
             addParameter("vet")
             addParameter("-json")
             addParameter("-vettool=$analyzerPath")
+            
+            // Add other analyzer flags
             state.analyzerFlags.forEach { addParameter(it) }
             addParameter(filePath)
             workDirectory = Paths.get(goModPath).toFile()
-            withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+            
+            // Add suppression via environment variable if there are suppressed diagnostics
+            if (state.suppressedDiagnostics.isNotEmpty()) {
+                val suppressedList = state.suppressedDiagnostics.joinToString(",")
+                withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+                environment[ENV_MTLOG_SUPPRESS] = suppressedList
+                LOG.debug("Setting MTLOG_SUPPRESS environment variable: $suppressedList")
+            } else {
+                withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+            }
         }
         
         return try {
             LOG.debug("Running command: ${commandLine.commandLineString}")
+            LOG.debug("Environment: ${commandLine.environment}")
             val process = commandLine.createProcess()
             val output = process.inputStream.bufferedReader().use { it.readText() }
             val errors = process.errorStream.bufferedReader().use { it.readText() }
@@ -248,19 +288,45 @@ class MtlogProjectService(
             LOG.debug("Analyzer exit code: $exitCode")
             
             if (errors.isNotEmpty()) {
-                LOG.warn("Analyzer stderr: $errors")
+                LOG.debug("Analyzer stderr (${errors.length} chars): ${truncateForLog(errors)}")
+            }
+            if (output.isNotEmpty()) {
+                LOG.debug("Analyzer stdout (${output.length} chars): ${truncateForLog(output)}")
             }
             
-            // mtlog-analyzer outputs to stderr
-            if (errors.isNotEmpty()) {
+            // mtlog-analyzer outputs to either stderr or stdout depending on format
+            // Try both and combine results
+            val stderrDiagnostics = if (errors.isNotEmpty()) {
                 parseAnalyzerOutput(errors, filePath)
-            } else if (output.isNotEmpty()) {
-                LOG.debug("Analyzer stdout: $output")
-                parseAnalyzerOutput(output, filePath)
             } else {
-                LOG.debug("No analyzer output")
                 emptyList()
             }
+            
+            val stdoutDiagnostics = if (output.isNotEmpty()) {
+                parseAnalyzerOutput(output, filePath)
+            } else {
+                emptyList()
+            }
+            
+            // Combine results, preferring stderr if both have diagnostics
+            val result = if (stderrDiagnostics.isNotEmpty()) {
+                stderrDiagnostics
+            } else {
+                stdoutDiagnostics
+            }
+            
+            LOG.debug("Total diagnostics found: ${result.size}")
+            if (result.isEmpty()) {
+                LOG.warn("No diagnostics found. stderr had ${stderrDiagnostics.size}, stdout had ${stdoutDiagnostics.size}")
+                LOG.warn("Analyzer command was: ${commandLine.commandLineString}")
+                if (errors.isNotEmpty()) {
+                    LOG.warn("Stderr output: ${truncateForLog(errors)}")
+                }
+                if (output.isNotEmpty()) {
+                    LOG.warn("Stdout output: ${truncateForLog(output)}")
+                }
+            }
+            result
         } catch (e: Exception) {
             LOG.error("Failed to run analyzer", e)
             null
@@ -269,7 +335,18 @@ class MtlogProjectService(
     
     private fun parseAnalyzerOutput(output: String, filePath: String): List<AnalyzerDiagnostic> {
         val diagnostics = mutableListOf<AnalyzerDiagnostic>()
-        LOG.debug("parseAnalyzerOutput called for file: $filePath")
+        LOG.debug("parseAnalyzerOutput called for file: $filePath, output length: ${output.length}")
+        
+        // Check if this looks like plain text stderr output (go vet format)
+        // Use plain text parsing if it contains diagnostic format (even with JSON present)
+        if (output.contains(".go:") && output.contains(": ")) {
+            LOG.debug("Found go vet format in output, using plain text parser")
+            val stderrDiagnostics = parseStderrOutput(output, filePath)
+            if (stderrDiagnostics.isNotEmpty()) {
+                return stderrDiagnostics
+            }
+            // Fall through to JSON parsing if no diagnostics found
+        }
         
         try {
             // Find the JSON object in the output
@@ -280,6 +357,7 @@ class MtlogProjectService(
             }
             
             val jsonString = output.substring(jsonStart)
+            LOG.debug("Attempting to parse JSON: ${jsonString.take(200)}...")
             val json = JsonParser.parseString(jsonString).asJsonObject
             
             // Navigate to the mtlog diagnostics
@@ -319,20 +397,34 @@ class MtlogProjectService(
                         
                 LOG.debug("Parsed position - file: $diagnosticFilePath, line: $lineNum, col: $columnNum")
                         
-                        // Normalize paths for comparison using proper path normalization
-                        val diagnosticPathObj = Paths.get(diagnosticFilePath).toAbsolutePath().normalize()
-                        val normalizedFilePathObj = Paths.get(filePath).toAbsolutePath().normalize()
-                LOG.debug("Normalized paths - diagnostic: ${diagnosticPathObj}, file: ${normalizedFilePathObj}")
+                        // Compare by filename only since paths might be in different formats
+                        // (e.g., test output might have Unix paths while filePath has Windows paths)
+                        val diagnosticFileName = Paths.get(diagnosticFilePath).fileName.toString()
+                        val targetFileName = Paths.get(filePath).fileName.toString()
+                LOG.debug("Comparing filenames - diagnostic: '$diagnosticFileName', target: '$targetFileName'")
                         
-                        if (diagnosticPathObj == normalizedFilePathObj) {
+                        if (diagnosticFileName == targetFileName) {
                             val message = diagnostic.get("message").asString
                             LOG.debug("Found matching diagnostic: $message at line $lineNum, col $columnNum")
                             
+                            // Extract diagnostic ID if present
+                            val diagnosticIdMatch = Regex("^\\[(MTLOG\\d+)\\]\\s*").find(message)
+                            val diagnosticId = diagnosticIdMatch?.groupValues?.get(1)
+                            
+                            // Check if this diagnostic is suppressed
+                            if (diagnosticId != null && state.suppressedDiagnostics.contains(diagnosticId)) {
+                                LOG.debug("Skipping suppressed diagnostic: $diagnosticId")
+                                return@forEach
+                            }
+                            
+                            // Remove [MTLOGXXX] prefix if present to check the actual message content
+                            val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
+                            
                             val severity = when {
-                                message.startsWith("suggestion:") -> "suggestion"
-                                message.contains("error") -> "error"
-                                message.contains("template has") && message.contains("but") && message.contains("provided") -> "error"
-                                message.contains("properties but") && message.contains("argument") -> "error"
+                                cleanMessage.startsWith("suggestion:") -> "suggestion"
+                                cleanMessage.contains("error") -> "error"
+                                cleanMessage.contains("template has") && cleanMessage.contains("but") && cleanMessage.contains("provided") -> "error"
+                                cleanMessage.contains("properties but") && cleanMessage.contains("argument") -> "error"
                                 else -> "warning"
                             }
                             
@@ -346,7 +438,8 @@ class MtlogProjectService(
                                 columnNumber = columnNum,
                                 message = message,
                                 severity = severity,
-                                propertyName = propertyName
+                                propertyName = propertyName,
+                                diagnosticId = diagnosticId
                             ))
                         }
                     }
@@ -357,6 +450,95 @@ class MtlogProjectService(
         }
         
         LOG.debug("parseAnalyzerOutput returning ${diagnostics.size} diagnostics")
+        return diagnostics
+    }
+    
+    private fun parseStderrOutput(output: String, filePath: String): List<AnalyzerDiagnostic> {
+        val diagnostics = mutableListOf<AnalyzerDiagnostic>()
+        LOG.debug("parseStderrOutput called for file: $filePath")
+        LOG.debug("parseStderrOutput raw output: $output")
+        
+        // Parse lines like:
+        // examples/basic/main.go:25:2: [MTLOG006] suggestion: Error level log without error value
+        // or ./test.go:12:2: [MTLOG006] suggestion: Error level log without error value
+        val lines = output.lines()
+        for (line in lines) {
+            if (!line.contains(".go:")) continue
+            
+            LOG.debug("Processing line: $line")
+            
+            // Extract file path, line, column, and message (with optional diagnostic ID)
+            val regex = Regex("""^(.+\.go):(\d+):(\d+):\s*(.+)$""")
+            val match = regex.find(line) ?: continue
+            
+            val groups = match.groupValues
+            val diagnosticFile = groups[1]
+            val lineStr = groups[2]
+            val columnStr = groups[3]
+            val fullMessage = groups[4]
+            
+            // Extract diagnostic ID if present in the message
+            val diagnosticIdMatch = Regex("""^\[(MTLOG\d+)\]\s*""").find(fullMessage)
+            val diagnosticId = diagnosticIdMatch?.groupValues?.get(1)
+            // Remove the diagnostic ID from the message if present
+            val message = if (diagnosticId != null) {
+                fullMessage.removePrefix("[${diagnosticId}]").trim()
+            } else {
+                fullMessage
+            }
+            
+            // Check if this diagnostic is for our file
+            // The diagnostic file might be relative (test.go, ./test.go) or absolute (D:/path/test.go)
+            val cleanDiagnosticFile = diagnosticFile.removePrefix("./")
+            val diagnosticFileName = Paths.get(cleanDiagnosticFile).fileName.toString()
+            val targetFileName = Paths.get(filePath).fileName.toString()
+            
+            LOG.debug("Comparing files: diagnostic='$diagnosticFileName' target='$targetFileName'")
+            
+            // Match by filename since the paths might be in different formats
+            if (diagnosticFileName == targetFileName) {
+                val lineNum = lineStr.toIntOrNull() ?: 1
+                val columnNum = columnStr.toIntOrNull() ?: 1
+                
+                LOG.debug("Found diagnostic: $message at line $lineNum, col $columnNum, diagnosticId=$diagnosticId")
+                
+                // Clean message for severity detection (remove [MTLOGXXX] prefix if in message)
+                val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
+                
+                val severity = when {
+                    cleanMessage.startsWith("suggestion:") -> "suggestion"
+                    cleanMessage.contains("error") -> "error"
+                    cleanMessage.contains("template has") && cleanMessage.contains("but") && cleanMessage.contains("provided") -> "error"
+                    cleanMessage.contains("properties but") && cleanMessage.contains("argument") -> "error"
+                    else -> "warning"
+                }
+                
+                // Check if this diagnostic is suppressed
+                if (diagnosticId != null && state.suppressedDiagnostics.contains(diagnosticId)) {
+                    LOG.debug("Skipping suppressed diagnostic: $diagnosticId from suppressed list: ${state.suppressedDiagnostics}")
+                    continue
+                }
+                LOG.debug("Diagnostic $diagnosticId is not suppressed, adding to results")
+                
+                // Extract property name from PascalCase suggestions
+                val propertyName = if (message.contains("property '")) {
+                    message.substringAfter("property '").substringBefore("'")
+                } else null
+                
+                // Add the diagnostic with the original message format
+                val displayMessage = if (diagnosticId != null) "[$diagnosticId] $message" else message
+                diagnostics.add(AnalyzerDiagnostic(
+                    lineNumber = lineNum,
+                    columnNumber = columnNum,
+                    message = displayMessage,
+                    severity = severity,
+                    propertyName = propertyName,
+                    diagnosticId = diagnosticId
+                ))
+            }
+        }
+        
+        LOG.debug("parseStderrOutput returning ${diagnostics.size} diagnostics")
         return diagnostics
     }
 }

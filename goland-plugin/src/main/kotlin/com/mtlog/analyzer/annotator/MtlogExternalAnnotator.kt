@@ -19,6 +19,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.util.IncorrectOperationException
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.notification.MtlogNotificationService
 import kotlinx.coroutines.*
 import org.jetbrains.annotations.Blocking
 import java.security.MessageDigest
@@ -50,7 +51,8 @@ data class MtlogDiagnostic(
     val message: String,
     val severity: DiagnosticSeverity,
     val propertyName: String? = null,
-    val isTemplateError: Boolean = false
+    val isTemplateError: Boolean = false,
+    val diagnosticId: String? = null
 )
 
 /**
@@ -75,6 +77,13 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             val result: MtlogResult,
             val timestamp: Long
         )
+        
+        /**
+         * Clears the result cache. Call this when settings change.
+         */
+        fun clearCache() {
+            resultCache.clear()
+        }
         
         private fun getFileHash(text: String): String {
             val digest = MessageDigest.getInstance("SHA-256")
@@ -160,6 +169,8 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         val state = service.state
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
         
+        // Removed - notification is now only shown on startup via MtlogStartupActivity
+        
         for (diagnostic in result.diagnostics) {
             val severity = when (diagnostic.severity) {
                 DiagnosticSeverity.ERROR -> getSeverity(state.errorSeverity ?: "ERROR")
@@ -184,6 +195,11 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 diagnostic.message.contains("arguments") -> {
                     builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(anchor))
                 }
+            }
+            
+            // Add suppression quick fix if diagnostic ID is available
+            if (diagnostic.diagnosticId != null) {
+                builder.withFix(com.mtlog.analyzer.quickfix.SuppressDiagnosticQuickFix(diagnostic.diagnosticId))
             }
             
             builder.create()
@@ -307,6 +323,9 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 return@mapNotNull null
             }
             
+            // Extract diagnostic ID from message
+            val diagnosticId = extractDiagnosticId(diagnostic.message)
+            
             MtlogDiagnostic(
                 range = TextRange(startOffset, endOffset),
                 message = diagnostic.message,
@@ -316,7 +335,8 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                     else -> DiagnosticSeverity.SUGGESTION
                 },
                 propertyName = diagnostic.propertyName,
-                isTemplateError = diagnostic.message.contains("arguments") || diagnostic.message.contains("properties")
+                isTemplateError = diagnostic.message.contains("arguments") || diagnostic.message.contains("properties"),
+                diagnosticId = diagnosticId
             )
         }
         
@@ -345,6 +365,28 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             "WEAK_WARNING" -> HighlightSeverity.WEAK_WARNING
             "INFO" -> HighlightSeverity.INFORMATION
             else -> HighlightSeverity.WARNING
+        }
+    }
+    
+    private fun extractDiagnosticId(message: String): String? {
+        // First try to extract from [MTLOG00X] format
+        val idMatch = Regex("\\[(MTLOG\\d{3})\\]").find(message)
+        if (idMatch != null) {
+            return idMatch.groupValues[1]
+        }
+        
+        // Otherwise, determine from message content
+        val msgLower = message.lowercase()
+        return when {
+            msgLower.contains("template has") && msgLower.contains("properties") && msgLower.contains("arguments") -> "MTLOG001"
+            msgLower.contains("invalid format specifier") -> "MTLOG002"
+            msgLower.contains("duplicate property") -> "MTLOG003"
+            msgLower.contains("pascalcase") -> "MTLOG004"
+            msgLower.contains("capturing") || msgLower.contains("@ prefix") || msgLower.contains("$ prefix") -> "MTLOG005"
+            msgLower.contains("error level log without error") || msgLower.contains("error logging without error") -> "MTLOG006"
+            msgLower.contains("context key") -> "MTLOG007"
+            msgLower.contains("dynamic template") -> "MTLOG008"
+            else -> null
         }
     }
 }

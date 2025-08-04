@@ -15,6 +15,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"os"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -22,6 +23,20 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
+// Diagnostic IDs for suppression
+const (
+	DiagIDTemplateMismatch  = "MTLOG001" // Template/argument count mismatch
+	DiagIDFormatSpecifier   = "MTLOG002" // Invalid format specifier
+	DiagIDDuplicateProperty = "MTLOG003" // Duplicate property names
+	DiagIDPropertyNaming    = "MTLOG004" // Property naming (PascalCase)
+	DiagIDCapturingHints    = "MTLOG005" // Missing capturing hints
+	DiagIDErrorLogging      = "MTLOG006" // Error logging without error value
+	DiagIDContextKey        = "MTLOG007" // Context key constant suggestion
+	DiagIDDynamicTemplate   = "MTLOG008" // Dynamic template warning
+)
+
+// Environment variable for diagnostic suppression
+const EnvMtlogSuppress = "MTLOG_SUPPRESS"
 
 func init() {
 	// Register flags directly on the analyzer
@@ -31,6 +46,8 @@ func init() {
 	Analyzer.Flags.Bool("ignore-dynamic-templates", false, "suppress warnings for dynamic (non-literal) template strings")
 	Analyzer.Flags.Bool("strict-logger-types", false, "disable lenient logger type checking (require exact mtlog types)")
 	Analyzer.Flags.Bool("downgrade-errors", false, "downgrade errors to warnings (useful for CI environments during migration)")
+	Analyzer.Flags.Bool("disable-all", false, "disable all mtlog diagnostics (global kill switch)")
+	Analyzer.Flags.String("suppress", "", "comma-separated list of diagnostic IDs to suppress (e.g., MTLOG001,MTLOG004)")
 }
 
 // Analyzer is the mtlog analyzer that checks for common logging mistakes.
@@ -60,62 +77,85 @@ const (
 	SeveritySuggestion = "suggestion"
 )
 
+// getBoolFlag is a helper function to lookup and extract boolean flag values
+func getBoolFlag(pass *analysis.Pass, flagName string) (bool, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if b, ok := getter.Get().(bool); ok {
+				return b, true
+			}
+		}
+	}
+	return false, false
+}
+
+// getStringFlag is a helper function to lookup and extract string flag values
+func getStringFlag(pass *analysis.Pass, flagName string) (string, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if s, ok := getter.Get().(string); ok {
+				return s, true
+			}
+		}
+	}
+	return "", false
+}
+
 // run executes the analyzer on the given pass.
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Build configuration from flags
 	defaultConfig := DefaultConfig()
 	config := &defaultConfig
 	
+	// Check for global kill switch first
+	if disableAll, found := getBoolFlag(pass, "disable-all"); found && disableAll {
+		// Global kill switch enabled - skip all analysis
+		return nil, nil
+	}
+	
 	// Get flag values
-	if strictFlag := pass.Analyzer.Flags.Lookup("strict"); strictFlag != nil {
-		if strict, ok := strictFlag.Value.(flag.Getter); ok {
-			if b, ok := strict.Get().(bool); ok {
-				config.StrictMode = b
-			}
+	if strict, found := getBoolFlag(pass, "strict"); found {
+		config.StrictMode = strict
+	}
+	
+	if commonKeys, found := getStringFlag(pass, "common-keys"); found && commonKeys != "" {
+		// Append to existing defaults instead of replacing
+		config.CommonContextKeys = append(config.CommonContextKeys, strings.Split(commonKeys, ",")...)
+	}
+	
+	if disable, found := getStringFlag(pass, "disable"); found && disable != "" {
+		for _, check := range strings.Split(disable, ",") {
+			// Normalize to lowercase for case-insensitive matching
+			config.DisabledChecks[strings.ToLower(strings.TrimSpace(check))] = true
 		}
 	}
 	
-	if commonKeysFlag := pass.Analyzer.Flags.Lookup("common-keys"); commonKeysFlag != nil {
-		if commonKeys, ok := commonKeysFlag.Value.(flag.Getter); ok {
-			if s, ok := commonKeys.Get().(string); ok && s != "" {
-				// Append to existing defaults instead of replacing
-				config.CommonContextKeys = append(config.CommonContextKeys, strings.Split(s, ",")...)
-			}
+	if ignoreDynamic, found := getBoolFlag(pass, "ignore-dynamic-templates"); found {
+		config.IgnoreDynamicTemplates = ignoreDynamic
+	}
+	
+	if strictTypes, found := getBoolFlag(pass, "strict-logger-types"); found {
+		config.StrictLoggerTypes = strictTypes
+	}
+	
+	if downgrade, found := getBoolFlag(pass, "downgrade-errors"); found {
+		config.DowngradeErrors = downgrade
+	}
+	
+	// Check environment variable for suppression (for VS Code integration)
+	if envSuppress := os.Getenv(EnvMtlogSuppress); envSuppress != "" {
+		// Parse comma-separated diagnostic IDs from environment
+		for _, id := range strings.Split(envSuppress, ",") {
+			trimmedID := strings.TrimSpace(strings.ToUpper(id))
+			config.SuppressedDiagnostics[trimmedID] = true
 		}
 	}
 	
-	if disableFlag := pass.Analyzer.Flags.Lookup("disable"); disableFlag != nil {
-		if disable, ok := disableFlag.Value.(flag.Getter); ok {
-			if s, ok := disable.Get().(string); ok && s != "" {
-				for _, check := range strings.Split(s, ",") {
-					// Normalize to lowercase for case-insensitive matching
-					config.DisabledChecks[strings.ToLower(strings.TrimSpace(check))] = true
-				}
-			}
-		}
-	}
-	
-	if ignoreDynamicFlag := pass.Analyzer.Flags.Lookup("ignore-dynamic-templates"); ignoreDynamicFlag != nil {
-		if ignoreDynamic, ok := ignoreDynamicFlag.Value.(flag.Getter); ok {
-			if b, ok := ignoreDynamic.Get().(bool); ok {
-				config.IgnoreDynamicTemplates = b
-			}
-		}
-	}
-	
-	if strictTypesFlag := pass.Analyzer.Flags.Lookup("strict-logger-types"); strictTypesFlag != nil {
-		if strictTypes, ok := strictTypesFlag.Value.(flag.Getter); ok {
-			if b, ok := strictTypes.Get().(bool); ok {
-				config.StrictLoggerTypes = b
-			}
-		}
-	}
-	
-	if downgradeFlag := pass.Analyzer.Flags.Lookup("downgrade-errors"); downgradeFlag != nil {
-		if downgrade, ok := downgradeFlag.Value.(flag.Getter); ok {
-			if b, ok := downgrade.Get().(bool); ok {
-				config.DowngradeErrors = b
-			}
+	// Also check flags for suppression
+	if suppress, found := getStringFlag(pass, "suppress"); found && suppress != "" {
+		// Parse comma-separated diagnostic IDs
+		for _, id := range strings.Split(suppress, ",") {
+			config.SuppressedDiagnostics[strings.TrimSpace(strings.ToUpper(id))] = true
 		}
 	}
 	
@@ -308,7 +348,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	if !ok || lit.Kind != token.STRING {
 		// Non-literal template
 		if !config.IgnoreDynamicTemplates {
-			reportDiagnostic(pass, templateArg.Pos(), SeverityWarning, 
+			reportDiagnosticWithID(pass, templateArg.Pos(), SeverityWarning, config, DiagIDDynamicTemplate,
 				"dynamic template strings are not analyzed")
 		}
 		return
@@ -328,7 +368,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	// Extract property names from template (with caching)
 	info := cache.getTemplateInfo(template, config)
 	if info.err != nil {
-		reportDiagnostic(pass, lit.Pos(), SeverityError, 
+		reportDiagnosticWithID(pass, lit.Pos(), SeverityError, config, DiagIDTemplateMismatch,
 			"invalid template: %v", info.err)
 		return
 	}
@@ -345,7 +385,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 		lastArg := call.Args[len(call.Args)-1]
 		if argType := pass.TypesInfo.TypeOf(lastArg); argType != nil {
 			if !isErrorType(argType) {
-				reportDiagnostic(pass, lastArg.Pos(), SeverityError,
+				reportDiagnosticWithID(pass, lastArg.Pos(), SeverityError, config, DiagIDErrorLogging,
 					"last argument to %s method should be an error, got %s", 
 					methodName, argType)
 			}
@@ -355,7 +395,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	
 	// Check if argument count matches property count
 	if len(properties) != argCount {
-		reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+		reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDTemplateMismatch,
 			"template has %d properties but %d arguments provided", 
 			len(properties), argCount)
 		return
@@ -364,7 +404,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	// Check for invalid format specifiers
 	for _, prop := range properties {
 		if err := validateFormatSpecifier(prop, config); err != nil {
-			reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDFormatSpecifier,
 				"invalid format specifier in property '%s': %v", prop, err)
 		}
 	}
@@ -500,6 +540,16 @@ func reportDiagnostic(pass *analysis.Pass, pos token.Pos, severity string, forma
 
 // reportDiagnosticWithConfig reports a diagnostic with severity prefix and config
 func reportDiagnosticWithConfig(pass *analysis.Pass, pos token.Pos, severity string, config *Config, format string, args ...interface{}) {
+	reportDiagnosticWithID(pass, pos, severity, config, "", format, args...)
+}
+
+// reportDiagnosticWithID reports a diagnostic with ID, severity prefix and config
+func reportDiagnosticWithID(pass *analysis.Pass, pos token.Pos, severity string, config *Config, diagID string, format string, args ...interface{}) {
+	// Check if this diagnostic is suppressed
+	if config != nil && diagID != "" && config.SuppressedDiagnostics[diagID] {
+		return // Diagnostic is suppressed
+	}
+	
 	message := fmt.Sprintf(format, args...)
 	
 	// Downgrade errors to warnings if requested
@@ -510,6 +560,11 @@ func reportDiagnosticWithConfig(pass *analysis.Pass, pos token.Pos, severity str
 	// Add severity prefix for non-error diagnostics
 	if severity != SeverityError {
 		message = severity + ": " + message
+	}
+	
+	// Add diagnostic ID to message
+	if diagID != "" {
+		message = fmt.Sprintf("[%s] %s", diagID, message)
 	}
 	
 	// Create diagnostic with suggested fixes if applicable
@@ -584,7 +639,7 @@ func checkDuplicatePropertiesWithConfig(pass *analysis.Pass, call *ast.CallExpr,
 		propName = strings.TrimPrefix(propName, "$")
 		
 		if seen[propName] {
-			reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDDuplicateProperty,
 				"duplicate property '%s' in template", propName)
 		}
 		seen[propName] = true
@@ -609,21 +664,21 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 		
 		// Check for empty property
 		if propName == "" {
-			reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDPropertyNaming,
 				"empty property name in template")
 			continue
 		}
 		
 		// Check for spaces in property names
 		if strings.Contains(propName, " ") {
-			reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDPropertyNaming,
 				"property name '%s' contains spaces", propName)
 			continue // Skip other checks for invalid names
 		}
 		
 		// Check for starting with number
 		if len(propName) > 0 && propName[0] >= '0' && propName[0] <= '9' {
-			reportDiagnosticWithConfig(pass, call.Pos(), SeverityError, config,
+			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDPropertyNaming,
 				"property name '%s' starts with a number", propName)
 			continue // Skip other checks for invalid names
 		}
@@ -650,21 +705,24 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 				// Replace the property in the template, preserving quotes
 				newTemplate := strings.Replace(oldTemplate, "{"+originalName, "{"+strings.Replace(originalName, propName, pascalCase, 1), -1)
 				
-				diag := analysis.Diagnostic{
-					Pos:     call.Pos(),
-					Message: fmt.Sprintf("%s: consider using PascalCase for property '%s'", SeveritySuggestion, propName),
-					SuggestedFixes: []analysis.SuggestedFix{{
-						Message: fmt.Sprintf("Change '%s' to '%s'", propName, pascalCase),
-						TextEdits: []analysis.TextEdit{{
-							Pos:     lit.Pos(),
-							End:     lit.End(),
-							NewText: []byte(newTemplate),
+				// Check if diagnostic is suppressed
+				if !config.SuppressedDiagnostics[DiagIDPropertyNaming] {
+					diag := analysis.Diagnostic{
+						Pos:     call.Pos(),
+						Message: fmt.Sprintf("[%s] %s: consider using PascalCase for property '%s'", DiagIDPropertyNaming, SeveritySuggestion, propName),
+						SuggestedFixes: []analysis.SuggestedFix{{
+							Message: fmt.Sprintf("Change '%s' to '%s'", propName, pascalCase),
+							TextEdits: []analysis.TextEdit{{
+								Pos:     lit.Pos(),
+								End:     lit.End(),
+								NewText: []byte(newTemplate),
+							}},
 						}},
-					}},
+					}
+					pass.Report(diag)
 				}
-				pass.Report(diag)
 			} else {
-				reportDiagnosticWithConfig(pass, call.Pos(), SeveritySuggestion, config,
+				reportDiagnosticWithID(pass, call.Pos(), SeveritySuggestion, config, DiagIDPropertyNaming,
 					"consider using PascalCase for property '%s'", propName)
 			}
 		}
@@ -706,35 +764,38 @@ func checkCapturingUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 					// Replace in the template, preserving quotes
 					newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
 					
-					diag := analysis.Diagnostic{
-						Pos:     arg.Pos(),
-						Message: fmt.Sprintf("%s: using @ prefix for basic type %s, consider removing prefix", SeverityWarning, argType),
-						SuggestedFixes: []analysis.SuggestedFix{{
-							Message: fmt.Sprintf("Remove @ prefix from '%s'", propName),
-							TextEdits: []analysis.TextEdit{{
-								Pos:     lit.Pos(),
-								End:     lit.End(),
-								NewText: []byte(newTemplate),
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
+						diag := analysis.Diagnostic{
+							Pos:     arg.Pos(),
+							Message: fmt.Sprintf("[%s] %s: using @ prefix for basic type %s, consider removing prefix", DiagIDCapturingHints, SeverityWarning, argType),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Remove @ prefix from '%s'", propName),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     lit.Pos(),
+									End:     lit.End(),
+									NewText: []byte(newTemplate),
+								}},
 							}},
-						}},
+						}
+						pass.Report(diag)
 					}
-					pass.Report(diag)
 				} else {
-					reportDiagnosticWithConfig(pass, arg.Pos(), SeverityWarning, config,
+					reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
 						"using @ prefix for basic type %s, consider removing prefix", argType)
 				}
 			}
 		} else if strings.HasPrefix(propName, "$") {
 			// $ is for scalar rendering - make sure it's appropriate
 			if !isBasicType(argType) && !isStringer(argType) {
-				reportDiagnosticWithConfig(pass, arg.Pos(), SeverityWarning, config,
+				reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
 					"using $ prefix for complex type %s, consider using @ for capturing", argType)
 			}
 		} else {
 			// No prefix - suggest @ for complex types
 			if !isBasicType(argType) && !isTimeType(argType) && !isStringer(argType) && !isErrorType(argType) {
 				// Suggestion only
-				reportDiagnosticWithConfig(pass, arg.Pos(), SeveritySuggestion, config,
+				reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
 					"consider using @ prefix for complex type %s to enable capturing", argType)
 			}
 		}
@@ -759,23 +820,26 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 					// Generate a constant name from the key
 					constName := "ctx" + toPascalCase(key)
 					
-					diagnostic := &analysis.Diagnostic{
-						Pos:     lit.Pos(),
-						End:     lit.End(),
-						Message: fmt.Sprintf("suggestion: consider defining a constant for commonly used context key '%s'", key),
-					}
-					
-					// Add suggested fix to replace with constant
-					diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
-						Message: fmt.Sprintf("Replace with constant %s", constName),
-						TextEdits: []analysis.TextEdit{{
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDContextKey] {
+						diagnostic := &analysis.Diagnostic{
 							Pos:     lit.Pos(),
 							End:     lit.End(),
-							NewText: []byte(constName),
-						}},
-					}}
-					
-					pass.Report(*diagnostic)
+							Message: fmt.Sprintf("[%s] suggestion: consider defining a constant for commonly used context key '%s'", DiagIDContextKey, key),
+						}
+						
+						// Add suggested fix to replace with constant
+						diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+							Message: fmt.Sprintf("Replace with constant %s", constName),
+							TextEdits: []analysis.TextEdit{{
+								Pos:     lit.Pos(),
+								End:     lit.End(),
+								NewText: []byte(constName),
+							}},
+						}}
+						
+						pass.Report(*diagnostic)
+					}
 					break
 				}
 			}
@@ -803,7 +867,7 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 	
 	if !hasError {
 		// Suggestion: when using Error level, consider including an error
-		reportDiagnosticWithConfig(pass, call.Pos(), SeveritySuggestion, config,
+		reportDiagnosticWithID(pass, call.Pos(), SeveritySuggestion, config, DiagIDErrorLogging,
 			"Error level log without error value, consider including the error or using Warning level")
 	}
 }

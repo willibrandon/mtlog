@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2025-08-04
+
+### Added
+- **Diagnostic Kill Switch** - Quick disable/enable for all mtlog diagnostics in IDE extensions (#19)
+  - **VS Code Extension**
+    - Command palette commands: "Toggle mtlog Diagnostics"
+    - Clickable status bar item showing analyzer state and diagnostic counts
+    - Diagnostic suppression with persistent workspace settings
+    - Quick action to suppress specific diagnostic types
+    - Keyboard shortcut: Ctrl+Alt+M (Cmd+Alt+M on Mac)
+    - Suppression manager for managing suppressed diagnostics
+  
+  - **GoLand Plugin**
+    - Status bar widget with visual state indicator (play/pause icons)
+    - Notification bar on startup with Disable/Settings actions
+    - Diagnostic suppression with immediate UI updates
+    - Intention actions and quick fixes for suppressing diagnostics
+    - Manage suppressed diagnostics dialog
+    - Persistent state across IDE restarts
+
+### Fixed
+- **GoLand Plugin** - Fixed critical deadlock in template argument quick fix during preview generation
+- **Both Extensions** - Suppressed diagnostics now disappear immediately without requiring file edits
+
+### Changed
+- **GoLand Plugin** - Inspection now enabled by default for better user experience
+
 ## [0.7.1] - 2025-08-03
 
 ### Fixed
@@ -303,6 +330,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.7.2]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.2
 [0.7.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.1
 [0.7.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.0
 [0.6.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.6.0

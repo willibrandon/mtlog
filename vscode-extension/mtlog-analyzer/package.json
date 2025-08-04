@@ -2,7 +2,8 @@
   "name": "mtlog-analyzer",
   "displayName": "mtlog analyzer",
   "description": "Real-time mtlog template validation for Go",
-  "version": "0.7.1",
+  "icon": "assets/icon.png",
+  "version": "0.7.2",
   "publisher": "mtlog",
   "repository": {
     "type": "git",
@@ -32,6 +33,46 @@
       {
         "command": "mtlog.saveAndAnalyze",
         "title": "Save and Analyze File"
+      },
+      {
+        "command": "mtlog.toggleDiagnostics",
+        "title": "Toggle mtlog Diagnostics"
+      },
+      {
+        "command": "mtlog.suppressDiagnostic",
+        "title": "Suppress This mtlog Diagnostic"
+      },
+      {
+        "command": "mtlog.showSuppressionManager",
+        "title": "Manage Suppressed mtlog Diagnostics"
+      },
+      {
+        "command": "mtlog.unsuppressAll",
+        "title": "Unsuppress All mtlog Diagnostics"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "mtlog.toggleDiagnostics",
+          "when": "resourceExtname == .go"
+        },
+        {
+          "command": "mtlog.showSuppressionManager",
+          "when": "resourceExtname == .go"
+        },
+        {
+          "command": "mtlog.unsuppressAll",
+          "when": "resourceExtname == .go"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "mtlog.toggleDiagnostics",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "editorTextFocus && resourceExtname == .go"
       }
     ],
     "configuration": {
@@ -46,6 +87,31 @@
           "type": "array",
           "default": [],
           "description": "Additional flags for mtlog-analyzer (e.g. [\"-strict\"])"
+        },
+        "mtlog.diagnosticsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable all mtlog diagnostics"
+        },
+        "mtlog.suppressedDiagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["MTLOG001", "MTLOG002", "MTLOG003", "MTLOG004", "MTLOG005", "MTLOG006", "MTLOG007", "MTLOG008"],
+            "enumDescriptions": [
+              "Template/argument count mismatch",
+              "Invalid format specifier", 
+              "Duplicate property names",
+              "Property naming (PascalCase)",
+              "Missing capturing hints",
+              "Error logging without error value",
+              "Context key constant suggestion",
+              "Dynamic template warning"
+            ]
+          },
+          "default": [],
+          "description": "List of diagnostic IDs to suppress",
+          "uniqueItems": true
         }
       }
     }

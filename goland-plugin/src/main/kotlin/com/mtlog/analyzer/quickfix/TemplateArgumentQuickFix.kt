@@ -4,6 +4,7 @@ import com.goide.psi.GoCallExpr
 import com.goide.psi.GoStringLiteral
 import com.goide.psi.impl.GoElementFactory
 import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -64,7 +65,8 @@ class TemplateArgumentQuickFix(
         
         if (propertyCount == currentArgCount) return // Already correct
         
-        WriteCommandAction.runWriteCommandAction(project, getText(), null, Runnable {
+        // The actual modification logic
+        val runnable = Runnable {
             when {
                 propertyCount > currentArgCount -> {
                     // Add missing nil arguments
@@ -100,9 +102,36 @@ class TemplateArgumentQuickFix(
                     }
                 }
             }
+            
             PsiDocumentManager.getInstance(project).commitDocument(doc)
-        }, file)
+        }
         
-        FileDocumentManager.getInstance().saveDocument(doc)
+        executeWithAppropriateWriteAction(project, file, runnable)
+    }
+    
+    /**
+     * Executes the given runnable with the appropriate write action context.
+     * Handles three scenarios:
+     * 1. Already in write action - runs directly
+     * 2. Not in any action - wraps in WriteCommandAction
+     * 3. In read action (preview) - runs without wrapping to avoid deadlock
+     */
+    private fun executeWithAppropriateWriteAction(project: Project, file: PsiFile, runnable: Runnable) {
+        val app = ApplicationManager.getApplication()
+        when {
+            app.isWriteAccessAllowed -> {
+                // Already in write action, just run directly
+                runnable.run()
+            }
+            !app.isReadAccessAllowed -> {
+                // Not in any action, wrap in WriteCommandAction
+                WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
+            }
+            else -> {
+                // In read action (preview generation), just run without wrapping
+                // The preview system will handle the write action properly
+                runnable.run()
+            }
+        }
     }
 }

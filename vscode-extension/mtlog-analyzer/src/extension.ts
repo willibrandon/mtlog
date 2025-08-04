@@ -5,6 +5,17 @@ import * as os from 'os';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 
+// Constants
+const LOG_TRUNCATION_LENGTH = 200;  // Maximum length for log output in debug messages
+const STATUS_BAR_WIDTH = 23;         // Fixed width for status bar to prevent jumping
+const ENV_MTLOG_SUPPRESS = 'MTLOG_SUPPRESS';  // Environment variable for diagnostic suppression
+const ENV_MTLOG_DISABLE_ALL = 'MTLOG_DISABLE_ALL';  // Environment variable to disable all diagnostics
+
+// Logging utility for consistent timestamp formatting
+function logWithTimestamp(channel: vscode.OutputChannel, message: string): void {
+    channel.appendLine(`[${new Date().toLocaleTimeString()}] ${message}`);
+}
+
 // Extended diagnostic interface to store fix data
 interface MtlogDiagnostic extends vscode.Diagnostic {
     mtlogData?: {
@@ -34,13 +45,14 @@ export function activate(context: vscode.ExtensionContext) {
     // Create output channel for error logging and diagnostics
     outputChannel = vscode.window.createOutputChannel('mtlog-analyzer');
     context.subscriptions.push(outputChannel);
+    logWithTimestamp(outputChannel, 'mtlog-analyzer extension activated');
     
     diagnosticCollection = vscode.languages.createDiagnosticCollection('mtlog');
     context.subscriptions.push(diagnosticCollection);
     
-    // Create status bar item
+    // Create status bar item - clicking toggles Problems panel
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    statusBarItem.command = 'mtlog.showOutput';
+    statusBarItem.command = 'workbench.actions.view.toggleProblems';
     context.subscriptions.push(statusBarItem);
     updateStatusBar();
     
@@ -57,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('mtlog.analyzeNow', async () => {
             const document = vscode.window.activeTextEditor?.document;
             if (document && document.languageId === 'go') {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Manual analysis triggered for ${document.fileName}`);
+                logWithTimestamp(outputChannel, `Manual analysis triggered for ${document.fileName}`);
                 diagnosticCollection.delete(document.uri);
                 await analyzeDocument(document);
             }
@@ -69,12 +81,190 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('mtlog.saveAndAnalyze', async () => {
             const document = vscode.window.activeTextEditor?.document;
             if (document && document.languageId === 'go') {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Save and analyze triggered for ${document.fileName}`);
+                logWithTimestamp(outputChannel, `Save and analyze triggered for ${document.fileName}`);
                 await document.save();
                 // Small delay to ensure file is saved
                 await new Promise(resolve => setTimeout(resolve, 100));
                 diagnosticCollection.delete(document.uri);
                 await analyzeDocument(document);
+            }
+        })
+    );
+    
+    // Register toggle diagnostics command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtlog.toggleDiagnostics', async () => {
+            const config = vscode.workspace.getConfiguration('mtlog');
+            const currentState = config.get<boolean>('diagnosticsEnabled', true);
+            await config.update('diagnosticsEnabled', !currentState, vscode.ConfigurationTarget.Workspace);
+            
+            const newState = !currentState ? 'enabled' : 'disabled';
+            vscode.window.showInformationMessage(`mtlog analyzer ${newState}`);
+            logWithTimestamp(outputChannel, `Diagnostics ${newState}`);
+            
+            // Re-analyze all open files
+            diagnosticCollection.clear();
+            vscode.workspace.textDocuments.forEach(document => {
+                if (document.languageId === 'go') {
+                    queueAnalysis(document);
+                }
+            });
+        })
+    );
+    
+    // Register suppress diagnostic command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtlog.suppressDiagnostic', async (diagnosticId?: string) => {
+            logWithTimestamp(outputChannel, `Suppress diagnostic command called with: ${diagnosticId || 'no ID'}`);
+            
+            // If we got a URI instead of a diagnostic ID, ignore it
+            if (diagnosticId && (diagnosticId.startsWith('file://') || diagnosticId.includes('://'))) {
+                logWithTimestamp(outputChannel, `Ignoring URI passed as diagnostic ID: ${diagnosticId}`);
+                diagnosticId = undefined;
+            }
+            
+            if (!diagnosticId) {
+                // Try to get diagnostic ID from current cursor position
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    const diagnostics = diagnosticCollection.get(editor.document.uri);
+                    logWithTimestamp(outputChannel, `Found ${diagnostics?.length || 0} diagnostics in current file`);
+                    
+                    if (diagnostics) {
+                        const position = editor.selection.active;
+                        const diagnostic = diagnostics.find(d => d.range.contains(position));
+                        
+                        if (diagnostic) {
+                            logWithTimestamp(outputChannel, `Found diagnostic at cursor: ${diagnostic.message}`);
+                            logWithTimestamp(outputChannel, `Diagnostic code: ${(diagnostic as any).code}`);
+                            logWithTimestamp(outputChannel, `Diagnostic full object: ${JSON.stringify(diagnostic)}`);
+                            
+                            // First try to use the code property
+                            if ((diagnostic as any).code) {
+                                diagnosticId = String((diagnostic as any).code);
+                                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Using code property: ${diagnosticId}`);
+                            } else if (diagnostic.message) {
+                                // Fallback to extracting from message
+                                const match = diagnostic.message.match(/\[?(MTLOG\d{3})\]?/);
+                                if (match) {
+                                    diagnosticId = match[1];
+                                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Extracted from message: ${diagnosticId}`);
+                                }
+                            }
+                        } else {
+                            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] No diagnostic found at cursor position`);
+                        }
+                    }
+                }
+                
+                if (!diagnosticId) {
+                    // Show output to help debug
+                    outputChannel.show();
+                    diagnosticId = await vscode.window.showInputBox({
+                        prompt: 'Enter diagnostic ID to suppress (e.g., MTLOG001)',
+                        placeHolder: 'MTLOG001'
+                    });
+                }
+            }
+            
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Will suppress diagnostic ID: ${diagnosticId || 'none'}`);
+            
+            if (diagnosticId) {
+                const config = vscode.workspace.getConfiguration('mtlog');
+                
+                // Get current suppressed list (or empty array)
+                const currentValue = config.inspect('suppressedDiagnostics');
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Current config value: ${JSON.stringify(currentValue)}`);
+                
+                // Try to get existing valid IDs
+                const existing = config.get('suppressedDiagnostics');
+                let suppressed: string[] = [];
+                
+                if (existing === undefined || existing === null) {
+                    // No config exists yet, start with empty array
+                    suppressed = [];
+                } else if (Array.isArray(existing)) {
+                    // Valid array, filter for valid IDs
+                    for (const item of existing) {
+                        if (typeof item === 'string' && item.startsWith('MTLOG')) {
+                            suppressed.push(item);
+                        }
+                    }
+                } else {
+                    // Config is corrupted, abort to avoid data loss
+                    vscode.window.showErrorMessage('Failed to parse suppressed diagnostics configuration. Suppression aborted to avoid losing existing suppressed diagnostics.');
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ERROR: suppressedDiagnostics config is not a valid array: ${typeof existing}. Aborting suppression.`);
+                    outputChannel.show();
+                    return;
+                }
+                
+                if (!suppressed.includes(diagnosticId)) {
+                    suppressed.push(diagnosticId);
+                    
+                    // Clear first, then set
+                    await config.update('suppressedDiagnostics', undefined, vscode.ConfigurationTarget.Workspace);
+                    await config.update('suppressedDiagnostics', suppressed, vscode.ConfigurationTarget.Workspace);
+                    
+                    vscode.window.showInformationMessage(`Suppressed diagnostic ${diagnosticId}`);
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Saved suppressed list: [${suppressed.join(', ')}]`);
+                    
+                    // Re-analyze to apply suppression
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Clearing all diagnostics and re-analyzing...`);
+                    diagnosticCollection.clear();
+                    
+                    const goDocuments = vscode.workspace.textDocuments.filter(d => d.languageId === 'go');
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Found ${goDocuments.length} Go files to re-analyze`);
+                    
+                    goDocuments.forEach(document => {
+                        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Queueing re-analysis for ${document.fileName}`);
+                        queueAnalysis(document);
+                    });
+                } else {
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${diagnosticId} already in suppressed list`);
+                }
+            }
+        })
+    );
+    
+    // Register suppression manager command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('mtlog.showSuppressionManager', async () => {
+            const config = vscode.workspace.getConfiguration('mtlog');
+            const suppressed = config.get<string[]>('suppressedDiagnostics', []);
+            
+            if (suppressed.length === 0) {
+                vscode.window.showInformationMessage('No diagnostics are currently suppressed');
+                return;
+            }
+            
+            const items = suppressed.map(id => ({
+                label: id,
+                description: getDiagnosticDescription(id),
+                picked: true
+            }));
+            
+            const selected = await vscode.window.showQuickPick(items, {
+                canPickMany: true,
+                placeHolder: 'Select diagnostics to keep suppressed (uncheck to unsuppress)'
+            });
+            
+            if (selected !== undefined) {
+                const newSuppressed = selected.map(item => item.label);
+                await config.update('suppressedDiagnostics', newSuppressed, vscode.ConfigurationTarget.Workspace);
+                
+                const removed = suppressed.filter(id => !newSuppressed.includes(id));
+                if (removed.length > 0) {
+                    vscode.window.showInformationMessage(`Unsuppressed: ${removed.join(', ')}`);
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Unsuppressed: ${removed.join(', ')}`);
+                    
+                    // Re-analyze to apply changes
+                    diagnosticCollection.clear();
+                    vscode.workspace.textDocuments.forEach(document => {
+                        if (document.languageId === 'go') {
+                            queueAnalysis(document);
+                        }
+                    });
+                }
             }
         })
     );
@@ -256,11 +446,63 @@ async function analyzeDocument(document: vscode.TextDocument) {
     const analyzerPath = config.get<string>('analyzerPath', 'mtlog-analyzer');
     const analyzerFlags = config.get<string[]>('analyzerFlags', []);
     
-    const args = ['vet', '-json', `-vettool=${analyzerPath}`, ...analyzerFlags, packagePath];
+    // Add kill switch flags based on configuration
+    const diagnosticsEnabled = config.get<boolean>('diagnosticsEnabled', true);
+    let suppressedDiagnostics = config.get('suppressedDiagnostics', []);
+    
+    // Debug: Log raw config value
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Raw suppressedDiagnostics from config: ${JSON.stringify(suppressedDiagnostics)}`);
+    
+    // Fix: Ensure suppressed diagnostics are strings, not objects or URIs
+    // Handle both array and single value cases  
+    let suppressedArray: string[] = [];
+    if (Array.isArray(suppressedDiagnostics)) {
+        suppressedArray = suppressedDiagnostics
+            .map((d: any) => {
+                if (typeof d === 'string') {
+                    // Filter out URIs that got saved by mistake
+                    if (!d.includes('://') && d.startsWith('MTLOG')) {
+                        return d;
+                    }
+                }
+                // Ignore objects (like URI objects)
+                return null;
+            })
+            .filter((d): d is string => d !== null);
+    }
+    
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostics enabled: ${diagnosticsEnabled}`);
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Processed suppressed diagnostics: [${suppressedArray.join(', ')}]`);
+    
+    // Build the arguments for go vet
+    const args = ['vet', '-json', `-vettool=${analyzerPath}`];
+    
+    // Add analyzer flags
+    args.push(...analyzerFlags);
+    
+    // Add suppression flags if needed - but NOT as vettool flags
+    // We need to write a config file or use environment variables
+    let envVars = { ...process.env };
+    
+    if (!diagnosticsEnabled) {
+        envVars[ENV_MTLOG_DISABLE_ALL] = 'true';
+    } else if (suppressedArray.length > 0) {
+        envVars[ENV_MTLOG_SUPPRESS] = suppressedArray.join(',');
+    }
+    
+    args.push(packagePath);
+    
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
+    if (envVars[ENV_MTLOG_SUPPRESS]) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_SUPPRESS}=${envVars[ENV_MTLOG_SUPPRESS]}`);
+    }
+    if (envVars[ENV_MTLOG_DISABLE_ALL]) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_DISABLE_ALL}=${envVars[ENV_MTLOG_DISABLE_ALL]}`);
+    }
     
     const proc = spawn('go', args, {
-        cwd: workingDir
+        cwd: workingDir,
+        env: envVars
     });
     
     // Track this process
@@ -274,6 +516,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     let outJson = '', outBrace = 0, outIn = false;
     proc.stdout.on('data', data => {
         const text = data.toString();
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stdout: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
         for (const ch of text) {
             if (ch === '{') { outBrace++; outIn = true; }
             if (outIn) outJson += ch;
@@ -288,7 +531,7 @@ async function analyzeDocument(document: vscode.TextDocument) {
     
     proc.stderr.on('data', (data) => {
         const text = data.toString();
-        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stderr: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
         
         // go vet outputs JSON to stderr, need to collect full JSON object
         for (const char of text) {
@@ -415,6 +658,8 @@ function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diag
         
         if (path.resolve(file) !== path.resolve(uri.fsPath)) return;
         
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Raw diagnostic message: "${message}"`);
+        
         // Parse severity from category or message prefix
         let severity = vscode.DiagnosticSeverity.Error;
         let cleanMessage = message;
@@ -453,6 +698,52 @@ function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diag
         
         diag.mtlogData = extractFixData(cleanMessage);
         diag.source = 'mtlog';
+        
+        // Extract diagnostic ID from message OR determine from content
+        const idMatch = cleanMessage.match(/\[?(MTLOG\d{3})\]?/);
+        let diagnosticId: string | undefined;
+        
+        if (idMatch) {
+            diagnosticId = idMatch[1];
+        } else {
+            // Determine ID from message content since go vet strips it
+            const msgLower = cleanMessage.toLowerCase();
+            if (msgLower.includes('template has') && msgLower.includes('properties') && msgLower.includes('arguments')) {
+                diagnosticId = 'MTLOG001';
+            } else if (msgLower.includes('invalid format specifier')) {
+                diagnosticId = 'MTLOG002';
+            } else if (msgLower.includes('duplicate property')) {
+                diagnosticId = 'MTLOG003';
+            } else if (msgLower.includes('pascalcase')) {
+                diagnosticId = 'MTLOG004';
+            } else if (msgLower.includes('capturing')) {
+                diagnosticId = 'MTLOG005';
+            } else if (msgLower.includes('error level log without error') || msgLower.includes('error logging without error')) {
+                diagnosticId = 'MTLOG006';
+            } else if (msgLower.includes('context key')) {
+                diagnosticId = 'MTLOG007';
+            } else if (msgLower.includes('dynamic template')) {
+                diagnosticId = 'MTLOG008';
+            }
+        }
+        
+        if (diagnosticId) {
+            (diag as any).code = diagnosticId;
+            
+            // Check if this diagnostic should be suppressed
+            const config = vscode.workspace.getConfiguration('mtlog');
+            const suppressedDiagnostics = config.get<string[]>('suppressedDiagnostics', []);
+            
+            if (suppressedDiagnostics.includes(diagnosticId)) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtering out suppressed diagnostic ${diagnosticId}: ${cleanMessage.substring(0, 50)}...`);
+                return; // Skip this diagnostic
+            }
+            
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Set diagnostic code: ${diagnosticId} for message: ${cleanMessage.substring(0, 50)}...`);
+        } else {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] No diagnostic ID found in message: ${cleanMessage.substring(0, 50)}...`);
+        }
+        
         diagnostics.push(diag);
     }
 }
@@ -499,29 +790,57 @@ function extractFixData(message: string): MtlogDiagnostic['mtlogData'] {
 function updateStatusBar() {
     if (!statusBarItem) return;
     
-    if (runningAnalyses > 0 || analysisQueue.length > 0) {
-        const queueText = analysisQueue.length > 0 ? ` (${analysisQueue.length} queued)` : '';
-        statusBarItem.text = `$(sync~spin) mtlog: analyzing${queueText}`;
-        statusBarItem.tooltip = `Analyzing ${runningAnalyses} file(s)${queueText}\nClick to show output`;
-        statusBarItem.show();
-    } else if (totalIssueCount > 0) {
-        const errorCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Error);
-        const warningCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Warning);
-        const infoCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Information);
-        
-        const parts = [];
-        if (errorCount > 0) parts.push(`${errorCount} error${errorCount !== 1 ? 's' : ''}`);
-        if (warningCount > 0) parts.push(`${warningCount} warning${warningCount !== 1 ? 's' : ''}`);
-        if (infoCount > 0) parts.push(`${infoCount} suggestion${infoCount !== 1 ? 's' : ''}`);
-        
-        statusBarItem.text = `$(warning) mtlog: ${parts.join(', ')}`;
-        statusBarItem.tooltip = 'mtlog analyzer found issues\nClick to show output';
-        statusBarItem.show();
+    const config = vscode.workspace.getConfiguration('mtlog');
+    const diagnosticsEnabled = config.get<boolean>('diagnosticsEnabled', true);
+    const suppressedDiagnostics = config.get<string[]>('suppressedDiagnostics', []);
+    
+    const errorCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Error);
+    const warningCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Warning);
+    const infoCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Information);
+    
+    // Always use the same structure with non-breaking spaces (U+00A0) for consistent width
+    const e = errorCount || 0;
+    const w = warningCount || 0; 
+    const i = infoCount || 0;
+    const s = suppressedDiagnostics.length || 0;
+    
+    let tooltip = '';
+    let text = '';
+    
+    if (!diagnosticsEnabled) {
+        // When disabled, just show the disabled icon
+        text = '$(circle-slash)        '; // 17 chars + 6 spaces = STATUS_BAR_WIDTH total
+        tooltip = 'mtlog disabled';
+    } else if (runningAnalyses > 0 || analysisQueue.length > 0) {
+        // Show spinning icon during analysis
+        text = '$(sync~spin)           '; // 15 chars + 8 spaces = STATUS_BAR_WIDTH total  
+        tooltip = `mtlog: Analyzing ${runningAnalyses} file(s)`;
     } else {
-        statusBarItem.text = '$(check) mtlog: no issues';
-        statusBarItem.tooltip = 'mtlog analyzer - no issues found\nClick to show output';
-        statusBarItem.show();
+        // Always show the 3 main icons with counts
+        const parts = [];
+        parts.push(`$(error) ${e}`);
+        parts.push(`$(warning) ${w}`);
+        parts.push(`$(lightbulb) ${i}`);
+        if (s > 0) parts.push(`$(eye-closed) ${s}`);
+        
+        const content = parts.join(' ');
+        text = content.padEnd(STATUS_BAR_WIDTH, ' '); // Always exactly STATUS_BAR_WIDTH characters
+        
+        // Build tooltip
+        const tooltipParts = [];
+        if (e > 0) tooltipParts.push(`${e} error${e !== 1 ? 's' : ''}`);
+        if (w > 0) tooltipParts.push(`${w} warning${w !== 1 ? 's' : ''}`);
+        if (i > 0) tooltipParts.push(`${i} suggestion${i !== 1 ? 's' : ''}`);
+        if (s > 0) tooltipParts.push(`${s} suppressed`);
+        
+        tooltip = tooltipParts.length > 0 
+            ? `mtlog: ${tooltipParts.join(', ')}`
+            : 'mtlog: No issues found';
     }
+    
+    statusBarItem.text = text;
+    statusBarItem.tooltip = tooltip;
+    statusBarItem.show();
 }
 
 function updateTotalIssueCount() {
@@ -594,13 +913,30 @@ async function installAnalyzer() {
         let binaryUrl = '';
         let binaryName = 'mtlog-analyzer';
         
+        // Check if we have a pre-built binary for this architecture
+        const supportedArch = (arch === 'x64' || arch === 'amd64') ? 'amd64' : null;
+        
+        if (!supportedArch) {
+            vscode.window.showWarningMessage(
+                `Pre-built binaries are only available for amd64/x64 architecture. Your system is ${arch}.\n\nPlease install via Go instead: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`,
+                'Install with Go'
+            ).then(selection => {
+                if (selection === 'Install with Go') {
+                    const terminal = vscode.window.createTerminal('Install mtlog-analyzer');
+                    terminal.show();
+                    terminal.sendText('go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest');
+                }
+            });
+            return;
+        }
+        
         if (platform === 'win32') {
             binaryName = 'mtlog-analyzer.exe';
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-windows-${arch}.exe`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-windows-amd64.exe';
         } else if (platform === 'darwin') {
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-darwin-${arch}`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-darwin-amd64';
         } else {
-            binaryUrl = `https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-linux-${arch}`;
+            binaryUrl = 'https://github.com/willibrandon/mtlog/releases/latest/download/mtlog-analyzer-linux-amd64';
         }
         
         vscode.window.showInformationMessage(
@@ -667,11 +1003,68 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
     ): vscode.CodeAction[] {
         const actions: vscode.CodeAction[] = [];
         
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Code actions requested for ${context.diagnostics.length} diagnostics`);
+        
+        // Collect unique diagnostic IDs to avoid duplicates
+        const uniqueDiagnosticIds = new Set<string>();
+        const mtlogDiagnostics: MtlogDiagnostic[] = [];
+        
         // Process each diagnostic in the current range
         for (const diagnostic of context.diagnostics) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostic: source=${diagnostic.source}, code=${(diagnostic as any).code}, message=${diagnostic.message}`);
+            
             if (diagnostic.source !== 'mtlog') continue;
             
             const mtlogDiag = diagnostic as MtlogDiagnostic;
+            mtlogDiagnostics.push(mtlogDiag);
+            
+            // Map messages to diagnostic IDs
+            let diagnosticId: string | undefined;
+            const msg = diagnostic.message.toLowerCase();
+            
+            if (msg.includes('template has') && msg.includes('but') && msg.includes('provided')) {
+                diagnosticId = 'MTLOG001';
+            } else if (msg.includes('format specifier')) {
+                diagnosticId = 'MTLOG002';
+            } else if (msg.includes('duplicate property')) {
+                diagnosticId = 'MTLOG003';
+            } else if (msg.includes('pascalcase')) {
+                diagnosticId = 'MTLOG004';
+            } else if (msg.includes('capturing')) {
+                diagnosticId = 'MTLOG005';
+            } else if (msg.includes('error level log without error value') || msg.includes('error logging without error')) {
+                diagnosticId = 'MTLOG006';
+            } else if (msg.includes('context key')) {
+                diagnosticId = 'MTLOG007';
+            } else if (msg.includes('dynamic template')) {
+                diagnosticId = 'MTLOG008';
+            }
+            
+            if (diagnosticId) {
+                uniqueDiagnosticIds.add(diagnosticId);
+            }
+        }
+        
+        // Add suppress actions for unique diagnostic IDs
+        for (const diagnosticId of uniqueDiagnosticIds) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Adding suppress action for ${diagnosticId}`);
+            const suppressAction = new vscode.CodeAction(
+                `Suppress ${diagnosticId} diagnostic`,
+                vscode.CodeActionKind.QuickFix
+            );
+            suppressAction.command = {
+                command: 'mtlog.suppressDiagnostic',
+                title: 'Suppress diagnostic',
+                arguments: [diagnosticId]
+            };
+            suppressAction.isPreferred = true;
+            actions.push(suppressAction);
+        }
+        
+        // Add existing quick fixes for each diagnostic
+        for (const mtlogDiag of mtlogDiagnostics) {
+            
+            // Add existing quick fixes
             if (!mtlogDiag.mtlogData) continue;
             
             switch (mtlogDiag.mtlogData.type) {
@@ -897,4 +1290,18 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
 
 function escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getDiagnosticDescription(id: string): string {
+    const descriptions: Record<string, string> = {
+        'MTLOG001': 'Template/argument count mismatch',
+        'MTLOG002': 'Invalid format specifier',
+        'MTLOG003': 'Duplicate property names',
+        'MTLOG004': 'Property naming (PascalCase)',
+        'MTLOG005': 'Missing capturing hints',
+        'MTLOG006': 'Error logging without error value',
+        'MTLOG007': 'Context key constant suggestion',
+        'MTLOG008': 'Dynamic template warning'
+    };
+    return descriptions[id] || 'Unknown diagnostic';
 }

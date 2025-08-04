@@ -103,11 +103,18 @@ class MtlogExternalAnnotatorIntegrationTest : MtlogIntegrationTestBase() {
         """.trimIndent())
         
         val diagnostics = runRealAnalyzer()
+        
+        // Debug output
+        println("testRealAnalyzerWithComplexTemplate diagnostics (${diagnostics.size} total):")
+        for (diag in diagnostics) {
+            println("  - $diag")
+        }
+        
         val suggestions = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
             .filter { it.severity == "suggestion" }
         
         // Should have a suggestion for the first log statement
-        assertTrue("Should have suggestions for complex type usage", suggestions.isNotEmpty())
+        assertTrue("Should have suggestions for complex type usage (found: ${suggestions.size})", suggestions.isNotEmpty())
     }
     
     fun testRealAnalyzerHandlesMultipleFiles() {

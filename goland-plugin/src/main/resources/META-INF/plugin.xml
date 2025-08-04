@@ -21,7 +21,7 @@
             runForWholeFile="true"
             displayName="mtlog template validation"
             groupName="Go"
-            enabledByDefault="false"
+            enabledByDefault="true"
             level="ERROR"
             shortName="MtlogTemplateValidation">
             <quickFix order="first" displayName="Convert to PascalCase" 
@@ -35,6 +35,9 @@
         <projectService 
             serviceImplementation="com.mtlog.analyzer.service.MtlogProjectService"/>
             
+        <projectService
+            serviceImplementation="com.mtlog.analyzer.notification.MtlogNotificationService"/>
+            
         <projectConfigurable
             parentId="tools"
             instance="com.mtlog.analyzer.settings.MtlogSettingsConfigurable"
@@ -47,6 +50,15 @@
             default="300"/>
             
         <notificationGroup id="mtlog.notifications" displayType="BALLOON"/>
+        <notificationGroup id="mtlog.analyzer" displayType="STICKY_BALLOON" isLogByDefault="false"/>
+        
+        <statusBarWidgetFactory
+            id="MtlogAnalyzer"
+            implementation="com.mtlog.analyzer.statusbar.MtlogStatusBarWidgetFactory"
+            order="first"/>
+            
+        <postStartupActivity
+            implementation="com.mtlog.analyzer.startup.MtlogStartupActivity"/>
     </extensions>
     
     <actions>
@@ -54,6 +66,13 @@
                 class="com.mtlog.analyzer.actions.InstallAnalyzerAction"
                 text="Install mtlog-analyzer"
                 description="Install mtlog-analyzer using go install">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        
+        <action id="mtlog.analyzer.manageSuppressed"
+                class="com.mtlog.analyzer.actions.ManageSuppressedDiagnosticsAction"
+                text="Manage Suppressed mtlog Diagnostics"
+                description="Manage which mtlog diagnostics are suppressed">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
     </actions>
