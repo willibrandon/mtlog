@@ -20,6 +20,12 @@ type Config struct {
 	
 	// DowngradeErrors downgrades errors to warnings for CI migration
 	DowngradeErrors bool
+	
+	// DisableAll is the global kill switch - disables all mtlog diagnostics
+	DisableAll bool
+	
+	// SuppressedDiagnostics allows specific diagnostics to be suppressed by ID
+	SuppressedDiagnostics map[string]bool
 }
 
 // DefaultConfig returns the default configuration
@@ -31,5 +37,7 @@ func DefaultConfig() Config {
 		IgnoreDynamicTemplates: false,
 		StrictLoggerTypes:      false,
 		DowngradeErrors:        false,
+		DisableAll:             false,
+		SuppressedDiagnostics:  make(map[string]bool),
 	}
 }
