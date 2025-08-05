@@ -101,6 +101,8 @@ intellijPlatform {
         ides {
             ide("GO", "2024.2")
             ide("GO", "2025.1")
+            ide("IU", "2024.2")  // IntelliJ IDEA Ultimate - Go plugin dependency resolved via bundledPlugin()
+            ide("IU", "2025.1")
         }
     }
 }
