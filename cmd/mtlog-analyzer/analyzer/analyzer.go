@@ -418,7 +418,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 		// Add diagnostic ID to message
 		message = fmt.Sprintf("[%s] %s", DiagIDTemplateMismatch, message)
 		
-		diagnostic := &analysis.Diagnostic{
+		diagnostic := analysis.Diagnostic{
 			Pos:     call.Pos(),
 			End:     call.End(),
 			Message: message,
@@ -463,7 +463,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 			return // Diagnostic is suppressed
 		}
 		
-		pass.Report(*diagnostic)
+		pass.Report(diagnostic)
 		return
 	}
 
@@ -937,7 +937,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 					
 					// Check if diagnostic is suppressed
 					if !config.SuppressedDiagnostics[DiagIDContextKey] {
-						diagnostic := &analysis.Diagnostic{
+						diagnostic := analysis.Diagnostic{
 							Pos:     lit.Pos(),
 							End:     lit.End(),
 							Message: fmt.Sprintf("[%s] suggestion: consider defining a constant for commonly used context key '%s'", DiagIDContextKey, key),
@@ -953,7 +953,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 							}},
 						}}
 						
-						pass.Report(*diagnostic)
+						pass.Report(diagnostic)
 					}
 					break
 				}
@@ -987,7 +987,7 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 		}
 		
 		// Create diagnostic with suggested fix
-		diagnostic := &analysis.Diagnostic{
+		diagnostic := analysis.Diagnostic{
 			Pos:     call.Pos(),
 			End:     call.End(),
 			Message: fmt.Sprintf("[%s] %s: Error level log without error value, consider including the error or using Warning level", DiagIDErrorLogging, SeveritySuggestion),
@@ -1060,7 +1060,7 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 			}
 		}
 		
-		pass.Report(*diagnostic)
+		pass.Report(diagnostic)
 	}
 }
 
