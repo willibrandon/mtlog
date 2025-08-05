@@ -29,6 +29,20 @@ type StdinDiagnostic struct {
 	Message   string `json:"message"`
 	Severity  string `json:"severity"`
 	DiagnosticID string `json:"diagnostic_id,omitempty"`
+	SuggestedFixes []SuggestedFix `json:"suggestedFixes,omitempty"`
+}
+
+// SuggestedFix represents a suggested fix for a diagnostic
+type SuggestedFix struct {
+	Message   string     `json:"message"`
+	TextEdits []TextEdit `json:"textEdits"`
+}
+
+// TextEdit represents a text edit in a suggested fix
+type TextEdit struct {
+	Pos     string `json:"pos"`
+	End     string `json:"end"`
+	NewText string `json:"newText"`
 }
 
 func main() {
@@ -210,13 +224,33 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 			severity = "suggestion"
 		}
 
+		// Convert suggested fixes
+		var suggestedFixes []SuggestedFix
+		for _, fix := range diag.SuggestedFixes {
+			var textEdits []TextEdit
+			for _, edit := range fix.TextEdits {
+				startPos := pkg.Fset.Position(edit.Pos)
+				endPos := pkg.Fset.Position(edit.End)
+				textEdits = append(textEdits, TextEdit{
+					Pos:     fmt.Sprintf("%s:%d:%d", startPos.Filename, startPos.Line, startPos.Column),
+					End:     fmt.Sprintf("%s:%d:%d", endPos.Filename, endPos.Line, endPos.Column),
+					NewText: string(edit.NewText),
+				})
+			}
+			suggestedFixes = append(suggestedFixes, SuggestedFix{
+				Message:   fix.Message,
+				TextEdits: textEdits,
+			})
+		}
+
 		diagnostics = append(diagnostics, StdinDiagnostic{
-			Filename:     req.Filename,
-			Line:         pos.Line,
-			Column:       pos.Column,
-			Message:      diag.Message,
-			Severity:     severity,
-			DiagnosticID: diagID,
+			Filename:       req.Filename,
+			Line:           pos.Line,
+			Column:         pos.Column,
+			Message:        diag.Message,
+			Severity:       severity,
+			DiagnosticID:   diagID,
+			SuggestedFixes: suggestedFixes,
 		})
 	}
 

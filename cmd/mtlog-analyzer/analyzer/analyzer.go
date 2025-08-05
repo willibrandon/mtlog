@@ -882,18 +882,279 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 			Message: fmt.Sprintf("[%s] %s: Error level log without error value, consider including the error or using Warning level", DiagIDErrorLogging, SeveritySuggestion),
 		}
 		
+		// Find error variable in scope or use nil
+		errorVar := findErrorVariableInScope(pass, call)
+		errorParam := errorVar
+		if errorParam == "" {
+			errorParam = "nil"
+		}
+		
 		// Add suggested fix to add error parameter
 		diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
 			Message: "Add error parameter",
 			TextEdits: []analysis.TextEdit{{
 				Pos:     call.End() - 1, // Just before the closing paren
 				End:     call.End() - 1,
-				NewText: []byte(", err"), // The plugin will determine the actual value based on context
+				NewText: []byte(", " + errorParam),
 			}},
 		}}
 		
+		// If using nil, add TODO comment
+		if errorParam == "nil" {
+			// Find the end of the current line
+			pos := pass.Fset.Position(call.Pos())
+			
+			// Find the actual end of the line by scanning forward
+			src, err := os.ReadFile(pos.Filename)
+			if err == nil {
+				lines := strings.Split(string(src), "\n")
+				if pos.Line <= len(lines) {
+					currentLine := lines[pos.Line-1]
+					
+					// Check if there's already a comment on this line
+					hasComment := strings.Contains(currentLine, "//")
+					
+					if hasComment {
+						// Put TODO on next line with proper indentation
+						indent := ""
+						for _, r := range currentLine {
+							if r == ' ' || r == '\t' {
+								indent += string(r)
+							} else {
+								break
+							}
+						}
+						
+						// Find position at end of current line
+						lineStart := call.Pos() - token.Pos(pos.Column-1)
+						lineEnd := lineStart + token.Pos(len(currentLine))
+						
+						diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+							Pos:     lineEnd,
+							End:     lineEnd,
+							NewText: []byte("\n" + indent + "// TODO: replace nil with actual error"),
+						})
+					} else {
+						// Put TODO at end of current line
+						lineStart := call.Pos() - token.Pos(pos.Column-1)
+						lineEnd := lineStart + token.Pos(len(currentLine))
+						
+						diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+							Pos:     lineEnd,
+							End:     lineEnd,
+							NewText: []byte(" // TODO: replace nil with actual error"),
+						})
+					}
+				}
+			}
+		}
+		
 		pass.Report(*diagnostic)
 	}
+}
+
+// findErrorVariableInScope finds an error variable in scope similar to GoLand plugin logic
+func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
+	if pass.Fset == nil {
+		return ""
+	}
+	// Find the containing function
+	var containingFunc *ast.FuncDecl
+	ast.Inspect(pass.Files[0], func(n ast.Node) bool {
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			if call.Pos() >= fn.Pos() && call.End() <= fn.End() {
+				containingFunc = fn
+				return false
+			}
+		}
+		return true
+	})
+	
+	if containingFunc == nil || containingFunc.Body == nil {
+		return ""
+	}
+	
+	// Simple approach: look backwards from the call line for error variables
+	// but only within the same logical scope
+	callPos := pass.Fset.Position(call.Pos())
+	
+	// Find all error variable declarations in the function
+	type errorVar struct {
+		name string
+		line int
+		inIfBlock bool
+		ifBlockStart int
+		ifBlockEnd int
+	}
+	
+	var errorVars []errorVar
+	
+	
+	ast.Inspect(containingFunc.Body, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			if node.Tok == token.DEFINE { // :=
+				nodePos := pass.Fset.Position(node.Pos())
+				if nodePos.Line < callPos.Line {
+					// Check if this assignment defines error variables
+					for _, lhs := range node.Lhs {
+						if ident, ok := lhs.(*ast.Ident); ok {
+							if isLikelyErrorVariable(ident.Name) {
+								// Check if this is inside an if block
+								var inIf bool
+								var ifStart, ifEnd int
+								
+								// Find if this assignment is inside an if statement
+								ast.Inspect(containingFunc.Body, func(n2 ast.Node) bool {
+									if ifStmt, ok := n2.(*ast.IfStmt); ok {
+										if node.Pos() >= ifStmt.Pos() && node.End() <= ifStmt.End() {
+											inIf = true
+											ifStart = pass.Fset.Position(ifStmt.Pos()).Line
+											ifEnd = pass.Fset.Position(ifStmt.End()).Line
+											return false
+										}
+									}
+									return true
+								})
+								
+								errorVars = append(errorVars, errorVar{
+									name: ident.Name,
+									line: nodePos.Line,
+									inIfBlock: inIf,
+									ifBlockStart: ifStart,
+									ifBlockEnd: ifEnd,
+								})
+								
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+	
+	// Find which if block (if any) contains our call
+	var callInIf bool
+	
+	ast.Inspect(containingFunc.Body, func(n ast.Node) bool {
+		if ifStmt, ok := n.(*ast.IfStmt); ok {
+			ifStart := pass.Fset.Position(ifStmt.Pos()).Line
+			ifEnd := pass.Fset.Position(ifStmt.End()).Line
+			
+			if callPos.Line >= ifStart && callPos.Line <= ifEnd {
+				callInIf = true
+				return false
+			}
+		}
+		return true
+	})
+	
+	
+	// Find the most recent error variable that's accessible from the call
+	var bestVar string
+	var bestLine int = -1
+	
+	for _, ev := range errorVars {
+		// Skip variables declared after our call
+		if ev.line >= callPos.Line {
+			continue
+		}
+		
+		// Check scope compatibility:
+		// 1. If call is in an if block that checks the error (like "if err != nil"), use that error var
+		// 2. If call is in a different if block, don't use error vars from other blocks
+		// 3. If call is not in any if block, be very restrictive - don't use error vars
+		if callInIf {
+			// Call is in an if block - check if this if block uses the error variable
+			// For now, assume if the error var was defined recently and we're in an if block,
+			// it's probably being checked by that if block
+			isRecentVar := (callPos.Line - ev.line) <= 5 // Within 5 lines
+			if !isRecentVar {
+				continue // Skip - error var is too old/distant
+			}
+		} else {
+			// Call is not in an if block - be very restrictive
+			// Only allow error vars that are defined in the same "section" without any if blocks in between
+			// For safety, don't use any error vars when not in an if block
+			continue // Skip all error vars when not in if block
+		}
+		
+		// Use the most recent (closest) error variable
+		if ev.line > bestLine {
+			bestVar = ev.name
+			bestLine = ev.line
+		}
+	}
+	
+	return bestVar
+}
+
+// findContainingIfBlock finds the if statement that contains the call
+func findContainingIfBlock(call *ast.CallExpr) *ast.IfStmt {
+	// This is a simplified version - would need proper AST traversal
+	return nil
+}
+
+// getErrorVariableFromIfCondition extracts error variable from if condition
+func getErrorVariableFromIfCondition(ifStmt *ast.IfStmt) string {
+	if ifStmt.Cond == nil {
+		return ""
+	}
+	
+	// Look for patterns like "err != nil"
+	if binExpr, ok := ifStmt.Cond.(*ast.BinaryExpr); ok {
+		if binExpr.Op == token.NEQ || binExpr.Op == token.EQL {
+			if ident, ok := binExpr.X.(*ast.Ident); ok {
+				if isLikelyErrorVariable(ident.Name) {
+					return ident.Name
+				}
+			}
+		}
+	}
+	
+	return ""
+}
+
+// findContainingFunction finds the function containing the call
+func findContainingFunction(call *ast.CallExpr) *ast.FuncDecl {
+	// This needs proper AST traversal - simplified for now
+	return nil
+}
+
+// findClosestErrorVariable finds the closest error variable to the call
+func findClosestErrorVariable(function *ast.FuncDecl, call *ast.CallExpr) string {
+	// This needs proper implementation with scope analysis
+	return ""
+}
+
+// hasRecentErrorIgnorance checks if errors are being ignored nearby
+func hasRecentErrorIgnorance(function *ast.FuncDecl, call *ast.CallExpr) bool {
+	// Check for patterns like "_, _ = someFunc()"
+	return false
+}
+
+// isVariableInScope checks if a variable name is in scope
+func isVariableInScope(function *ast.FuncDecl, call *ast.CallExpr, varName string) bool {
+	// This needs proper scope analysis
+	return false
+}
+
+// isLikelyErrorVariable checks if a variable name looks like an error
+func isLikelyErrorVariable(name string) bool {
+	errorNames := []string{"err", "error", "e", "errs", "errors"}
+	nameLower := strings.ToLower(name)
+	
+	for _, errorName := range errorNames {
+		if nameLower == errorName {
+			return true
+		}
+	}
+	
+	return strings.HasSuffix(name, "Err") || 
+		   strings.HasSuffix(name, "Error") ||
+		   strings.HasPrefix(nameLower, "err") ||
+		   strings.HasPrefix(nameLower, "error")
 }
 
 func isBasicType(t types.Type) bool {
