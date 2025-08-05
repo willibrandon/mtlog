@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // Diagnostic IDs for suppression
@@ -399,9 +400,59 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	
 	// Check if argument count matches property count
 	if len(properties) != argCount {
-		reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDTemplateMismatch,
-			"template has %d properties but %d arguments provided", 
+		// Create diagnostic with suggested fix
+		message := fmt.Sprintf("template has %d properties but %d arguments provided", 
 			len(properties), argCount)
+		
+		// Add severity prefix and diagnostic ID
+		message = fmt.Sprintf("[%s] %s", DiagIDTemplateMismatch, message)
+		
+		diagnostic := &analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: message,
+		}
+		
+		// Add suggested fix based on the mismatch
+		if argCount < len(properties) {
+			// Too few arguments - suggest adding placeholders
+			missingCount := len(properties) - argCount
+			placeholders := make([]string, missingCount)
+			for i := 0; i < missingCount; i++ {
+				placeholders[i] = "nil /* TODO: provide value for " + properties[argCount+i] + " */"
+			}
+			
+			diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("Add %d missing argument(s)", missingCount),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     call.End() - 1, // Just before the closing paren
+					End:     call.End() - 1,
+					NewText: []byte(", " + strings.Join(placeholders, ", ")),
+				}},
+			}}
+		} else if argCount > len(properties) {
+			// Too many arguments - suggest removing extras
+			// Find the position after the last valid argument
+			if len(properties) > 0 && len(call.Args) > len(properties)+1 {
+				endArg := call.Args[len(call.Args)-1]
+				
+				diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+					Message: fmt.Sprintf("Remove %d extra argument(s)", argCount-len(properties)),
+					TextEdits: []analysis.TextEdit{{
+						Pos:     call.Args[len(properties)].End(), // After last valid arg
+						End:     endArg.End(),
+						NewText: []byte(""),
+					}},
+				}}
+			}
+		}
+		
+		// Check if this diagnostic is suppressed
+		if config != nil && config.SuppressedDiagnostics[DiagIDTemplateMismatch] {
+			return // Diagnostic is suppressed
+		}
+		
+		pass.Report(*diagnostic)
 		return
 	}
 
@@ -701,7 +752,7 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 			suggested[propName] = true
 			
 			// Create suggested fix to convert to PascalCase
-			pascalCase := string(propName[0]-32) + propName[1:]
+			pascalCase := toPascalCase(propName)
 			
 			// Get the literal string to create proper replacement
 			if lit, ok := call.Args[0].(*ast.BasicLit); ok {
@@ -792,15 +843,64 @@ func checkCapturingUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 		} else if strings.HasPrefix(propName, "$") {
 			// $ is for scalar rendering - make sure it's appropriate
 			if !isBasicType(argType) && !isStringer(argType) {
-				reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
-					"using $ prefix for complex type %s, consider using @ for capturing", argType)
+				// Create suggested fix to change $ to @
+				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
+					oldTemplate := lit.Value
+					newProp := "@" + strings.TrimPrefix(propName, "$")
+					// Replace in the template, preserving quotes
+					newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
+					
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
+						diag := analysis.Diagnostic{
+							Pos:     arg.Pos(),
+							Message: fmt.Sprintf("[%s] %s: using $ prefix for complex type %s, consider using @ for capturing", DiagIDCapturingHints, SeverityWarning, argType),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Change '$' to '@' prefix for '%s'", propName),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     lit.Pos(),
+									End:     lit.End(),
+									NewText: []byte(newTemplate),
+								}},
+							}},
+						}
+						pass.Report(diag)
+					}
+				} else {
+					reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
+						"using $ prefix for complex type %s, consider using @ for capturing", argType)
+				}
 			}
 		} else {
 			// No prefix - suggest @ for complex types
 			if !isBasicType(argType) && !isTimeType(argType) && !isStringer(argType) && !isErrorType(argType) {
-				// Suggestion only
-				reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
-					"consider using @ prefix for complex type %s to enable capturing", argType)
+				// Create suggested fix to add @ prefix
+				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
+					oldTemplate := lit.Value
+					newProp := "@" + propName
+					// Replace in the template, preserving quotes
+					newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
+					
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
+						diag := analysis.Diagnostic{
+							Pos:     arg.Pos(),
+							Message: fmt.Sprintf("[%s] %s: consider using @ prefix for complex type %s to enable capturing", DiagIDCapturingHints, SeveritySuggestion, argType),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Add @ prefix to '%s' for capturing", propName),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     lit.Pos(),
+									End:     lit.End(),
+									NewText: []byte(newTemplate),
+								}},
+							}},
+						}
+						pass.Report(diag)
+					}
+				} else {
+					reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
+						"consider using @ prefix for complex type %s to enable capturing", argType)
+				}
 			}
 		}
 	}
@@ -958,20 +1058,59 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 	if pass.Fset == nil {
 		return ""
 	}
-	// Find the containing function
-	var containingFunc *ast.FuncDecl
-	ast.Inspect(pass.Files[0], func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok {
-			if call.Pos() >= fn.Pos() && call.End() <= fn.End() {
-				containingFunc = fn
-				return false
+	// Find the containing function (either FuncDecl or FuncLit)
+	var funcType *ast.FuncType
+	var funcBody *ast.BlockStmt
+	
+	// Walk up the AST to find the closest function
+	path, _ := astutil.PathEnclosingInterval(pass.Files[0], call.Pos(), call.End())
+	for _, node := range path {
+		switch n := node.(type) {
+		case *ast.FuncDecl:
+			funcType = n.Type
+			funcBody = n.Body
+			break
+		case *ast.FuncLit:
+			funcType = n.Type
+			funcBody = n.Body
+			break
+		}
+		if funcType != nil {
+			break
+		}
+	}
+	
+	if funcType == nil || funcBody == nil {
+		return ""
+	}
+	
+	// Check function parameters first
+	if funcType.Params != nil && pass.TypesInfo != nil {
+		for _, field := range funcType.Params.List {
+			// Get the type of this parameter
+			typ := pass.TypesInfo.TypeOf(field.Type)
+			if typ != nil && isErrorType(typ) {
+				// Get the parameter name(s)
+				for _, name := range field.Names {
+					// Accept any error-typed parameter, common names: err, e, error, myErr, etc.
+					return name.Name
+				}
 			}
 		}
-		return true
-	})
+	}
 	
-	if containingFunc == nil || containingFunc.Body == nil {
-		return ""
+	// Check named return values
+	if funcType.Results != nil && pass.TypesInfo != nil {
+		for _, field := range funcType.Results.List {
+			// Get the type of this return value
+			typ := pass.TypesInfo.TypeOf(field.Type)
+			if typ != nil && isErrorType(typ) && len(field.Names) > 0 {
+				for _, name := range field.Names {
+					// Accept any error-typed return value
+					return name.Name
+				}
+			}
+		}
 	}
 	
 	// Simple approach: look backwards from the call line for error variables
@@ -990,7 +1129,7 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 	var errorVars []errorVar
 	
 	
-	ast.Inspect(containingFunc.Body, func(n ast.Node) bool {
+	ast.Inspect(funcBody, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.AssignStmt:
 			if node.Tok == token.DEFINE { // :=
@@ -1005,7 +1144,7 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 								var ifStart, ifEnd int
 								
 								// Find if this assignment is inside an if statement
-								ast.Inspect(containingFunc.Body, func(n2 ast.Node) bool {
+								ast.Inspect(funcBody, func(n2 ast.Node) bool {
 									if ifStmt, ok := n2.(*ast.IfStmt); ok {
 										if node.Pos() >= ifStmt.Pos() && node.End() <= ifStmt.End() {
 											inIf = true
@@ -1037,7 +1176,7 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 	// Find which if block (if any) contains our call
 	var callInIf bool
 	
-	ast.Inspect(containingFunc.Body, func(n ast.Node) bool {
+	ast.Inspect(funcBody, func(n ast.Node) bool {
 		if ifStmt, ok := n.(*ast.IfStmt); ok {
 			ifStart := pass.Fset.Position(ifStmt.Pos()).Line
 			ifEnd := pass.Fset.Position(ifStmt.End()).Line

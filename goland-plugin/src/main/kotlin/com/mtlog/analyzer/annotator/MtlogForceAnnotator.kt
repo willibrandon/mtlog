@@ -63,16 +63,10 @@ class MtlogForceAnnotator : Annotator {
                     .range(diagnostic.range)
                     .needsUpdateOnTyping(true)
                 
-                // Add quick fixes based on the diagnostic
-                when {
-                    diagnostic.message.contains("PascalCase") && diagnostic.propertyName != null -> {
-                        builder.withFix(com.mtlog.analyzer.quickfix.PascalCaseQuickFix(leaf, diagnostic.propertyName))
-                    }
-                    diagnostic.message.contains("arguments") -> {
-                        builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(leaf))
-                    }
-                    diagnostic.message.contains("error") && diagnostic.message.contains("without error") -> {
-                        builder.withFix(com.mtlog.analyzer.quickfix.MissingErrorQuickFix(leaf))
+                // Add quick fixes from analyzer-provided suggested fixes
+                if (diagnostic.suggestedFixes.isNotEmpty()) {
+                    for (suggestedFix in diagnostic.suggestedFixes) {
+                        builder.withFix(com.mtlog.analyzer.quickfix.AnalyzerSuggestedQuickFix(leaf, suggestedFix))
                     }
                 }
                 

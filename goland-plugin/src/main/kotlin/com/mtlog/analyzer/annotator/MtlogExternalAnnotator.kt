@@ -19,6 +19,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.util.IncorrectOperationException
 import com.mtlog.analyzer.MtlogBundle
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.service.AnalyzerSuggestedFix
 import com.mtlog.analyzer.notification.MtlogNotificationService
 import com.mtlog.analyzer.logging.MtlogLogger
 import kotlinx.coroutines.*
@@ -66,6 +67,7 @@ class MtlogDiagnostic(
     val propertyName: String? = null,
     val isTemplateError: Boolean = false,
     val diagnosticId: String? = null,
+    val suggestedFixes: List<AnalyzerSuggestedFix> = emptyList(),
     val uniqueId: Long = System.nanoTime()
 ) {
     // Not a data class to prevent caching based on equals/hashCode
@@ -255,36 +257,19 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             
             for (diag in diagnosticsAtRange) {
                 MtlogLogger.debug("Processing diagnostic for quick fixes: ${diag.message}, diagnosticId: ${diag.diagnosticId}", project)
-                when {
-                    diag.message.contains("PascalCase") && diag.propertyName != null -> {
-                        val fixKey = "PascalCase:${diag.propertyName}"
+                
+                // Only use analyzer-provided suggested fixes
+                if (diag.suggestedFixes.isNotEmpty()) {
+                    for ((index, suggestedFix) in diag.suggestedFixes.withIndex()) {
+                        val fixKey = "AnalyzerFix:${diag.diagnosticId}:$index"
                         if (!addedFixes.contains(fixKey)) {
-                            MtlogLogger.debug("Adding PascalCase quick fix for property: ${diag.propertyName}", project)
-                            builder.withFix(com.mtlog.analyzer.quickfix.PascalCaseQuickFix(anchor, diag.propertyName))
-                            addedFixes.add(fixKey)
-                        }
-                    }
-                    diag.message.contains("arguments") -> {
-                        val fixKey = "TemplateArgument"
-                        if (!addedFixes.contains(fixKey)) {
-                            MtlogLogger.debug("Adding TemplateArgument quick fix", project)
-                            builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(anchor))
-                            addedFixes.add(fixKey)
-                        }
-                    }
-                    diag.diagnosticId == "MTLOG006" || (diag.message.contains("error") && diag.message.contains("without error")) -> {
-                        val fixKey = "MissingError"
-                        if (!addedFixes.contains(fixKey)) {
-                            MtlogLogger.info("ATTEMPTING to add MissingError quick fix for message: ${diag.message}, diagnosticId: ${diag.diagnosticId}", project)
-                            MtlogLogger.info("Anchor element: ${anchor.javaClass.simpleName}, text: '${anchor.text.take(30)}'", project)
+                            MtlogLogger.info("Adding analyzer suggested fix: ${suggestedFix.message}", project)
                             try {
-                                val quickFix = com.mtlog.analyzer.quickfix.MissingErrorQuickFix(anchor)
-                                MtlogLogger.info("Quick fix created successfully", project)
+                                val quickFix = com.mtlog.analyzer.quickfix.AnalyzerSuggestedQuickFix(anchor, suggestedFix)
                                 builder.withFix(quickFix)
-                                MtlogLogger.info("Quick fix added to builder", project)
                                 addedFixes.add(fixKey)
                             } catch (e: Exception) {
-                                MtlogLogger.error("Failed to create/add quick fix", project, e)
+                                MtlogLogger.error("Failed to create analyzer suggested fix", project, e)
                             }
                         }
                     }
@@ -417,7 +402,8 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
                 },
                 propertyName = diagnostic.propertyName,
                 isTemplateError = diagnostic.message.contains("arguments") || diagnostic.message.contains("properties"),
-                diagnosticId = diagnosticId
+                diagnosticId = diagnosticId,
+                suggestedFixes = diagnostic.suggestedFixes
             )
         }
         

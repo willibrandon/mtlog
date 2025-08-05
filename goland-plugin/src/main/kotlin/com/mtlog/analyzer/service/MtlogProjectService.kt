@@ -30,7 +30,19 @@ data class AnalyzerDiagnostic(
     val message: String,
     val severity: String,
     val propertyName: String? = null,
-    val diagnosticId: String? = null
+    val diagnosticId: String? = null,
+    val suggestedFixes: List<AnalyzerSuggestedFix> = emptyList()
+)
+
+data class AnalyzerSuggestedFix(
+    val message: String,
+    val textEdits: List<AnalyzerTextEdit>
+)
+
+data class AnalyzerTextEdit(
+    val pos: String,  // Format: "file:line:col"
+    val end: String,  // Format: "file:line:col"
+    val newText: String
 )
 
 /**
@@ -662,13 +674,39 @@ class MtlogProjectService(
                     message.substringAfter("property '").substringBefore("'")
                 } else null
                 
+                // Parse suggested fixes
+                val suggestedFixes = mutableListOf<AnalyzerSuggestedFix>()
+                val fixesArray = diag.get("suggestedFixes")?.asJsonArray
+                if (fixesArray != null) {
+                    fixesArray.forEach { fixElement ->
+                        val fixObj = fixElement.asJsonObject
+                        val fixMessage = fixObj.get("message").asString
+                        val textEdits = mutableListOf<AnalyzerTextEdit>()
+                        
+                        val editsArray = fixObj.get("textEdits")?.asJsonArray
+                        if (editsArray != null) {
+                            editsArray.forEach { editElement ->
+                                val editObj = editElement.asJsonObject
+                                textEdits.add(AnalyzerTextEdit(
+                                    pos = editObj.get("pos").asString,
+                                    end = editObj.get("end").asString,
+                                    newText = editObj.get("newText").asString
+                                ))
+                            }
+                        }
+                        
+                        suggestedFixes.add(AnalyzerSuggestedFix(fixMessage, textEdits))
+                    }
+                }
+                
                 diagnostics.add(AnalyzerDiagnostic(
                     lineNumber = lineNum,
                     columnNumber = columnNum,
                     message = message,
                     severity = severity,
                     propertyName = propertyName,
-                    diagnosticId = diagnosticId
+                    diagnosticId = diagnosticId,
+                    suggestedFixes = suggestedFixes
                 ))
             }
             
