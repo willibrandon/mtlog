@@ -404,7 +404,18 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 		message := fmt.Sprintf("template has %d properties but %d arguments provided", 
 			len(properties), argCount)
 		
-		// Add severity prefix and diagnostic ID
+		// Apply downgrade if needed
+		severity := SeverityError
+		if config != nil && config.DowngradeErrors {
+			severity = SeverityWarning
+		}
+		
+		// Add severity prefix for non-error diagnostics
+		if severity != SeverityError {
+			message = severity + ": " + message
+		}
+		
+		// Add diagnostic ID to message
 		message = fmt.Sprintf("[%s] %s", DiagIDTemplateMismatch, message)
 		
 		diagnostic := &analysis.Diagnostic{
