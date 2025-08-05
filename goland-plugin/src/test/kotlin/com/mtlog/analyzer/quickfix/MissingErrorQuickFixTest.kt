@@ -19,7 +19,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, err := doSomething()
+                _, err := doSomething()
                 if err != nil {
                     log.E<caret>rror("Something failed")
                 }
@@ -33,7 +33,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, err := doSomething()
+                _, err := doSomething()
                 if err != nil {
                     log.Error("Something failed", err)
                 }
@@ -48,10 +48,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val code = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -65,10 +62,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val expected = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -91,7 +85,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, e := doSomething()
+                _, e := doSomething()
                 if e != nil {
                     log.E<caret>rror("Operation failed")
                 }
@@ -105,7 +99,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, e := doSomething()
+                _, e := doSomething()
                 if e != nil {
                     log.Error("Operation failed", e)
                 }
@@ -124,7 +118,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, myErr := doSomething()
+                _, myErr := doSomething()
                 if myErr != nil {
                     log.E<caret>rror("Custom error occurred")
                 }
@@ -138,7 +132,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                result, myErr := doSomething()
+                _, myErr := doSomething()
                 if myErr != nil {
                     log.Error("Custom error occurred", myErr)
                 }
@@ -361,10 +355,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val code = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -380,10 +371,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val expected = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -404,10 +392,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val code = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -417,7 +402,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
                 }
                 
                 // Different block, no err
-                if conn != nil {
+                if true {
                     log.E<caret>rror("Connection issue")
                 }
             }
@@ -426,10 +411,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         val expected = """
             package main
             
-            import (
-                "net"
-                "github.com/willibrandon/mtlog"
-            )
+            import "github.com/willibrandon/mtlog"
             
             func main() {
                 log := mtlog.New()
@@ -439,7 +421,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
                 }
                 
                 // Different block, no err
-                if conn != nil {
+                if true {
                     log.Error("Connection issue", nil) // TODO: replace nil with actual error
                 }
             }
@@ -578,8 +560,9 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
         println("Highlights found: ${highlights.size}")
         highlights.forEach { highlight ->
             println("  - ${highlight.description}: ${highlight.text} (severity: ${highlight.severity})")
-            highlight.quickFixActionRanges?.forEach { qf ->
-                println("    Quick fix: ${qf.first.action.text}")
+            highlight.findRegisteredQuickFix { descriptor, _ ->
+                println("    Quick fix: ${descriptor.action.text}")
+                null // Continue iteration
             }
         }
         
