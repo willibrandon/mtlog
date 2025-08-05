@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2025-08-05
+
+### Changed
+- **Analyzer Architecture** - Centralized all quick fixes in the analyzer with stdin support (#21)
+  - IDE extensions now use analyzer-provided suggested fixes exclusively
+  - Transitioned from file-based to stdin-based communication for real-time analysis
+  - Removed ~1000 lines of duplicate quick fix code from IDE extensions
+  - Replaced os.ReadFile with AST-based analysis for better performance
+
+### Added
+- **Analyzer Quick Fixes** - Suggested fixes for MTLOG001 (template/argument mismatch) and MTLOG006 (missing error parameter)
+  - MTLOG006 intelligently detects error variables in scope
+  - Adds appropriate error variable or `nil` with TODO comment
+
+### Fixed
+- **Performance** - Eliminated repeated file I/O operations in both IDE extensions
+- **Stability** - Fixed potential issues with stdin mode where files may not exist on disk
+- **Code Quality** - Fixed analyzer tautological conditions and redundant control flow
+- **GoLand Plugin** - Fixed IntelliJ IDEA Ultimate compatibility issue where plugin showed as "binary incompatible"
+
 ## [0.7.2] - 2025-08-04
 
 ### Added

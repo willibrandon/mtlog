@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.2"
+version = "0.7.3"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,15 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.7.3</h2>
+            <ul>
+                <li>Centralized all quick fixes in the analyzer for consistency</li>
+                <li>Transitioned to stdin-based communication for real-time analysis</li>
+                <li>Removed ~1000 lines of duplicate quick fix code</li>
+                <li>Improved performance by eliminating file I/O operations</li>
+                <li>Fixed stability issues with stdin mode</li>
+                <li>Fixed IntelliJ IDEA Ultimate compatibility issue</li>
+            </ul>
             <h2>0.7.2</h2>
             <ul>
                 <li>Added diagnostic kill switch for quick enable/disable</li>
