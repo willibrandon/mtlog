@@ -127,8 +127,11 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 	
 	// Load the package containing our file
 	// Try to determine the package pattern from the file
-	pattern := "."
-	if !hasModule {
+	var pattern string
+	if hasModule {
+		// For module mode, use "." to load the package in the module directory
+		pattern = "."
+	} else {
 		// For non-module mode, use file= pattern
 		pattern = "file=" + req.Filename
 	}

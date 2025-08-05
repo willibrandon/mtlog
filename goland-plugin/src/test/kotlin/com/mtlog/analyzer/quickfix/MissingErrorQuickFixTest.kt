@@ -560,9 +560,6 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             func process(data interface{}) {
                 // stub
             }
-            
-            // For scenario 10 case 2 - we need net.Dial to return something
-            // but Go's net package already provides this
         """.trimIndent())
         
         // Write the test file to disk

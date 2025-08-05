@@ -43,8 +43,15 @@ class AnalyzerSuggestedQuickFix(
         val runnable = Runnable {
             try {
                 // Apply text edits in reverse order (from end to start) to maintain correct offsets
-                val sortedEdits = suggestedFix.textEdits.sortedByDescending { 
-                    parsePosition(it.pos).offset 
+                val sortedEdits = suggestedFix.textEdits.sortedByDescending { edit ->
+                    try {
+                        val pos = parsePosition(edit.pos)
+                        val lineStartOffset = doc.getLineStartOffset(pos.line - 1)
+                        lineStartOffset + (pos.column - 1)
+                    } catch (e: Exception) {
+                        // If position is invalid, sort it last
+                        -1
+                    }
                 }
                 
                 for (edit in sortedEdits) {
@@ -114,7 +121,7 @@ class AnalyzerSuggestedQuickFix(
         }
     }
     
-    private data class Position(val line: Int, val column: Int, val offset: Int)
+    private data class Position(val line: Int, val column: Int)
     
     private fun parsePosition(posStr: String): Position {
         // Parse format: "file:line:col"
@@ -122,8 +129,8 @@ class AnalyzerSuggestedQuickFix(
         if (parts.size >= 3) {
             val line = parts[parts.size - 2].toIntOrNull() ?: 1
             val column = parts[parts.size - 1].toIntOrNull() ?: 1
-            return Position(line, column, line * 1000 + column) // Simple offset calculation for sorting
+            return Position(line, column)
         }
-        return Position(1, 1, 0)
+        return Position(1, 1)
     }
 }
