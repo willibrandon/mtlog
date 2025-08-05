@@ -599,15 +599,6 @@ func validateFormatSpecifier(property string, config *Config) error {
 	return nil
 }
 
-// reportDiagnostic reports a diagnostic with severity prefix
-func reportDiagnostic(pass *analysis.Pass, pos token.Pos, severity string, format string, args ...interface{}) {
-	reportDiagnosticWithConfig(pass, pos, severity, nil, format, args...)
-}
-
-// reportDiagnosticWithConfig reports a diagnostic with severity prefix and config
-func reportDiagnosticWithConfig(pass *analysis.Pass, pos token.Pos, severity string, config *Config, format string, args ...interface{}) {
-	reportDiagnosticWithID(pass, pos, severity, config, "", format, args...)
-}
 
 // reportDiagnosticWithID reports a diagnostic with ID, severity prefix and config
 func reportDiagnosticWithID(pass *analysis.Pass, pos token.Pos, severity string, config *Config, diagID string, format string, args ...interface{}) {
@@ -1015,53 +1006,130 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 			// Find the end of the current line
 			pos := pass.Fset.Position(call.Pos())
 			
-			// Find the actual end of the line by scanning forward
-			src, err := os.ReadFile(pos.Filename)
-			if err == nil {
-				lines := strings.Split(string(src), "\n")
-				if pos.Line <= len(lines) {
-					currentLine := lines[pos.Line-1]
-					
-					// Check if there's already a comment on this line
-					hasComment := strings.Contains(currentLine, "//")
-					
+			// Check if there's a comment on this line by looking at the AST
+			var hasComment bool
+			var lineEnd token.Pos
+			var indent string
+			
+			// Find the file containing this call
+			var targetFile *ast.File
+			for _, f := range pass.Files {
+				if f.Pos() <= call.Pos() && call.End() <= f.End() {
+					targetFile = f
+					break
+				}
+			}
+			
+			if targetFile != nil {
+				// Check for comments on the same line
+				for _, cg := range targetFile.Comments {
+					for _, c := range cg.List {
+						cPos := pass.Fset.Position(c.Pos())
+						if cPos.Line == pos.Line {
+							hasComment = true
+							break
+						}
+					}
 					if hasComment {
-						// Put TODO on next line with proper indentation
-						indent := ""
-						for _, r := range currentLine {
-							if r == ' ' || r == '\t' {
-								indent += string(r)
-							} else {
-								break
+						break
+					}
+				}
+				
+				// Calculate indent based on column position
+				if pos.Column > 1 {
+					// Build indent string
+					for i := 1; i < pos.Column; i++ {
+						indent += " "
+					}
+					// Trim to get just the statement indent, not up to the call
+					// Find the start of the statement
+					parent := findParentStmt(targetFile, call)
+					if parent != nil {
+						parentPos := pass.Fset.Position(parent.Pos())
+						if parentPos.Line == pos.Line {
+							// Use parent's column for indent
+							indent = ""
+							for i := 1; i < parentPos.Column; i++ {
+								indent += " "
 							}
 						}
-						
-						// Find position at end of current line
-						lineStart := call.Pos() - token.Pos(pos.Column-1)
-						lineEnd := lineStart + token.Pos(len(currentLine))
-						
-						diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
-							Pos:     lineEnd,
-							End:     lineEnd,
-							NewText: []byte("\n" + indent + "// TODO: replace nil with actual error"),
-						})
-					} else {
-						// Put TODO at end of current line
-						lineStart := call.Pos() - token.Pos(pos.Column-1)
-						lineEnd := lineStart + token.Pos(len(currentLine))
-						
-						diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
-							Pos:     lineEnd,
-							End:     lineEnd,
-							NewText: []byte(" // TODO: replace nil with actual error"),
-						})
 					}
+				}
+				
+				// Find the actual end of the line
+				// We need to find the last non-comment token on this line
+				lineEnd = call.End()
+				ast.Inspect(targetFile, func(n ast.Node) bool {
+					if n == nil {
+						return false
+					}
+					// Skip comments when finding line end
+					if _, isComment := n.(*ast.Comment); isComment {
+						return true
+					}
+					if _, isCommentGroup := n.(*ast.CommentGroup); isCommentGroup {
+						return true
+					}
+					
+					nPos := pass.Fset.Position(n.Pos())
+					nEnd := pass.Fset.Position(n.End())
+					
+					// If this node ends on our line and is after our current end
+					if nEnd.Line == pos.Line && n.End() > lineEnd {
+						lineEnd = n.End()
+					}
+					
+					// Don't descend into nodes that start after our line
+					return nPos.Line <= pos.Line
+				})
+				
+				// Add the text edit
+				if hasComment {
+					// Put TODO on next line with proper indentation
+					// Find the actual end of line including the comment
+					var commentEnd token.Pos = lineEnd
+					for _, cg := range targetFile.Comments {
+						for _, c := range cg.List {
+							cPos := pass.Fset.Position(c.Pos())
+							if cPos.Line == pos.Line && c.End() > commentEnd {
+								commentEnd = c.End()
+							}
+						}
+					}
+					
+					diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+						Pos:     commentEnd,
+						End:     commentEnd,
+						NewText: []byte("\n" + indent + "// TODO: replace nil with actual error"),
+					})
+				} else {
+					// Put TODO at end of current line
+					diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+						Pos:     lineEnd,
+						End:     lineEnd,
+						NewText: []byte(" // TODO: replace nil with actual error"),
+					})
 				}
 			}
 		}
 		
 		pass.Report(diagnostic)
 	}
+}
+
+// findParentStmt finds the parent statement node for a given node
+func findParentStmt(file *ast.File, target ast.Node) ast.Stmt {
+	var parent ast.Stmt
+	ast.Inspect(file, func(n ast.Node) bool {
+		if stmt, ok := n.(ast.Stmt); ok {
+			// Check if this statement contains our target
+			if stmt.Pos() <= target.Pos() && target.End() <= stmt.End() {
+				parent = stmt
+			}
+		}
+		return true
+	})
+	return parent
 }
 
 // findErrorVariableInScope finds an error variable in scope similar to GoLand plugin logic
@@ -1080,11 +1148,9 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 		case *ast.FuncDecl:
 			funcType = n.Type
 			funcBody = n.Body
-			break
 		case *ast.FuncLit:
 			funcType = n.Type
 			funcBody = n.Body
-			break
 		}
 		if funcType != nil {
 			break
@@ -1240,55 +1306,6 @@ func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
 	return bestVar
 }
 
-// findContainingIfBlock finds the if statement that contains the call
-func findContainingIfBlock(call *ast.CallExpr) *ast.IfStmt {
-	// This is a simplified version - would need proper AST traversal
-	return nil
-}
-
-// getErrorVariableFromIfCondition extracts error variable from if condition
-func getErrorVariableFromIfCondition(ifStmt *ast.IfStmt) string {
-	if ifStmt.Cond == nil {
-		return ""
-	}
-	
-	// Look for patterns like "err != nil"
-	if binExpr, ok := ifStmt.Cond.(*ast.BinaryExpr); ok {
-		if binExpr.Op == token.NEQ || binExpr.Op == token.EQL {
-			if ident, ok := binExpr.X.(*ast.Ident); ok {
-				if isLikelyErrorVariable(ident.Name) {
-					return ident.Name
-				}
-			}
-		}
-	}
-	
-	return ""
-}
-
-// findContainingFunction finds the function containing the call
-func findContainingFunction(call *ast.CallExpr) *ast.FuncDecl {
-	// This needs proper AST traversal - simplified for now
-	return nil
-}
-
-// findClosestErrorVariable finds the closest error variable to the call
-func findClosestErrorVariable(function *ast.FuncDecl, call *ast.CallExpr) string {
-	// This needs proper implementation with scope analysis
-	return ""
-}
-
-// hasRecentErrorIgnorance checks if errors are being ignored nearby
-func hasRecentErrorIgnorance(function *ast.FuncDecl, call *ast.CallExpr) bool {
-	// Check for patterns like "_, _ = someFunc()"
-	return false
-}
-
-// isVariableInScope checks if a variable name is in scope
-func isVariableInScope(function *ast.FuncDecl, call *ast.CallExpr, varName string) bool {
-	// This needs proper scope analysis
-	return false
-}
 
 // isLikelyErrorVariable checks if a variable name looks like an error
 func isLikelyErrorVariable(name string) bool {
