@@ -55,7 +55,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                conn, err := net.Dial("tcp", "localhost:8080")
+                _, err := doSomething()
                 if err != nil {
                     log.E<caret>rror("Connection failed")
                 }
@@ -72,7 +72,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                conn, err := net.Dial("tcp", "localhost:8080")
+                _, err := doSomething()
                 if err != nil {
                     log.Error("Connection failed", err)
                 }
@@ -357,7 +357,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
     }
     
     fun testScenario10_Case1_HasErrorInScope() {
-        // Scenario 10 Case 1: Has 'err' in scope from net.Dial
+        // Scenario 10 Case 1: Has 'err' in scope from doSomething()
         val code = """
             package main
             
@@ -369,8 +369,8 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             func main() {
                 log := mtlog.New()
                 
-                // Has 'err' in scope from net.Dial
-                conn, err := net.Dial("tcp", "localhost:8080")
+                // Has 'err' in scope from doSomething()
+                _, err := doSomething()
                 if err != nil {
                     log.E<caret>rror("Connection failed")
                 }
@@ -388,8 +388,8 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             func main() {
                 log := mtlog.New()
                 
-                // Has 'err' in scope from net.Dial
-                conn, err := net.Dial("tcp", "localhost:8080")
+                // Has 'err' in scope from doSomething()
+                _, err := doSomething()
                 if err != nil {
                     log.Error("Connection failed", err)
                 }
@@ -411,7 +411,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                conn, err := net.Dial("tcp", "localhost:8080")
+                _, err := doSomething()
                 if err != nil {
                     log.Error("Connection failed", err)
                 }
@@ -433,7 +433,7 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             func main() {
                 log := mtlog.New()
-                conn, err := net.Dial("tcp", "localhost:8080")
+                _, err := doSomething()
                 if err != nil {
                     log.Error("Connection failed", err)
                 }
@@ -538,7 +538,6 @@ class MissingErrorQuickFixTest : MtlogIntegrationTestBase() {
             
             import (
                 "errors"
-                "net"
             )
             
             func doSomething() (interface{}, error) {
