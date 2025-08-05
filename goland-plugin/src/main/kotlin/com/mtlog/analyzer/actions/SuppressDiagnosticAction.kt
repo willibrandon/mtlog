@@ -52,9 +52,8 @@ class SuppressDiagnosticAction(
             
             LOG.info("Suppressed diagnostic: $diagnosticId")
             
-            // Clear both caches to ensure fresh analysis
-            service.clearCache()
-            MtlogExternalAnnotator.clearCache()
+            // Restart processes to ensure fresh analysis
+            service.restartProcesses()
             
             // Force immediate re-analysis of all open files
             DaemonCodeAnalyzer.getInstance(project).restart()

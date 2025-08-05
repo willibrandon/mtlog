@@ -15,6 +15,10 @@
             language="go"
             implementationClass="com.mtlog.analyzer.annotator.MtlogExternalAnnotator"/>
             
+        <annotator 
+            language="go"
+            implementationClass="com.mtlog.analyzer.annotator.MtlogForceAnnotator"
+            order="last"/>
         
         <projectService 
             serviceImplementation="com.mtlog.analyzer.service.MtlogProjectService"/>
@@ -35,6 +39,7 @@
             
         <notificationGroup id="mtlog.notifications" displayType="BALLOON"/>
         <notificationGroup id="mtlog.analyzer" displayType="STICKY_BALLOON" isLogByDefault="false"/>
+        <notificationGroup id="mtlog.analyzer.log" displayType="BALLOON" isLogByDefault="true"/>
         
         <statusBarWidgetFactory
             id="MtlogAnalyzer"
@@ -43,6 +48,12 @@
             
         <postStartupActivity
             implementation="com.mtlog.analyzer.startup.MtlogStartupActivity"/>
+            
+        <toolWindow id="mtlogAnalyzer"
+                    anchor="bottom"
+                    factoryClass="com.mtlog.analyzer.toolwindow.MtlogConsoleToolWindowFactory"
+                    secondary="false"
+                    icon="/META-INF/pluginIcon.svg"/>
     </extensions>
     
     <actions>

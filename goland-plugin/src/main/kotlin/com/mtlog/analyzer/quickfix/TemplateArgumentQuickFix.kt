@@ -13,6 +13,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
 import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.logging.MtlogLogger
 
 /**
  * Quick fix to match template properties with arguments.
@@ -21,7 +22,16 @@ class TemplateArgumentQuickFix(
     element: PsiElement? = null
 ) : LocalQuickFixAndIntentionActionOnPsiElement(element) {
     
-    override fun getText(): String = "Fix template arguments"
+    init {
+        element?.project?.let { project ->
+            MtlogLogger.info("TemplateArgumentQuickFix CREATED", project)
+        }
+    }
+    
+    override fun getText(): String {
+        MtlogLogger.info("TemplateArgumentQuickFix.getText() called", startElement?.project)
+        return "Fix template arguments"
+    }
     
     override fun getFamilyName(): String = MtlogBundle.message("quickfix.family.name")
     
@@ -32,14 +42,42 @@ class TemplateArgumentQuickFix(
         startElement: PsiElement,
         endElement: PsiElement
     ) {
+        MtlogLogger.info("===== TemplateArgumentQuickFix.invoke CALLED =====", project)
+        MtlogLogger.info("startElement: ${startElement.javaClass.simpleName}, text: '${startElement.text.take(50)}'...", project)
+        MtlogLogger.info("file: ${file.name}", project)
         // Find the string literal and call expression
-        var stringLiteral: PsiElement? = startElement
-        while (stringLiteral != null && stringLiteral !is GoStringLiteral) {
-            stringLiteral = stringLiteral.parent
-        }
-        val goStringLiteral = stringLiteral as? GoStringLiteral ?: return
+        MtlogLogger.info("Looking for GoStringLiteral...", project)
         
-        val callExpr = PsiTreeUtil.getParentOfType(goStringLiteral, GoCallExpr::class.java) ?: return
+        // First try to find string literal within the element (if startElement is a call expression)
+        val goStringLiteral = if (startElement is GoCallExpr) {
+            MtlogLogger.info("startElement is GoCallExpr, looking for string literal inside it", project)
+            PsiTreeUtil.findChildOfType(startElement, GoStringLiteral::class.java)
+        } else {
+            MtlogLogger.info("startElement is not GoCallExpr, traversing up", project)
+            var stringLiteral: PsiElement? = startElement
+            while (stringLiteral != null && stringLiteral !is GoStringLiteral) {
+                stringLiteral = stringLiteral.parent
+            }
+            stringLiteral as? GoStringLiteral
+        }
+        
+        if (goStringLiteral == null) {
+            MtlogLogger.error("Could not find GoStringLiteral", project)
+            return
+        }
+        MtlogLogger.info("Found GoStringLiteral: ${goStringLiteral.text}", project)
+        
+        val callExpr = if (startElement is GoCallExpr) {
+            startElement
+        } else {
+            PsiTreeUtil.getParentOfType(goStringLiteral, GoCallExpr::class.java)
+        }
+        
+        if (callExpr == null) {
+            MtlogLogger.error("Could not find GoCallExpr", project)
+            return
+        }
+        MtlogLogger.info("Found GoCallExpr: ${callExpr.text.take(50)}...", project)
         
         val doc = editor?.document 
             ?: PsiDocumentManager.getInstance(project).getDocument(file) 
@@ -57,15 +95,22 @@ class TemplateArgumentQuickFix(
         
         // Count properties in template (anything in {})
         val propertyCount = "\\{[^}]+\\}".toRegex().findAll(templateContent).count()
+        MtlogLogger.info("Template has $propertyCount properties", project)
         
         // Get current argument count (excluding the template string itself)
         val argList = callExpr.argumentList?.expressionList ?: emptyList()
         val currentArgCount = argList.size - 1 // Subtract template string
+        MtlogLogger.info("Current argument count: $currentArgCount (total args: ${argList.size})", project)
         
-        if (propertyCount == currentArgCount) return // Already correct
+        if (propertyCount == currentArgCount) {
+            MtlogLogger.info("Argument count already correct, nothing to do", project)
+            return
+        }
         
         // The actual modification logic
+        MtlogLogger.info("Creating runnable for modifications...", project)
         val runnable = Runnable {
+            MtlogLogger.info("Inside runnable, about to make changes", project)
             try {
                 when {
                     propertyCount > currentArgCount -> {
@@ -109,9 +154,18 @@ class TemplateArgumentQuickFix(
                     }
                 }
                 
+                MtlogLogger.info("Document changes committed successfully", project)
                 PsiDocumentManager.getInstance(project).commitDocument(doc)
+                
+                // Save the file to disk so external analyzer sees the changes
+                MtlogLogger.info("Saving file to disk", project)
+                com.intellij.openapi.fileEditor.FileDocumentManager.getInstance().saveDocument(doc)
+                
+                // Force re-analysis of the file
+                MtlogLogger.info("Forcing re-analysis of file", project)
+                com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project).restart(file)
             } catch (e: Exception) {
-                // Log error but don't rethrow
+                MtlogLogger.error("Error in TemplateArgumentQuickFix", project, e)
                 e.printStackTrace()
             }
         }
@@ -125,6 +179,7 @@ class TemplateArgumentQuickFix(
      */
     private fun executeWithAppropriateWriteAction(project: Project, file: PsiFile, runnable: Runnable) {
         val app = ApplicationManager.getApplication()
+        MtlogLogger.info("executeWithAppropriateWriteAction: writeAccessAllowed=${app.isWriteAccessAllowed}", project)
         
         // Always wrap in WriteCommandAction if not already in write action
         if (!app.isWriteAccessAllowed) {

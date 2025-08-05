@@ -3,21 +3,18 @@ package com.mtlog.analyzer.quickfix
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import com.mtlog.analyzer.actions.SuppressDiagnosticAction
 import com.mtlog.analyzer.service.MtlogProjectService
+import com.mtlog.analyzer.logging.MtlogLogger
 
 /**
  * Quick fix to suppress a specific diagnostic type.
  */
 class SuppressDiagnosticQuickFix(private val diagnosticId: String) : IntentionAction {
     
-    companion object {
-        private val LOG = logger<SuppressDiagnosticQuickFix>()
-    }
     
     override fun getText(): String {
         val description = SuppressDiagnosticAction.DIAGNOSTIC_DESCRIPTIONS[diagnosticId] 
@@ -45,11 +42,10 @@ class SuppressDiagnosticQuickFix(private val diagnosticId: String) : IntentionAc
             suppressed.add(diagnosticId)
             state.suppressedDiagnostics = suppressed
             
-            LOG.info("Suppressed diagnostic: $diagnosticId")
+            MtlogLogger.info("Suppressed diagnostic: $diagnosticId", project)
             
-            // Clear both service cache and annotator cache
-            service.clearCache()
-            com.mtlog.analyzer.annotator.MtlogExternalAnnotator.clearCache()
+            // Restart processes to pick up new suppression
+            service.restartProcesses()
             
             // Force immediate re-analysis of the current file and all open files
             DaemonCodeAnalyzer.getInstance(project).restart()

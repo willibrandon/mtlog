@@ -274,29 +274,33 @@ func isMtlogLoggerType(t types.Type, config *Config) bool {
 
 // hasLoggerMethods checks if a type has the expected mtlog Logger methods
 func hasLoggerMethods(t types.Type) bool {
-	// Check for key logging methods
-	requiredMethods := []string{"Information", "Error", "Warning", "Debug"}
+	// Check for at least one key logging method
+	// We're being lenient here - if it has Error or any other logging method, it's probably a logger
+	loggingMethods := []string{"Error", "Warning", "Information", "Debug", "Fatal", "Verbose", "E", "W", "I", "D", "F", "V"}
 	
-	for _, methodName := range requiredMethods {
+	for _, methodName := range loggingMethods {
 		method, _, _ := types.LookupFieldOrMethod(t, true, nil, methodName)
 		if method == nil {
-			return false
+			continue // Try next method
 		}
 		
 		// Verify it's a method (not a field)
 		fn, ok := method.(*types.Func)
 		if !ok {
-			return false
+			continue
 		}
 		
 		// Basic signature check: should accept (string, ...interface{})
 		sig, ok := fn.Type().(*types.Signature)
 		if !ok || sig.Params().Len() < 1 {
-			return false
+			continue
 		}
+		
+		// Found at least one valid logging method
+		return true
 	}
 	
-	return true
+	return false
 }
 
 // isLogCall checks if the given call expression is a call to an mtlog logging method.
@@ -866,9 +870,29 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 	}
 	
 	if !hasError {
-		// Suggestion: when using Error level, consider including an error
-		reportDiagnosticWithID(pass, call.Pos(), SeveritySuggestion, config, DiagIDErrorLogging,
-			"Error level log without error value, consider including the error or using Warning level")
+		// Check if diagnostic is suppressed
+		if config.SuppressedDiagnostics[DiagIDErrorLogging] {
+			return
+		}
+		
+		// Create diagnostic with suggested fix
+		diagnostic := &analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: fmt.Sprintf("[%s] %s: Error level log without error value, consider including the error or using Warning level", DiagIDErrorLogging, SeveritySuggestion),
+		}
+		
+		// Add suggested fix to add error parameter
+		diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+			Message: "Add error parameter",
+			TextEdits: []analysis.TextEdit{{
+				Pos:     call.End() - 1, // Just before the closing paren
+				End:     call.End() - 1,
+				NewText: []byte(", err"), // The plugin will determine the actual value based on context
+			}},
+		}}
+		
+		pass.Report(*diagnostic)
 	}
 }
 

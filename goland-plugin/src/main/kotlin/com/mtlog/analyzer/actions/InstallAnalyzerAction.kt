@@ -55,8 +55,8 @@ class InstallAnalyzerAction : AnAction() {
                             NotificationType.INFORMATION
                         )
                         
-                        // Clear cache to pick up new analyzer
-                        project.service<MtlogProjectService>().clearCache()
+                        // Restart processes to pick up new analyzer
+                        project.service<MtlogProjectService>().restartProcesses()
                     } else {
                         showNotification(
                             project,

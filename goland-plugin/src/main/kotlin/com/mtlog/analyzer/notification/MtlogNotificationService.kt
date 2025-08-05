@@ -47,8 +47,7 @@ class MtlogNotificationService(private val project: Project) {
         notification.addAction(object : NotificationAction(MtlogBundle.message("notification.analyzer.disable")) {
             override fun actionPerformed(e: AnActionEvent, notification: Notification) {
                 service.state.enabled = false
-                service.clearCache()
-                MtlogExternalAnnotator.clearCache()
+                service.restartProcesses()
                 
                 // Clear all existing annotations when disabled
                 com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project).restart()
