@@ -463,7 +463,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 			return // Diagnostic is suppressed
 		}
 		
-		pass.Report(diagnostic)
+		pass.Report(*diagnostic)
 		return
 	}
 
@@ -953,7 +953,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 							}},
 						}}
 						
-						pass.Report(diagnostic)
+						pass.Report(*diagnostic)
 					}
 					break
 				}
@@ -1060,7 +1060,7 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 			}
 		}
 		
-		pass.Report(diagnostic)
+		pass.Report(*diagnostic)
 	}
 }
 
