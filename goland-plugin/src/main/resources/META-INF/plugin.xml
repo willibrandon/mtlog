@@ -15,22 +15,6 @@
             language="go"
             implementationClass="com.mtlog.analyzer.annotator.MtlogExternalAnnotator"/>
             
-        <localInspection 
-            language="go"
-            implementationClass="com.mtlog.analyzer.inspection.MtlogBatchInspection"
-            runForWholeFile="true"
-            displayName="mtlog template validation"
-            groupName="Go"
-            enabledByDefault="true"
-            level="ERROR"
-            shortName="MtlogTemplateValidation">
-            <quickFix order="first" displayName="Convert to PascalCase" 
-                     familyName="mtlog quick fixes"
-                     implementationClass="com.mtlog.analyzer.quickfix.PascalCaseQuickFix"/>
-            <quickFix order="first" displayName="Fix template arguments" 
-                     familyName="mtlog quick fixes"
-                     implementationClass="com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix"/>
-        </localInspection>
         
         <projectService 
             serviceImplementation="com.mtlog.analyzer.service.MtlogProjectService"/>

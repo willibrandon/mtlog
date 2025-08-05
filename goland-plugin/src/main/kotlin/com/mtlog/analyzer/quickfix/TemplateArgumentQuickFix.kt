@@ -7,7 +7,6 @@ import com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -22,7 +21,7 @@ class TemplateArgumentQuickFix(
     element: PsiElement? = null
 ) : LocalQuickFixAndIntentionActionOnPsiElement(element) {
     
-    override fun getText(): String = MtlogBundle.message("quickfix.template.arguments.name")
+    override fun getText(): String = "Fix template arguments"
     
     override fun getFamilyName(): String = MtlogBundle.message("quickfix.family.name")
     
@@ -67,43 +66,54 @@ class TemplateArgumentQuickFix(
         
         // The actual modification logic
         val runnable = Runnable {
-            when {
-                propertyCount > currentArgCount -> {
-                    // Add missing nil arguments
-                    val lastArg = argList.lastOrNull() ?: return@Runnable
-                    val insertPos = lastArg.textRange.endOffset
-                    val missingCount = propertyCount - currentArgCount
-                    
-                    // Build the text to insert: ", nil, nil, ..."
-                    val nilArgs = List(missingCount) { "nil" }.joinToString(", ", ", ")
-                    doc.insertString(insertPos, nilArgs)
-                }
-                propertyCount < currentArgCount -> {
-                    // Remove extra arguments
-                    val extraCount = currentArgCount - propertyCount
-                    val argsToRemove = argList.takeLast(extraCount)
-                    
-                    if (argsToRemove.isNotEmpty()) {
-                        val firstToRemove = argsToRemove.first()
-                        val lastToRemove = argsToRemove.last()
+            try {
+                when {
+                    propertyCount > currentArgCount -> {
+                        // Add missing arguments
+                        val lastArg = argList.lastOrNull() ?: return@Runnable
+                        val insertPos = lastArg.textRange.endOffset
+                        val missingCount = propertyCount - currentArgCount
                         
-                        // Find the comma before the first argument to remove
-                        var deleteStart = firstToRemove.textRange.startOffset
-                        var searchPos = deleteStart - 1
-                        while (searchPos >= 0 && doc.charsSequence[searchPos].isWhitespace()) {
-                            searchPos--
-                        }
-                        if (searchPos >= 0 && doc.charsSequence[searchPos] == ',') {
-                            deleteStart = searchPos
-                        }
+                        // Check if template contains {Error} or {Err} and if this is an Error method
+                        val hasErrorPlaceholder = templateContent.contains("{Error}") || templateContent.contains("{Err}")
+                        val methodName = callExpr.expression?.text?.substringAfterLast('.') ?: ""
+                        val isErrorMethod = methodName == "Error" || methodName == "E"
                         
-                        val deleteEnd = lastToRemove.textRange.endOffset
-                        doc.deleteString(deleteStart, deleteEnd)
+                        // Always use nil for all missing arguments to avoid undefined variable errors
+                        val argsToAdd = List(missingCount) { "nil" }.joinToString(", ", ", ")
+                        
+                        doc.insertString(insertPos, argsToAdd)
+                    }
+                    propertyCount < currentArgCount -> {
+                        // Remove extra arguments
+                        val extraCount = currentArgCount - propertyCount
+                        val argsToRemove = argList.takeLast(extraCount)
+                        
+                        if (argsToRemove.isNotEmpty()) {
+                            val firstToRemove = argsToRemove.first()
+                            val lastToRemove = argsToRemove.last()
+                            
+                            // Find the comma before the first argument to remove
+                            var deleteStart = firstToRemove.textRange.startOffset
+                            var searchPos = deleteStart - 1
+                            while (searchPos >= 0 && doc.charsSequence[searchPos].isWhitespace()) {
+                                searchPos--
+                            }
+                            if (searchPos >= 0 && doc.charsSequence[searchPos] == ',') {
+                                deleteStart = searchPos
+                            }
+                            
+                            val deleteEnd = lastToRemove.textRange.endOffset
+                            doc.deleteString(deleteStart, deleteEnd)
+                        }
                     }
                 }
+                
+                PsiDocumentManager.getInstance(project).commitDocument(doc)
+            } catch (e: Exception) {
+                // Log error but don't rethrow
+                e.printStackTrace()
             }
-            
-            PsiDocumentManager.getInstance(project).commitDocument(doc)
         }
         
         executeWithAppropriateWriteAction(project, file, runnable)
@@ -111,27 +121,16 @@ class TemplateArgumentQuickFix(
     
     /**
      * Executes the given runnable with the appropriate write action context.
-     * Handles three scenarios:
-     * 1. Already in write action - runs directly
-     * 2. Not in any action - wraps in WriteCommandAction
-     * 3. In read action (preview) - runs without wrapping to avoid deadlock
+     * Always wraps in WriteCommandAction if not already in a write action to avoid threading issues.
      */
     private fun executeWithAppropriateWriteAction(project: Project, file: PsiFile, runnable: Runnable) {
         val app = ApplicationManager.getApplication()
-        when {
-            app.isWriteAccessAllowed -> {
-                // Already in write action, just run directly
-                runnable.run()
-            }
-            !app.isReadAccessAllowed -> {
-                // Not in any action, wrap in WriteCommandAction
-                WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
-            }
-            else -> {
-                // In read action (preview generation), just run without wrapping
-                // The preview system will handle the write action properly
-                runnable.run()
-            }
+        
+        // Always wrap in WriteCommandAction if not already in write action
+        if (!app.isWriteAccessAllowed) {
+            WriteCommandAction.runWriteCommandAction(project, getText(), null, runnable, file)
+        } else {
+            runnable.run()
         }
     }
 }

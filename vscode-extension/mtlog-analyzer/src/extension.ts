@@ -19,13 +19,14 @@ function logWithTimestamp(channel: vscode.OutputChannel, message: string): void 
 // Extended diagnostic interface to store fix data
 interface MtlogDiagnostic extends vscode.Diagnostic {
     mtlogData?: {
-        type: 'pascalCase' | 'argumentMismatch';
+        type: 'pascalCase' | 'argumentMismatch' | 'missingError';
         // For PascalCase fixes
         oldName?: string;
         newName?: string;
         // For argument mismatch
         expectedArgs?: number;
         actualArgs?: number;
+        // missingError doesn't need additional data
     };
 }
 
@@ -718,7 +719,7 @@ function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diag
                 diagnosticId = 'MTLOG004';
             } else if (msgLower.includes('capturing')) {
                 diagnosticId = 'MTLOG005';
-            } else if (msgLower.includes('error level log without error') || msgLower.includes('error logging without error')) {
+            } else if (msgLower.includes('error level log without error value') || msgLower.includes('error logging without error')) {
                 diagnosticId = 'MTLOG006';
             } else if (msgLower.includes('context key')) {
                 diagnosticId = 'MTLOG007';
@@ -781,6 +782,14 @@ function extractFixData(message: string): MtlogDiagnostic['mtlogData'] {
             type: 'argumentMismatch',
             expectedArgs: parseInt(altMatch[1]),
             actualArgs: parseInt(altMatch[2])
+        };
+    }
+    
+    // Missing error parameter: "error level log without error value"
+    const errorMatch = message.match(/error (?:level )?log(?:ging)? without error (?:value|parameter)/i);
+    if (errorMatch) {
+        return {
+            type: 'missingError'
         };
     }
     
@@ -1063,8 +1072,16 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
         
         // Add existing quick fixes for each diagnostic
         for (const mtlogDiag of mtlogDiagnostics) {
+            const diagnosticCode = (mtlogDiag as any).code;
             
-            // Add existing quick fixes
+            // Handle MTLOG006 directly (it doesn't have mtlogData)
+            if (diagnosticCode === 'MTLOG006') {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Adding error parameter quick fix for MTLOG006`);
+                actions.push(this.createMissingErrorFix(document, mtlogDiag));
+                continue;
+            }
+            
+            // Add existing quick fixes based on mtlogData
             if (!mtlogDiag.mtlogData) continue;
             
             switch (mtlogDiag.mtlogData.type) {
@@ -1073,6 +1090,9 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
                     break;
                 case 'argumentMismatch':
                     actions.push(this.createArgumentFix(document, mtlogDiag));
+                    break;
+                case 'missingError':
+                    actions.push(this.createMissingErrorFix(document, mtlogDiag));
                     break;
             }
         }
@@ -1145,7 +1165,20 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
         if (diff > 0) {
             // Add missing arguments
             const insertPos = new vscode.Position(line.lineNumber, closeParenIndex);
-            const args = Array(diff).fill('nil').join(', ');
+            
+            // Check if template contains {Error} or {Err} to add 'err' instead of 'nil'
+            const hasErrorPlaceholder = /\{(?:Error|Err)\}/.test(lineText);
+            const isErrorMethod = /\.(?:Error|E)\s*\(/.test(lineText);
+            
+            let args: string;
+            if (hasErrorPlaceholder && isErrorMethod) {
+                // If there's an {Error} placeholder and it's an Error method, add 'nil'
+                // For multiple args, add nil for all including the error placeholder
+                args = Array(diff).fill('nil').join(', ');
+            } else {
+                args = Array(diff).fill('nil').join(', ');
+            }
+            
             fix.edit.insert(document.uri, insertPos, `, ${args}`);
         } else {
             // Remove extra arguments
@@ -1254,6 +1287,97 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
         }
         
         return null;
+    }
+    
+    private createMissingErrorFix(
+        document: vscode.TextDocument,
+        diagnostic: MtlogDiagnostic
+    ): vscode.CodeAction {
+        // Find the function call on this line
+        const line = document.lineAt(diagnostic.range.start.line);
+        const lineText = line.text;
+        
+        // Check if template already contains {Error} or {Err}
+        const hasErrorPlaceholder = /\{(?:Error|Err)\}/.test(lineText);
+        
+        if (hasErrorPlaceholder) {
+            // Template already has {Error}, just suggest changing to Warning level
+            const fix = new vscode.CodeAction(
+                'Change to Warning level',
+                vscode.CodeActionKind.QuickFix
+            );
+            
+            fix.edit = new vscode.WorkspaceEdit();
+            fix.diagnostics = [diagnostic];
+            
+            // Replace .Error( with .Warning(
+            const errorMethodMatch = lineText.match(/\.(?:Error|E)\s*\(/);
+            if (errorMethodMatch) {
+                const methodStart = lineText.indexOf(errorMethodMatch[0]);
+                const methodEnd = methodStart + errorMethodMatch[0].indexOf('(');
+                fix.edit.replace(
+                    document.uri, 
+                    new vscode.Range(
+                        new vscode.Position(line.lineNumber, methodStart + 1), // +1 to skip the dot
+                        new vscode.Position(line.lineNumber, methodEnd)
+                    ),
+                    'Warning'
+                );
+            }
+            
+            // Add command to save and reanalyze
+            fix.command = {
+                command: 'mtlog.saveAndAnalyze',
+                title: 'Save and reanalyze'
+            };
+            
+            return fix;
+        }
+        
+        // No {Error} placeholder, add it
+        const fix = new vscode.CodeAction(
+            'Add {Error} to template and nil parameter',
+            vscode.CodeActionKind.QuickFix
+        );
+        
+        fix.edit = new vscode.WorkspaceEdit();
+        fix.diagnostics = [diagnostic];
+        
+        // Find the template string
+        const templateMatch = lineText.match(/["'`]([^"'`]*)["'`]/);
+        if (!templateMatch) return fix;
+        
+        const quoteChar = templateMatch[0][0];
+        const templateContent = templateMatch[1];
+        const templateStart = lineText.indexOf(templateMatch[0]);
+        const templateEnd = templateStart + templateMatch[0].length - 1; // Position before closing quote
+        
+        // Add {Error} to the end of the template
+        const errorPlaceholder = templateContent.endsWith('.') || templateContent.endsWith('!') || templateContent.endsWith('?') 
+            ? ' {Error}' 
+            : ': {Error}';
+        fix.edit.insert(document.uri, new vscode.Position(line.lineNumber, templateEnd), errorPlaceholder);
+        
+        // Find closing parenthesis of the function call
+        const closeParenIndex = this.findClosingParen(lineText, diagnostic.range.start.character);
+        if (closeParenIndex === -1) return fix;
+        
+        // Add err parameter at the end
+        const insertPos = new vscode.Position(line.lineNumber, closeParenIndex);
+        
+        // Check if there are already arguments (need comma)
+        const hasArgs = lineText.substring(diagnostic.range.start.character, closeParenIndex).includes(',');
+        const insertion = hasArgs ? ', nil' : ', nil';
+        
+        fix.edit.insert(document.uri, insertPos, insertion);
+        
+        // Add command to save and reanalyze after applying the fix
+        fix.command = {
+            command: 'mtlog.saveAndAnalyze',
+            title: 'Save and reanalyze'
+        };
+        
+        return fix;
     }
     
     private findClosingParen(text: string, startPos: number): number {

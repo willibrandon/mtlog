@@ -169,9 +169,12 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         val state = service.state
         val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return
         
-        // Removed - notification is now only shown on startup via MtlogStartupActivity
+        // Group diagnostics by range to avoid duplicate quick fixes
+        val diagnosticsByRange = result.diagnostics.groupBy { it.range }
         
-        for (diagnostic in result.diagnostics) {
+        for ((range, diagnosticsAtRange) in diagnosticsByRange) {
+            // Use the first diagnostic for the main annotation
+            val diagnostic = diagnosticsAtRange.first()
             val severity = when (diagnostic.severity) {
                 DiagnosticSeverity.ERROR -> getSeverity(state.errorSeverity ?: "ERROR")
                 DiagnosticSeverity.WARNING -> getSeverity(state.warningSeverity ?: "WARNING")
@@ -180,58 +183,73 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
             
             // Find the PSI element at the diagnostic range
             val leaf = file.findElementAt(diagnostic.range.startOffset) ?: continue
-            val literal = leaf.parentOfType<GoStringLiteral>() ?: leaf  // fallback
-            val anchor = literal  // underline sticks to literal
             
-            val builder = holder.newAnnotation(severity, diagnostic.message)
+            // For better highlighting, try to find the containing call expression
+            val anchor = when {
+                // For MTLOG006 specifically, highlight the whole call expression
+                diagnostic.diagnosticId == "MTLOG006" -> {
+                    leaf.parentOfType<com.goide.psi.GoCallExpr>() ?: leaf.parentOfType<GoStringLiteral>() ?: leaf
+                }
+                // For other error-level diagnostics, also highlight the whole call
+                diagnostic.severity == DiagnosticSeverity.ERROR -> {
+                    leaf.parentOfType<com.goide.psi.GoCallExpr>() ?: leaf.parentOfType<GoStringLiteral>() ?: leaf
+                }
+                // For other diagnostics, highlight just the string literal
+                else -> {
+                    leaf.parentOfType<GoStringLiteral>() ?: leaf
+                }
+            }
+            
+            // Combine messages if there are multiple diagnostics at the same location
+            val combinedMessage = if (diagnosticsAtRange.size > 1) {
+                diagnosticsAtRange.joinToString("; ") { it.message }
+            } else {
+                diagnostic.message
+            }
+            
+            val builder = holder.newAnnotation(severity, combinedMessage)
                 .range(anchor)  // Anchor to whole literal, not leaf
                 .needsUpdateOnTyping(true)
             
-            // Add quick fixes based on diagnostic type
-            when {
-                diagnostic.message.contains("PascalCase") && diagnostic.propertyName != null -> {
-                    builder.withFix(com.mtlog.analyzer.quickfix.PascalCaseQuickFix(anchor, diagnostic.propertyName))
-                }
-                diagnostic.message.contains("arguments") -> {
-                    builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(anchor))
-                }
-            }
+            // Add quick fixes from all diagnostics at this range, but avoid duplicates
+            val addedFixes = mutableSetOf<String>()
             
-            // Add suppression quick fix if diagnostic ID is available
-            if (diagnostic.diagnosticId != null) {
-                builder.withFix(com.mtlog.analyzer.quickfix.SuppressDiagnosticQuickFix(diagnostic.diagnosticId))
+            for (diag in diagnosticsAtRange) {
+                when {
+                    diag.message.contains("PascalCase") && diag.propertyName != null -> {
+                        val fixKey = "PascalCase:${diag.propertyName}"
+                        if (!addedFixes.contains(fixKey)) {
+                            builder.withFix(com.mtlog.analyzer.quickfix.PascalCaseQuickFix(anchor, diag.propertyName))
+                            addedFixes.add(fixKey)
+                        }
+                    }
+                    diag.message.contains("arguments") -> {
+                        val fixKey = "TemplateArgument"
+                        if (!addedFixes.contains(fixKey)) {
+                            builder.withFix(com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(anchor))
+                            addedFixes.add(fixKey)
+                        }
+                    }
+                    diag.message.contains("error") && diag.message.contains("without error") -> {
+                        val fixKey = "MissingError"
+                        if (!addedFixes.contains(fixKey)) {
+                            builder.withFix(com.mtlog.analyzer.quickfix.MissingErrorQuickFix(anchor))
+                            addedFixes.add(fixKey)
+                        }
+                    }
+                }
+                
+                // Add suppression quick fix if diagnostic ID is available
+                if (diag.diagnosticId != null) {
+                    val fixKey = "Suppress:${diag.diagnosticId}"
+                    if (!addedFixes.contains(fixKey)) {
+                        builder.withFix(com.mtlog.analyzer.quickfix.SuppressDiagnosticQuickFix(diag.diagnosticId))
+                        addedFixes.add(fixKey)
+                    }
+                }
             }
             
             builder.create()
-            
-            // For template errors, also highlight the arguments
-            if (diagnostic.isTemplateError) {
-                try {
-                    val lineNumber = document.getLineNumber(diagnostic.range.startOffset)
-                    val lineStart = document.getLineStartOffset(lineNumber)
-                    val lineEnd = document.getLineEndOffset(lineNumber)
-                    val lineText = document.text.substring(lineStart, lineEnd)
-                    
-                    // Find the arguments after the template string
-                    val templateEnd = lineText.lastIndexOf("\"")
-                    if (templateEnd != -1) {
-                        // Look for args after the template - mtlog uses positional args, not named
-                        val argsPattern = Regex(",\\s*([^,)]+)")
-                        val matchResult = argsPattern.find(lineText, templateEnd)
-                        if (matchResult != null) {
-                            val argsStart = lineStart + matchResult.groups[1]!!.range.first
-                            val argsEnd = lineStart + matchResult.groups[1]!!.range.last + 1
-                            
-                            holder.newAnnotation(severity, "Incorrect number of arguments")
-                                .range(TextRange(argsStart, argsEnd))
-                                .needsUpdateOnTyping(true)
-                                .create()
-                        }
-                    }
-                } catch (e: Exception) {
-                    LOG.warn("Failed to highlight arguments", e)
-                }
-            }
         }
     }
     

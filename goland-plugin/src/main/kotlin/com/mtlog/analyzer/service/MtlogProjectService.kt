@@ -421,6 +421,8 @@ class MtlogProjectService(
                             val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
                             
                             val severity = when {
+                                // MTLOG006 should be an error to match VS Code (check this first before message content)
+                                diagnosticId == "MTLOG006" -> "error"
                                 cleanMessage.startsWith("suggestion:") -> "suggestion"
                                 cleanMessage.contains("error") -> "error"
                                 cleanMessage.contains("template has") && cleanMessage.contains("but") && cleanMessage.contains("provided") -> "error"
@@ -463,6 +465,12 @@ class MtlogProjectService(
         // or ./test.go:12:2: [MTLOG006] suggestion: Error level log without error value
         val lines = output.lines()
         for (line in lines) {
+            // Skip compilation error lines that start with package name
+            if (line.contains(": undefined:") || line.contains(": cannot use") || line.contains(": undeclared name")) {
+                LOG.debug("Skipping compilation error: $line")
+                continue
+            }
+            
             if (!line.contains(".go:")) continue
             
             LOG.debug("Processing line: $line")
@@ -490,7 +498,15 @@ class MtlogProjectService(
             // Check if this diagnostic is for our file
             // The diagnostic file might be relative (test.go, ./test.go) or absolute (D:/path/test.go)
             val cleanDiagnosticFile = diagnosticFile.removePrefix("./")
-            val diagnosticFileName = Paths.get(cleanDiagnosticFile).fileName.toString()
+            
+            // Safely extract filename
+            val diagnosticFileName = try {
+                Paths.get(cleanDiagnosticFile).fileName.toString()
+            } catch (e: Exception) {
+                LOG.warn("Failed to parse diagnostic file path: $cleanDiagnosticFile", e)
+                continue
+            }
+            
             val targetFileName = Paths.get(filePath).fileName.toString()
             
             LOG.debug("Comparing files: diagnostic='$diagnosticFileName' target='$targetFileName'")
@@ -506,6 +522,8 @@ class MtlogProjectService(
                 val cleanMessage = message.replace(Regex("^\\[MTLOG\\d+\\]\\s*"), "")
                 
                 val severity = when {
+                    // MTLOG006 should be an error to match VS Code (check this first before message content)
+                    diagnosticId == "MTLOG006" -> "error"
                     cleanMessage.startsWith("suggestion:") -> "suggestion"
                     cleanMessage.contains("error") -> "error"
                     cleanMessage.contains("template has") && cleanMessage.contains("but") && cleanMessage.contains("provided") -> "error"
