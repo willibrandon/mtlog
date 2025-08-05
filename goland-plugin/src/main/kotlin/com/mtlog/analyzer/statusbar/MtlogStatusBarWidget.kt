@@ -57,9 +57,8 @@ class MtlogStatusBarWidget(project: Project) : EditorBasedWidget(project), Statu
             val service = project.service<MtlogProjectService>()
             service.state.enabled = !service.state.enabled
             
-            // Clear both caches to force re-analysis
-            service.clearCache()
-            MtlogExternalAnnotator.clearCache()
+            // Restart processes to force re-analysis
+            service.restartProcesses()
             
             // Update the widget
             myStatusBar?.updateWidget(ID)

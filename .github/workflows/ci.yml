@@ -243,6 +243,7 @@ jobs:
       splunk:
         image: splunk/splunk:latest
         env:
+          SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
           SPLUNK_START_ARGS: --accept-license --seed-passwd changeme123!
           SPLUNK_PASSWORD: changeme123!
           SPLUNK_HEC_TOKEN: abcd1234

@@ -69,10 +69,23 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
                 val dialog = com.mtlog.analyzer.actions.SuppressionManagerDialog(project)
                 if (dialog.showAndGet()) {
                     // Dialog handles the updates
-                    service.clearCache()
+                    service.restartProcesses()
                 }
             }
             comment("Configure which diagnostic types to suppress project-wide")
+        }
+        
+        separator()
+        
+        group("Logging") {
+            row("Log Level") {
+                comboBox(logLevelModel())
+                    .bindItem(
+                        getter = { state.logLevel },
+                        setter = { state.logLevel = it ?: "INFO" }
+                    )
+                comment("Controls the verbosity of plugin logging in the mtlog Analyzer console")
+            }
         }
         
         separator()
@@ -109,9 +122,8 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
         super.apply()
         val isEnabled = service.state.enabled
         
-        // Clear both caches when settings change
-        service.clearCache()
-        MtlogExternalAnnotator.clearCache()
+        // Restart processes when settings change
+        service.restartProcesses()
         
         // If enabled state changed, trigger re-analysis or clear annotations
         if (wasEnabled != isEnabled) {
@@ -122,5 +134,9 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
     
     private fun severityModel() = DefaultComboBoxModel(
         arrayOf("ERROR", "WARNING", "WEAK_WARNING", "INFO")
+    )
+    
+    private fun logLevelModel() = DefaultComboBoxModel(
+        arrayOf("ERROR", "WARN", "INFO", "DEBUG", "TRACE")
     )
 }

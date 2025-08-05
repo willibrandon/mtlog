@@ -146,9 +146,13 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
         VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
         
         myFixture.configureFromExistingVirtualFile(vFile)
-        myFixture.doHighlighting()
+        val highlights = myFixture.doHighlighting()
         
-        myFixture.findSingleIntention("Convert to PascalCase").let {
+        // Debug: Print all available intentions
+        val allIntentions = myFixture.availableIntentions
+        println("Available intentions: ${allIntentions.map { it.text }}")
+        
+        myFixture.findSingleIntention("Change 'user_id' to 'UserId'").let {
             myFixture.launchAction(it)
         }
         
@@ -192,9 +196,13 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
         VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
         
         myFixture.configureFromExistingVirtualFile(vFile)
-        myFixture.doHighlighting()
+        val highlights = myFixture.doHighlighting()
         
-        myFixture.findSingleIntention("Fix template arguments").let {
+        // Debug: Print all available intentions
+        val allIntentions = myFixture.availableIntentions
+        println("Available intentions: ${allIntentions.map { it.text }}")
+        
+        myFixture.findSingleIntention("Add 1 missing argument(s)").let {
             myFixture.launchAction(it)
         }
         
@@ -205,7 +213,7 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
 
             func main() {
                 log := mtlog.New()
-                log.Information("User {UserId} logged in at {Time}", 123, nil)
+                log.Information("User {UserId} logged in at {Time}", 123, nil /* TODO: provide value for Time */)
             }
             """.trimIndent())
     }
@@ -238,9 +246,13 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
         VfsUtil.markDirtyAndRefresh(false, true, true, vFile.parent)
         
         myFixture.configureFromExistingVirtualFile(vFile)
-        myFixture.doHighlighting()
+        val highlights = myFixture.doHighlighting()
         
-        myFixture.findSingleIntention("Fix template arguments").let {
+        // Debug: Print all available intentions
+        val allIntentions = myFixture.availableIntentions
+        println("Available intentions: ${allIntentions.map { it.text }}")
+        
+        myFixture.findSingleIntention("Remove 2 extra argument(s)").let {
             myFixture.launchAction(it)
         }
         

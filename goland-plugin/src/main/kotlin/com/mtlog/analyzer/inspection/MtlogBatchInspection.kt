@@ -54,12 +54,10 @@ class MtlogBatchInspection : LocalInspectionTool() {
             
             val fixes = mutableListOf<LocalQuickFix>()
             
-            when {
-                diagnostic.message.contains("PascalCase") && diagnostic.propertyName != null -> {
-                    fixes.add(PascalCaseLocalQuickFix(diagnostic.propertyName))
-                }
-                diagnostic.message.contains("arguments") -> {
-                    fixes.add(TemplateArgumentLocalQuickFix())
+            // Add quick fixes from analyzer-provided suggested fixes
+            if (diagnostic.suggestedFixes.isNotEmpty()) {
+                for (suggestedFix in diagnostic.suggestedFixes) {
+                    fixes.add(AnalyzerSuggestedLocalQuickFix(suggestedFix))
                 }
             }
             
@@ -77,27 +75,16 @@ class MtlogBatchInspection : LocalInspectionTool() {
         return problems.toTypedArray()
     }
     
-    // Local quick fix wrappers for batch inspection
-    private class PascalCaseLocalQuickFix(
-        private val propertyName: String
+    // Local quick fix wrapper for analyzer-provided fixes
+    private class AnalyzerSuggestedLocalQuickFix(
+        private val suggestedFix: com.mtlog.analyzer.service.AnalyzerSuggestedFix
     ) : LocalQuickFix {
-        override fun getName(): String = MtlogBundle.message("quickfix.pascalcase.name")
+        override fun getName(): String = suggestedFix.message
         override fun getFamilyName(): String = MtlogBundle.message("quickfix.family.name")
         
         override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
             val element = descriptor.psiElement ?: return
-            com.mtlog.analyzer.quickfix.PascalCaseQuickFix(element, propertyName)
-                .invoke(project, element.containingFile, null, element, element)
-        }
-    }
-    
-    private class TemplateArgumentLocalQuickFix : LocalQuickFix {
-        override fun getName(): String = MtlogBundle.message("quickfix.template.arguments.name")
-        override fun getFamilyName(): String = MtlogBundle.message("quickfix.family.name")
-        
-        override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-            val element = descriptor.psiElement ?: return
-            com.mtlog.analyzer.quickfix.TemplateArgumentQuickFix(element)
+            com.mtlog.analyzer.quickfix.AnalyzerSuggestedQuickFix(element, suggestedFix)
                 .invoke(project, element.containingFile, null, element, element)
         }
     }

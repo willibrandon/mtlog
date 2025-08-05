@@ -22,6 +22,7 @@ services:
     image: splunk/splunk:latest
     container_name: splunk-test
     environment:
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_PASSWORD=Admin123!
       - SPLUNK_HEC_TOKEN=eb6baeef-eeb3-4a35-ab73-e17a12523b10

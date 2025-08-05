@@ -1,0 +1,38 @@
+package mtlog006
+
+import (
+	"errors"
+	"github.com/willibrandon/mtlog"
+)
+
+func testMissingErrorFixes() {
+	log := mtlog.New()
+
+	// Case 1: Error variable in scope
+	err := errors.New("test error")
+	if err != nil {
+		log.Error("Operation failed") // want `\[MTLOG006\] suggestion: Error level log without error value, consider including the error or using Warning level`
+	}
+
+	// Case 2: No error in scope  
+	log.Error("Something went wrong") // want `\[MTLOG006\] suggestion: Error level log without error value, consider including the error or using Warning level`
+	
+	// Case 3: Function parameter
+	processError := func(e error) {
+		if e != nil {
+			log.Error("Processing failed") // want `\[MTLOG006\] suggestion: Error level log without error value, consider including the error or using Warning level`
+		}
+	}
+	processError(err)
+	
+	// Case 4: Named return value
+	doWork := func() (result string, err error) {
+		err = errors.New("work failed")
+		if err != nil {
+			log.Error("Work operation failed") // want `\[MTLOG006\] suggestion: Error level log without error value, consider including the error or using Warning level`
+			return
+		}
+		return "success", nil
+	}
+	doWork()
+}

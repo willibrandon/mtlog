@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // Diagnostic IDs for suppression
@@ -274,29 +275,33 @@ func isMtlogLoggerType(t types.Type, config *Config) bool {
 
 // hasLoggerMethods checks if a type has the expected mtlog Logger methods
 func hasLoggerMethods(t types.Type) bool {
-	// Check for key logging methods
-	requiredMethods := []string{"Information", "Error", "Warning", "Debug"}
+	// Check for at least one key logging method
+	// We're being lenient here - if it has Error or any other logging method, it's probably a logger
+	loggingMethods := []string{"Error", "Warning", "Information", "Debug", "Fatal", "Verbose", "E", "W", "I", "D", "F", "V"}
 	
-	for _, methodName := range requiredMethods {
+	for _, methodName := range loggingMethods {
 		method, _, _ := types.LookupFieldOrMethod(t, true, nil, methodName)
 		if method == nil {
-			return false
+			continue // Try next method
 		}
 		
 		// Verify it's a method (not a field)
 		fn, ok := method.(*types.Func)
 		if !ok {
-			return false
+			continue
 		}
 		
 		// Basic signature check: should accept (string, ...interface{})
 		sig, ok := fn.Type().(*types.Signature)
 		if !ok || sig.Params().Len() < 1 {
-			return false
+			continue
 		}
+		
+		// Found at least one valid logging method
+		return true
 	}
 	
-	return true
+	return false
 }
 
 // isLogCall checks if the given call expression is a call to an mtlog logging method.
@@ -395,9 +400,70 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	
 	// Check if argument count matches property count
 	if len(properties) != argCount {
-		reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDTemplateMismatch,
-			"template has %d properties but %d arguments provided", 
+		// Create diagnostic with suggested fix
+		message := fmt.Sprintf("template has %d properties but %d arguments provided", 
 			len(properties), argCount)
+		
+		// Apply downgrade if needed
+		severity := SeverityError
+		if config != nil && config.DowngradeErrors {
+			severity = SeverityWarning
+		}
+		
+		// Add severity prefix for non-error diagnostics
+		if severity != SeverityError {
+			message = severity + ": " + message
+		}
+		
+		// Add diagnostic ID to message
+		message = fmt.Sprintf("[%s] %s", DiagIDTemplateMismatch, message)
+		
+		diagnostic := analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: message,
+		}
+		
+		// Add suggested fix based on the mismatch
+		if argCount < len(properties) {
+			// Too few arguments - suggest adding placeholders
+			missingCount := len(properties) - argCount
+			placeholders := make([]string, missingCount)
+			for i := 0; i < missingCount; i++ {
+				placeholders[i] = "nil /* TODO: provide value for " + properties[argCount+i] + " */"
+			}
+			
+			diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("Add %d missing argument(s)", missingCount),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     call.End() - 1, // Just before the closing paren
+					End:     call.End() - 1,
+					NewText: []byte(", " + strings.Join(placeholders, ", ")),
+				}},
+			}}
+		} else if argCount > len(properties) {
+			// Too many arguments - suggest removing extras
+			// Find the position after the last valid argument
+			if len(properties) > 0 && len(call.Args) > len(properties)+1 {
+				endArg := call.Args[len(call.Args)-1]
+				
+				diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+					Message: fmt.Sprintf("Remove %d extra argument(s)", argCount-len(properties)),
+					TextEdits: []analysis.TextEdit{{
+						Pos:     call.Args[len(properties)].End(), // After last valid arg
+						End:     endArg.End(),
+						NewText: []byte(""),
+					}},
+				}}
+			}
+		}
+		
+		// Check if this diagnostic is suppressed
+		if config != nil && config.SuppressedDiagnostics[DiagIDTemplateMismatch] {
+			return // Diagnostic is suppressed
+		}
+		
+		pass.Report(diagnostic)
 		return
 	}
 
@@ -533,15 +599,6 @@ func validateFormatSpecifier(property string, config *Config) error {
 	return nil
 }
 
-// reportDiagnostic reports a diagnostic with severity prefix
-func reportDiagnostic(pass *analysis.Pass, pos token.Pos, severity string, format string, args ...interface{}) {
-	reportDiagnosticWithConfig(pass, pos, severity, nil, format, args...)
-}
-
-// reportDiagnosticWithConfig reports a diagnostic with severity prefix and config
-func reportDiagnosticWithConfig(pass *analysis.Pass, pos token.Pos, severity string, config *Config, format string, args ...interface{}) {
-	reportDiagnosticWithID(pass, pos, severity, config, "", format, args...)
-}
 
 // reportDiagnosticWithID reports a diagnostic with ID, severity prefix and config
 func reportDiagnosticWithID(pass *analysis.Pass, pos token.Pos, severity string, config *Config, diagID string, format string, args ...interface{}) {
@@ -697,7 +754,7 @@ func checkPropertyNamingWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 			suggested[propName] = true
 			
 			// Create suggested fix to convert to PascalCase
-			pascalCase := string(propName[0]-32) + propName[1:]
+			pascalCase := toPascalCase(propName)
 			
 			// Get the literal string to create proper replacement
 			if lit, ok := call.Args[0].(*ast.BasicLit); ok {
@@ -788,15 +845,64 @@ func checkCapturingUsageWithConfig(pass *analysis.Pass, call *ast.CallExpr, temp
 		} else if strings.HasPrefix(propName, "$") {
 			// $ is for scalar rendering - make sure it's appropriate
 			if !isBasicType(argType) && !isStringer(argType) {
-				reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
-					"using $ prefix for complex type %s, consider using @ for capturing", argType)
+				// Create suggested fix to change $ to @
+				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
+					oldTemplate := lit.Value
+					newProp := "@" + strings.TrimPrefix(propName, "$")
+					// Replace in the template, preserving quotes
+					newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
+					
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
+						diag := analysis.Diagnostic{
+							Pos:     arg.Pos(),
+							Message: fmt.Sprintf("[%s] %s: using $ prefix for complex type %s, consider using @ for capturing", DiagIDCapturingHints, SeverityWarning, argType),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Change '$' to '@' prefix for '%s'", propName),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     lit.Pos(),
+									End:     lit.End(),
+									NewText: []byte(newTemplate),
+								}},
+							}},
+						}
+						pass.Report(diag)
+					}
+				} else {
+					reportDiagnosticWithID(pass, arg.Pos(), SeverityWarning, config, DiagIDCapturingHints,
+						"using $ prefix for complex type %s, consider using @ for capturing", argType)
+				}
 			}
 		} else {
 			// No prefix - suggest @ for complex types
 			if !isBasicType(argType) && !isTimeType(argType) && !isStringer(argType) && !isErrorType(argType) {
-				// Suggestion only
-				reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
-					"consider using @ prefix for complex type %s to enable capturing", argType)
+				// Create suggested fix to add @ prefix
+				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
+					oldTemplate := lit.Value
+					newProp := "@" + propName
+					// Replace in the template, preserving quotes
+					newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
+					
+					// Check if diagnostic is suppressed
+					if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
+						diag := analysis.Diagnostic{
+							Pos:     arg.Pos(),
+							Message: fmt.Sprintf("[%s] %s: consider using @ prefix for complex type %s to enable capturing", DiagIDCapturingHints, SeveritySuggestion, argType),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Add @ prefix to '%s' for capturing", propName),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     lit.Pos(),
+									End:     lit.End(),
+									NewText: []byte(newTemplate),
+								}},
+							}},
+						}
+						pass.Report(diag)
+					}
+				} else {
+					reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
+						"consider using @ prefix for complex type %s to enable capturing", argType)
+				}
 			}
 		}
 	}
@@ -822,7 +928,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 					
 					// Check if diagnostic is suppressed
 					if !config.SuppressedDiagnostics[DiagIDContextKey] {
-						diagnostic := &analysis.Diagnostic{
+						diagnostic := analysis.Diagnostic{
 							Pos:     lit.Pos(),
 							End:     lit.End(),
 							Message: fmt.Sprintf("[%s] suggestion: consider defining a constant for commonly used context key '%s'", DiagIDContextKey, key),
@@ -838,7 +944,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 							}},
 						}}
 						
-						pass.Report(*diagnostic)
+						pass.Report(diagnostic)
 					}
 					break
 				}
@@ -866,10 +972,356 @@ func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config
 	}
 	
 	if !hasError {
-		// Suggestion: when using Error level, consider including an error
-		reportDiagnosticWithID(pass, call.Pos(), SeveritySuggestion, config, DiagIDErrorLogging,
-			"Error level log without error value, consider including the error or using Warning level")
+		// Check if diagnostic is suppressed
+		if config.SuppressedDiagnostics[DiagIDErrorLogging] {
+			return
+		}
+		
+		// Create diagnostic with suggested fix
+		diagnostic := analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: fmt.Sprintf("[%s] %s: Error level log without error value, consider including the error or using Warning level", DiagIDErrorLogging, SeveritySuggestion),
+		}
+		
+		// Find error variable in scope or use nil
+		errorVar := findErrorVariableInScope(pass, call)
+		errorParam := errorVar
+		if errorParam == "" {
+			errorParam = "nil"
+		}
+		
+		// Add suggested fix to add error parameter
+		diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+			Message: "Add error parameter",
+			TextEdits: []analysis.TextEdit{{
+				Pos:     call.End() - 1, // Just before the closing paren
+				End:     call.End() - 1,
+				NewText: []byte(", " + errorParam),
+			}},
+		}}
+		
+		// If using nil, add TODO comment
+		if errorParam == "nil" {
+			// Find the end of the current line
+			pos := pass.Fset.Position(call.Pos())
+			
+			// Check if there's a comment on this line by looking at the AST
+			var hasComment bool
+			var lineEnd token.Pos
+			var indent string
+			
+			// Find the file containing this call
+			var targetFile *ast.File
+			for _, f := range pass.Files {
+				if f.Pos() <= call.Pos() && call.End() <= f.End() {
+					targetFile = f
+					break
+				}
+			}
+			
+			if targetFile != nil {
+				// Check for comments on the same line
+				for _, cg := range targetFile.Comments {
+					for _, c := range cg.List {
+						cPos := pass.Fset.Position(c.Pos())
+						if cPos.Line == pos.Line {
+							hasComment = true
+							break
+						}
+					}
+					if hasComment {
+						break
+					}
+				}
+				
+				// Calculate indent based on column position
+				if pos.Column > 1 {
+					// Build indent string
+					for i := 1; i < pos.Column; i++ {
+						indent += " "
+					}
+					// Trim to get just the statement indent, not up to the call
+					// Find the start of the statement
+					parent := findParentStmt(targetFile, call)
+					if parent != nil {
+						parentPos := pass.Fset.Position(parent.Pos())
+						if parentPos.Line == pos.Line {
+							// Use parent's column for indent
+							indent = ""
+							for i := 1; i < parentPos.Column; i++ {
+								indent += " "
+							}
+						}
+					}
+				}
+				
+				// Find the actual end of the line
+				// We need to find the last non-comment token on this line
+				lineEnd = call.End()
+				ast.Inspect(targetFile, func(n ast.Node) bool {
+					if n == nil {
+						return false
+					}
+					// Skip comments when finding line end
+					if _, isComment := n.(*ast.Comment); isComment {
+						return true
+					}
+					if _, isCommentGroup := n.(*ast.CommentGroup); isCommentGroup {
+						return true
+					}
+					
+					nPos := pass.Fset.Position(n.Pos())
+					nEnd := pass.Fset.Position(n.End())
+					
+					// If this node ends on our line and is after our current end
+					if nEnd.Line == pos.Line && n.End() > lineEnd {
+						lineEnd = n.End()
+					}
+					
+					// Don't descend into nodes that start after our line
+					return nPos.Line <= pos.Line
+				})
+				
+				// Add the text edit
+				if hasComment {
+					// Put TODO on next line with proper indentation
+					// Find the actual end of line including the comment
+					var commentEnd token.Pos = lineEnd
+					for _, cg := range targetFile.Comments {
+						for _, c := range cg.List {
+							cPos := pass.Fset.Position(c.Pos())
+							if cPos.Line == pos.Line && c.End() > commentEnd {
+								commentEnd = c.End()
+							}
+						}
+					}
+					
+					diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+						Pos:     commentEnd,
+						End:     commentEnd,
+						NewText: []byte("\n" + indent + "// TODO: replace nil with actual error"),
+					})
+				} else {
+					// Put TODO at end of current line
+					diagnostic.SuggestedFixes[0].TextEdits = append(diagnostic.SuggestedFixes[0].TextEdits, analysis.TextEdit{
+						Pos:     lineEnd,
+						End:     lineEnd,
+						NewText: []byte(" // TODO: replace nil with actual error"),
+					})
+				}
+			}
+		}
+		
+		pass.Report(diagnostic)
 	}
+}
+
+// findParentStmt finds the parent statement node for a given node
+func findParentStmt(file *ast.File, target ast.Node) ast.Stmt {
+	var parent ast.Stmt
+	ast.Inspect(file, func(n ast.Node) bool {
+		if stmt, ok := n.(ast.Stmt); ok {
+			// Check if this statement contains our target
+			if stmt.Pos() <= target.Pos() && target.End() <= stmt.End() {
+				parent = stmt
+			}
+		}
+		return true
+	})
+	return parent
+}
+
+// findErrorVariableInScope finds an error variable in scope similar to GoLand plugin logic
+func findErrorVariableInScope(pass *analysis.Pass, call *ast.CallExpr) string {
+	if pass.Fset == nil {
+		return ""
+	}
+	// Find the containing function (either FuncDecl or FuncLit)
+	var funcType *ast.FuncType
+	var funcBody *ast.BlockStmt
+	
+	// Walk up the AST to find the closest function
+	path, _ := astutil.PathEnclosingInterval(pass.Files[0], call.Pos(), call.End())
+	for _, node := range path {
+		switch n := node.(type) {
+		case *ast.FuncDecl:
+			funcType = n.Type
+			funcBody = n.Body
+		case *ast.FuncLit:
+			funcType = n.Type
+			funcBody = n.Body
+		}
+		if funcType != nil {
+			break
+		}
+	}
+	
+	if funcType == nil || funcBody == nil {
+		return ""
+	}
+	
+	// Check function parameters first
+	if funcType.Params != nil && pass.TypesInfo != nil {
+		for _, field := range funcType.Params.List {
+			// Get the type of this parameter
+			typ := pass.TypesInfo.TypeOf(field.Type)
+			if typ != nil && isErrorType(typ) {
+				// Get the parameter name(s)
+				for _, name := range field.Names {
+					// Accept any error-typed parameter, common names: err, e, error, myErr, etc.
+					return name.Name
+				}
+			}
+		}
+	}
+	
+	// Check named return values
+	if funcType.Results != nil && pass.TypesInfo != nil {
+		for _, field := range funcType.Results.List {
+			// Get the type of this return value
+			typ := pass.TypesInfo.TypeOf(field.Type)
+			if typ != nil && isErrorType(typ) && len(field.Names) > 0 {
+				for _, name := range field.Names {
+					// Accept any error-typed return value
+					return name.Name
+				}
+			}
+		}
+	}
+	
+	// Simple approach: look backwards from the call line for error variables
+	// but only within the same logical scope
+	callPos := pass.Fset.Position(call.Pos())
+	
+	// Find all error variable declarations in the function
+	type errorVar struct {
+		name string
+		line int
+		inIfBlock bool
+		ifBlockStart int
+		ifBlockEnd int
+	}
+	
+	var errorVars []errorVar
+	
+	
+	ast.Inspect(funcBody, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			if node.Tok == token.DEFINE { // :=
+				nodePos := pass.Fset.Position(node.Pos())
+				if nodePos.Line < callPos.Line {
+					// Check if this assignment defines error variables
+					for _, lhs := range node.Lhs {
+						if ident, ok := lhs.(*ast.Ident); ok {
+							if isLikelyErrorVariable(ident.Name) {
+								// Check if this is inside an if block
+								var inIf bool
+								var ifStart, ifEnd int
+								
+								// Find if this assignment is inside an if statement
+								ast.Inspect(funcBody, func(n2 ast.Node) bool {
+									if ifStmt, ok := n2.(*ast.IfStmt); ok {
+										if node.Pos() >= ifStmt.Pos() && node.End() <= ifStmt.End() {
+											inIf = true
+											ifStart = pass.Fset.Position(ifStmt.Pos()).Line
+											ifEnd = pass.Fset.Position(ifStmt.End()).Line
+											return false
+										}
+									}
+									return true
+								})
+								
+								errorVars = append(errorVars, errorVar{
+									name: ident.Name,
+									line: nodePos.Line,
+									inIfBlock: inIf,
+									ifBlockStart: ifStart,
+									ifBlockEnd: ifEnd,
+								})
+								
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+	
+	// Find which if block (if any) contains our call
+	var callInIf bool
+	
+	ast.Inspect(funcBody, func(n ast.Node) bool {
+		if ifStmt, ok := n.(*ast.IfStmt); ok {
+			ifStart := pass.Fset.Position(ifStmt.Pos()).Line
+			ifEnd := pass.Fset.Position(ifStmt.End()).Line
+			
+			if callPos.Line >= ifStart && callPos.Line <= ifEnd {
+				callInIf = true
+				return false
+			}
+		}
+		return true
+	})
+	
+	
+	// Find the most recent error variable that's accessible from the call
+	var bestVar string
+	var bestLine int = -1
+	
+	for _, ev := range errorVars {
+		// Skip variables declared after our call
+		if ev.line >= callPos.Line {
+			continue
+		}
+		
+		// Check scope compatibility:
+		// 1. If call is in an if block that checks the error (like "if err != nil"), use that error var
+		// 2. If call is in a different if block, don't use error vars from other blocks
+		// 3. If call is not in any if block, be very restrictive - don't use error vars
+		if callInIf {
+			// Call is in an if block - check if this if block uses the error variable
+			// For now, assume if the error var was defined recently and we're in an if block,
+			// it's probably being checked by that if block
+			isRecentVar := (callPos.Line - ev.line) <= 5 // Within 5 lines
+			if !isRecentVar {
+				continue // Skip - error var is too old/distant
+			}
+		} else {
+			// Call is not in an if block - be very restrictive
+			// Only allow error vars that are defined in the same "section" without any if blocks in between
+			// For safety, don't use any error vars when not in an if block
+			continue // Skip all error vars when not in if block
+		}
+		
+		// Use the most recent (closest) error variable
+		if ev.line > bestLine {
+			bestVar = ev.name
+			bestLine = ev.line
+		}
+	}
+	
+	return bestVar
+}
+
+
+// isLikelyErrorVariable checks if a variable name looks like an error
+func isLikelyErrorVariable(name string) bool {
+	errorNames := []string{"err", "error", "e", "errs", "errors"}
+	nameLower := strings.ToLower(name)
+	
+	for _, errorName := range errorNames {
+		if nameLower == errorName {
+			return true
+		}
+	}
+	
+	return strings.HasSuffix(name, "Err") || 
+		   strings.HasSuffix(name, "Error") ||
+		   strings.HasPrefix(nameLower, "err") ||
+		   strings.HasPrefix(nameLower, "error")
 }
 
 func isBasicType(t types.Type) bool {

@@ -16,17 +16,74 @@ function logWithTimestamp(channel: vscode.OutputChannel, message: string): void 
     channel.appendLine(`[${new Date().toLocaleTimeString()}] ${message}`);
 }
 
-// Extended diagnostic interface to store fix data
+// Enhanced logger similar to GoLand's MtlogLogger
+class VSCodeMtlogLogger {
+    private static instance: VSCodeMtlogLogger;
+    private outputChannel: vscode.OutputChannel;
+    
+    private constructor(outputChannel: vscode.OutputChannel) {
+        this.outputChannel = outputChannel;
+    }
+    
+    static initialize(outputChannel: vscode.OutputChannel): void {
+        VSCodeMtlogLogger.instance = new VSCodeMtlogLogger(outputChannel);
+    }
+    
+    static debug(message: string, showInUI: boolean = false): void {
+        if (VSCodeMtlogLogger.instance) {
+            VSCodeMtlogLogger.instance.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] DEBUG: ${message}`);
+            if (showInUI) {
+                vscode.window.showInformationMessage(`[DEBUG] ${message}`);
+            }
+        }
+    }
+    
+    static info(message: string, showInUI: boolean = false): void {
+        if (VSCodeMtlogLogger.instance) {
+            VSCodeMtlogLogger.instance.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] INFO: ${message}`);
+            if (showInUI) {
+                vscode.window.showInformationMessage(message);
+            }
+        }
+    }
+    
+    static warn(message: string, showInUI: boolean = true): void {
+        if (VSCodeMtlogLogger.instance) {
+            VSCodeMtlogLogger.instance.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] WARN: ${message}`);
+            if (showInUI) {
+                vscode.window.showWarningMessage(message);
+            }
+        }
+    }
+    
+    static error(message: string, error?: Error, showInUI: boolean = true): void {
+        if (VSCodeMtlogLogger.instance) {
+            const errorDetails = error ? ` | Error: ${error.message}\nStack: ${error.stack}` : '';
+            VSCodeMtlogLogger.instance.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ERROR: ${message}${errorDetails}`);
+            if (showInUI) {
+                vscode.window.showErrorMessage(message);
+            }
+        }
+    }
+    
+    static show(): void {
+        if (VSCodeMtlogLogger.instance) {
+            VSCodeMtlogLogger.instance.outputChannel.show();
+        }
+    }
+}
+
+// Extended diagnostic interface to store analyzer suggested fixes
 interface MtlogDiagnostic extends vscode.Diagnostic {
-    mtlogData?: {
-        type: 'pascalCase' | 'argumentMismatch';
-        // For PascalCase fixes
-        oldName?: string;
-        newName?: string;
-        // For argument mismatch
-        expectedArgs?: number;
-        actualArgs?: number;
-    };
+    // Store suggested fixes from analyzer
+    suggestedFixes?: Array<{
+        message: string;
+        textEdits: Array<{
+            pos: string;
+            end: string;
+            newText: string;
+        }>;
+    }>;
 }
 
 let diagnosticCollection: vscode.DiagnosticCollection;
@@ -45,7 +102,10 @@ export function activate(context: vscode.ExtensionContext) {
     // Create output channel for error logging and diagnostics
     outputChannel = vscode.window.createOutputChannel('mtlog-analyzer');
     context.subscriptions.push(outputChannel);
-    logWithTimestamp(outputChannel, 'mtlog-analyzer extension activated');
+    
+    // Initialize enhanced logger
+    VSCodeMtlogLogger.initialize(outputChannel);
+    VSCodeMtlogLogger.info('mtlog-analyzer extension activated');
     
     diagnosticCollection = vscode.languages.createDiagnosticCollection('mtlog');
     context.subscriptions.push(diagnosticCollection);
@@ -474,89 +534,54 @@ async function analyzeDocument(document: vscode.TextDocument) {
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostics enabled: ${diagnosticsEnabled}`);
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Processed suppressed diagnostics: [${suppressedArray.join(', ')}]`);
     
-    // Build the arguments for go vet
-    const args = ['vet', '-json', `-vettool=${analyzerPath}`];
+    // Use analyzer stdin mode to get suggested fixes
+    const args = ['-stdin'];
     
     // Add analyzer flags
     args.push(...analyzerFlags);
     
-    // Add suppression flags if needed - but NOT as vettool flags
-    // We need to write a config file or use environment variables
-    let envVars = { ...process.env };
-    
+    // Add suppression flags
     if (!diagnosticsEnabled) {
-        envVars[ENV_MTLOG_DISABLE_ALL] = 'true';
+        args.push('-disable-all');
     } else if (suppressedArray.length > 0) {
-        envVars[ENV_MTLOG_SUPPRESS] = suppressedArray.join(',');
+        args.push(`-suppress=${suppressedArray.join(',')}`);
     }
     
-    args.push(packagePath);
-    
-    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running go vet: go ${args.join(' ')} in ${workingDir}`);
-    if (envVars[ENV_MTLOG_SUPPRESS]) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_SUPPRESS}=${envVars[ENV_MTLOG_SUPPRESS]}`);
-    }
-    if (envVars[ENV_MTLOG_DISABLE_ALL]) {
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] With ${ENV_MTLOG_DISABLE_ALL}=${envVars[ENV_MTLOG_DISABLE_ALL]}`);
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Running analyzer: ${analyzerPath} ${args.join(' ')}`);
+    if (suppressedArray.length > 0) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Suppressing: ${suppressedArray.join(',')}`);
     }
     
-    const proc = spawn('go', args, {
-        cwd: workingDir,
-        env: envVars
+    const proc = spawn(analyzerPath, args, {
+        cwd: workingDir
     });
     
     // Track this process
     activeProcesses.set(filePath, proc);
     
-    let stderrBuffer = '';
-    let inJson = false;
-    let braceCount = 0;
+    // Send file content to stdin
+    const fileDocument = vscode.workspace.textDocuments.find(doc => doc.uri.fsPath === filePath);
+    if (fileDocument) {
+        const stdinRequest = {
+            filename: filePath,
+            content: fileDocument.getText(),
+            go_module: workingDir
+        };
+        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Sending ${stdinRequest.content.length} chars to analyzer stdin`);
+        proc.stdin?.write(JSON.stringify(stdinRequest));
+        proc.stdin?.end();
+    }
     
-    // Handle stdout with brace counting for multi-line JSON
-    let outJson = '', outBrace = 0, outIn = false;
+    // Handle stdout - analyzer outputs JSON array of diagnostics
+    let stdoutBuffer = '';
     proc.stdout.on('data', data => {
-        const text = data.toString();
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stdout: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
-        for (const ch of text) {
-            if (ch === '{') { outBrace++; outIn = true; }
-            if (outIn) outJson += ch;
-            if (ch === '}') {
-                if (--outBrace === 0) {           // complete object
-                    parseDiagnostic(outJson, fileUri, diagnostics);
-                    outJson = ''; outIn = false;
-                }
-            }
-        }
+        stdoutBuffer += data.toString();
     });
     
     proc.stderr.on('data', (data) => {
         const text = data.toString();
         outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] stderr: ${text.substring(0, LOG_TRUNCATION_LENGTH)}`);
-        
-        // go vet outputs JSON to stderr, need to collect full JSON object
-        for (const char of text) {
-            if (char === '{') {
-                if (!inJson) {
-                    inJson = true;
-                    stderrBuffer = '';
-                }
-                braceCount++;
-            }
-            
-            if (inJson) {
-                stderrBuffer += char;
-                
-                if (char === '}') {
-                    braceCount--;
-                    if (braceCount === 0) {
-                        // Complete JSON object
-                        parseDiagnostic(stderrBuffer, fileUri, diagnostics);
-                        stderrBuffer = '';
-                        inJson = false;
-                    }
-                }
-            }
-        }
     });
     
     proc.on('close', (code) => {
@@ -568,6 +593,23 @@ async function analyzeDocument(document: vscode.TextDocument) {
         if (currentVersion < latestVersion) {
             outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Discarding stale analysis results (version ${currentVersion} < ${latestVersion})`);
             return;
+        }
+        
+        // Parse JSON array from stdout
+        if (stdoutBuffer.trim()) {
+            try {
+                const stdinDiagnostics = JSON.parse(stdoutBuffer);
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Parsed ${stdinDiagnostics.length} diagnostics from analyzer stdout`);
+                
+                // Convert analyzer diagnostics to VS Code diagnostics
+                for (const stdinDiag of stdinDiagnostics) {
+                    // Call pushDiag directly with the analyzer data
+                    const posn = `${stdinDiag.filename}:${stdinDiag.line}:${stdinDiag.column}`;
+                    pushDiagInternal(posn, stdinDiag.message, stdinDiag.severity, stdinDiag.suggestedFixes, stdinDiag.diagnostic_id, fileUri, diagnostics);
+                }
+            } catch (error) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Failed to parse analyzer output: ${error}`);
+            }
         }
         
         // Update diagnostics for this file
@@ -601,191 +643,75 @@ async function analyzeDocument(document: vscode.TextDocument) {
     });
 }
 
-function parseDiagnostic(line: string, uri: vscode.Uri, diagnostics: vscode.Diagnostic[]) {
-    if (!line.trim()) return;
+function pushDiagInternal(posn: string, message: string, category?: string, suggestedFixes?: any[], diagnosticId?: string, uri?: vscode.Uri, diagnostics?: vscode.Diagnostic[]): void {
+    if (!uri || !diagnostics) return;
     
-    let obj: any;
-    try { 
-        obj = JSON.parse(line); 
-    } catch (e) {
-        // Log malformed JSON to output channel
-        if (line.trim() && outputChannel) {
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Failed to parse JSON: ${line}`);
-            outputChannel.appendLine(`Error: ${e}`);
+    const posnParts = posn.split(':');
+    if (posnParts.length < 3) return;
+    
+    // Extract file, line, col
+    const file = posnParts.slice(0, -2).join(':');
+    const line = parseInt(posnParts[posnParts.length - 2]);
+    const col = parseInt(posnParts[posnParts.length - 1]);
+    
+    if (path.resolve(file) !== path.resolve(uri.fsPath)) return;
+    
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Raw diagnostic message: "${message}"`);
+    
+    // Parse severity from category or message prefix
+    let severity = vscode.DiagnosticSeverity.Error;
+    let cleanMessage = message;
+    
+    if (message.startsWith('warning:')) {
+        severity = vscode.DiagnosticSeverity.Warning;
+        cleanMessage = message.substring(8).trim();
+    } else if (message.startsWith('suggestion:')) {
+        severity = vscode.DiagnosticSeverity.Information;
+        cleanMessage = message.substring(11).trim();
+    } else if (message.startsWith('error:')) {
+        cleanMessage = message.substring(6).trim();
+    } else if (category) {
+        const cat = category.toLowerCase();
+        if (cat.includes('warn')) severity = vscode.DiagnosticSeverity.Warning;
+        else if (cat.includes('suggest') || cat.includes('info')) severity = vscode.DiagnosticSeverity.Information;
+    }
+    
+    // Validate line number exists in document
+    const document = vscode.workspace.textDocuments.find(d => d.uri.fsPath === uri.fsPath);
+    if (!document || line - 1 >= document.lineCount) {
+        // Log filtered diagnostic for debugging
+        if (outputChannel) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtered out-of-range diagnostic: line ${line} (doc has ${document?.lineCount || 0} lines)`);
         }
         return;
     }
     
-    // --- NEWER go vet / analysis output -------------------------------
-    // Flat object: {file, line, column, message, category, ...}
-    if (obj.message && (obj.posn || obj.file)) {
-        const posn = obj.posn ?? `${obj.file}:${obj.line}:${obj.column ?? 1}`;
-        pushDiag(posn, obj.message, obj.category);
-        return;
+    // Use actual line length for end column
+    const lineText = document.lineAt(line - 1).text;
+    const diag = new vscode.Diagnostic(
+        new vscode.Range(line - 1, col - 1, line - 1, lineText.length),
+        cleanMessage,
+        severity
+    ) as MtlogDiagnostic;
+    
+    diag.source = 'mtlog';
+    
+    // Store suggested fixes from analyzer if available
+    if (suggestedFixes && suggestedFixes.length > 0) {
+        diag.suggestedFixes = suggestedFixes;
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Diagnostic has ${suggestedFixes.length} suggested fixes from analyzer`);
     }
     
-    // Envelope form: {diagnostic:{posn,message,category,...}, analysis:"mtlog"}
-    if (obj.diagnostic?.posn) {
-        pushDiag(obj.diagnostic.posn, obj.diagnostic.message, obj.diagnostic.category);
-        return;
+    // Use diagnostic ID from analyzer if provided
+    if (diagnosticId) {
+        (diag as any).code = diagnosticId;
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Set diagnostic code: ${diagnosticId} for message: ${cleanMessage.substring(0, 50)}...`);
     }
     
-    // --- Legacy nested object (kept for backward-compat) --------------
-    for (const pkg in obj) {
-        const byAnalyzer = obj[pkg];
-        if (typeof byAnalyzer === 'object' && byAnalyzer !== null) {
-            for (const analyzer in byAnalyzer) {
-                const issues = byAnalyzer[analyzer];
-                if (Array.isArray(issues)) {
-                    for (const d of issues) {
-                        if (d.posn && d.message) {
-                            pushDiag(d.posn, d.message, d.category);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    function pushDiag(posn: string, message: string, category?: string) {
-        const posnParts = posn.split(':');
-        if (posnParts.length < 3) return;
-        
-        // Extract file, line, col
-        const file = posnParts.slice(0, -2).join(':');
-        const line = parseInt(posnParts[posnParts.length - 2]);
-        const col = parseInt(posnParts[posnParts.length - 1]);
-        
-        if (path.resolve(file) !== path.resolve(uri.fsPath)) return;
-        
-        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Raw diagnostic message: "${message}"`);
-        
-        // Parse severity from category or message prefix
-        let severity = vscode.DiagnosticSeverity.Error;
-        let cleanMessage = message;
-        
-        if (message.startsWith('warning:')) {
-            severity = vscode.DiagnosticSeverity.Warning;
-            cleanMessage = message.substring(8).trim();
-        } else if (message.startsWith('suggestion:')) {
-            severity = vscode.DiagnosticSeverity.Information;
-            cleanMessage = message.substring(11).trim();
-        } else if (message.startsWith('error:')) {
-            cleanMessage = message.substring(6).trim();
-        } else if (category) {
-            const cat = category.toLowerCase();
-            if (cat.includes('warn')) severity = vscode.DiagnosticSeverity.Warning;
-            else if (cat.includes('suggest') || cat.includes('info')) severity = vscode.DiagnosticSeverity.Information;
-        }
-        
-        // Validate line number exists in document
-        const document = vscode.workspace.textDocuments.find(d => d.uri.fsPath === uri.fsPath);
-        if (!document || line - 1 >= document.lineCount) {
-            // Log filtered diagnostic for debugging
-            if (outputChannel) {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtered out-of-range diagnostic: line ${line} (doc has ${document?.lineCount || 0} lines)`);
-            }
-            return;
-        }
-        
-        // Use actual line length for end column
-        const lineText = document.lineAt(line - 1).text;
-        const diag = new vscode.Diagnostic(
-            new vscode.Range(line - 1, col - 1, line - 1, lineText.length),
-            cleanMessage,
-            severity
-        ) as MtlogDiagnostic;
-        
-        diag.mtlogData = extractFixData(cleanMessage);
-        diag.source = 'mtlog';
-        
-        // Extract diagnostic ID from message OR determine from content
-        const idMatch = cleanMessage.match(/\[?(MTLOG\d{3})\]?/);
-        let diagnosticId: string | undefined;
-        
-        if (idMatch) {
-            diagnosticId = idMatch[1];
-        } else {
-            // Determine ID from message content since go vet strips it
-            const msgLower = cleanMessage.toLowerCase();
-            if (msgLower.includes('template has') && msgLower.includes('properties') && msgLower.includes('arguments')) {
-                diagnosticId = 'MTLOG001';
-            } else if (msgLower.includes('invalid format specifier')) {
-                diagnosticId = 'MTLOG002';
-            } else if (msgLower.includes('duplicate property')) {
-                diagnosticId = 'MTLOG003';
-            } else if (msgLower.includes('pascalcase')) {
-                diagnosticId = 'MTLOG004';
-            } else if (msgLower.includes('capturing')) {
-                diagnosticId = 'MTLOG005';
-            } else if (msgLower.includes('error level log without error') || msgLower.includes('error logging without error')) {
-                diagnosticId = 'MTLOG006';
-            } else if (msgLower.includes('context key')) {
-                diagnosticId = 'MTLOG007';
-            } else if (msgLower.includes('dynamic template')) {
-                diagnosticId = 'MTLOG008';
-            }
-        }
-        
-        if (diagnosticId) {
-            (diag as any).code = diagnosticId;
-            
-            // Check if this diagnostic should be suppressed
-            const config = vscode.workspace.getConfiguration('mtlog');
-            const suppressedDiagnostics = config.get<string[]>('suppressedDiagnostics', []);
-            
-            if (suppressedDiagnostics.includes(diagnosticId)) {
-                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtering out suppressed diagnostic ${diagnosticId}: ${cleanMessage.substring(0, 50)}...`);
-                return; // Skip this diagnostic
-            }
-            
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Set diagnostic code: ${diagnosticId} for message: ${cleanMessage.substring(0, 50)}...`);
-        } else {
-            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] No diagnostic ID found in message: ${cleanMessage.substring(0, 50)}...`);
-        }
-        
-        diagnostics.push(diag);
-    }
+    diagnostics.push(diag);
 }
 
-function extractFixData(message: string): MtlogDiagnostic['mtlogData'] {
-    // PascalCase fix: "consider using PascalCase for property 'userId'"
-    const pascalMatch = message.match(/consider using PascalCase for property '(.+?)'/);
-    if (pascalMatch) {
-        const oldName = pascalMatch[1];
-        // Convert to PascalCase
-        const newName = oldName.split(/[_-]/).map(part => 
-            part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
-        ).join('');
-        return {
-            type: 'pascalCase',
-            oldName: oldName,
-            newName: newName
-        };
-    }
-    
-    // Argument mismatch: "template has 2 properties but 3 arguments provided"
-    const argMatch = message.match(/template has (\d+) (?:property|properties) but (\d+) (?:argument|arguments) provided/);
-    if (argMatch) {
-        return {
-            type: 'argumentMismatch',
-            expectedArgs: parseInt(argMatch[1]),
-            actualArgs: parseInt(argMatch[2])
-        };
-    }
-    
-    // Alternative format: "expected 2 arguments, got 3"
-    const altMatch = message.match(/expected (\d+) arguments?, got (\d+)/);
-    if (altMatch) {
-        return {
-            type: 'argumentMismatch',
-            expectedArgs: parseInt(altMatch[1]),
-            actualArgs: parseInt(altMatch[2])
-        };
-    }
-    
-    return undefined;
-}
+
 
 function updateStatusBar() {
     if (!statusBarItem) return;
@@ -1018,28 +944,8 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
             const mtlogDiag = diagnostic as MtlogDiagnostic;
             mtlogDiagnostics.push(mtlogDiag);
             
-            // Map messages to diagnostic IDs
-            let diagnosticId: string | undefined;
-            const msg = diagnostic.message.toLowerCase();
-            
-            if (msg.includes('template has') && msg.includes('but') && msg.includes('provided')) {
-                diagnosticId = 'MTLOG001';
-            } else if (msg.includes('format specifier')) {
-                diagnosticId = 'MTLOG002';
-            } else if (msg.includes('duplicate property')) {
-                diagnosticId = 'MTLOG003';
-            } else if (msg.includes('pascalcase')) {
-                diagnosticId = 'MTLOG004';
-            } else if (msg.includes('capturing')) {
-                diagnosticId = 'MTLOG005';
-            } else if (msg.includes('error level log without error value') || msg.includes('error logging without error')) {
-                diagnosticId = 'MTLOG006';
-            } else if (msg.includes('context key')) {
-                diagnosticId = 'MTLOG007';
-            } else if (msg.includes('dynamic template')) {
-                diagnosticId = 'MTLOG008';
-            }
-            
+            // Get diagnostic ID from code property (set by the analyzer)
+            const diagnosticId = (diagnostic as any).code;
             if (diagnosticId) {
                 uniqueDiagnosticIds.add(diagnosticId);
             }
@@ -1061,199 +967,79 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
             actions.push(suppressAction);
         }
         
-        // Add existing quick fixes for each diagnostic
+        // Add analyzer-provided quick fixes for each diagnostic
         for (const mtlogDiag of mtlogDiagnostics) {
-            
-            // Add existing quick fixes
-            if (!mtlogDiag.mtlogData) continue;
-            
-            switch (mtlogDiag.mtlogData.type) {
-                case 'pascalCase':
-                    actions.push(this.createPascalCaseFix(document, mtlogDiag));
-                    break;
-                case 'argumentMismatch':
-                    actions.push(this.createArgumentFix(document, mtlogDiag));
-                    break;
+            // Only use analyzer provided suggested fixes
+            if (mtlogDiag.suggestedFixes && mtlogDiag.suggestedFixes.length > 0) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Using ${mtlogDiag.suggestedFixes.length} suggested fixes from analyzer`);
+                for (const suggestedFix of mtlogDiag.suggestedFixes) {
+                    const action = this.createActionFromAnalyzerFix(document, mtlogDiag, suggestedFix);
+                    if (action) {
+                        actions.push(action);
+                    }
+                }
             }
         }
         
         return actions;
     }
     
-    private createPascalCaseFix(
+    
+    private createActionFromAnalyzerFix(
         document: vscode.TextDocument,
-        diagnostic: MtlogDiagnostic
-    ): vscode.CodeAction {
-        const { oldName, newName } = diagnostic.mtlogData!;
-        
-        const fix = new vscode.CodeAction(
-            `Change '${oldName}' to '${newName}'`,
-            vscode.CodeActionKind.QuickFix
-        );
-        
-        fix.edit = new vscode.WorkspaceEdit();
-        fix.diagnostics = [diagnostic];
-        
-        // Get the line containing the template
-        const line = document.lineAt(diagnostic.range.start.line);
-        const lineText = line.text;
-        
-        // Find all occurrences of {oldName} in the line
-        const pattern = new RegExp(`\\{${escapeRegExp(oldName!)}\\}`, 'g');
-        let match;
-        
-        while ((match = pattern.exec(lineText)) !== null) {
-            const startPos = new vscode.Position(line.lineNumber, match.index + 1); // +1 to skip '{'
-            const endPos = new vscode.Position(line.lineNumber, match.index + 1 + oldName!.length);
-            fix.edit.replace(document.uri, new vscode.Range(startPos, endPos), newName!);
+        diagnostic: MtlogDiagnostic,
+        suggestedFix: any
+    ): vscode.CodeAction | null {
+        if (!suggestedFix.textEdits || suggestedFix.textEdits.length === 0) {
+            return null;
         }
         
-        // Add command to save and reanalyze after applying the fix
-        fix.command = {
-            command: 'mtlog.saveAndAnalyze',
-            title: 'Save and reanalyze'
-        };
-        
-        return fix;
-    }
-    
-    private createArgumentFix(
-        document: vscode.TextDocument,
-        diagnostic: MtlogDiagnostic
-    ): vscode.CodeAction {
-        const { expectedArgs, actualArgs } = diagnostic.mtlogData!;
-        const diff = expectedArgs! - actualArgs!;
-        
-        const fix = new vscode.CodeAction(
-            diff > 0 
-                ? `Add ${diff} missing argument${diff > 1 ? 's' : ''}`
-                : `Remove ${-diff} extra argument${-diff > 1 ? 's' : ''}`,
+        const action = new vscode.CodeAction(
+            suggestedFix.message || 'Apply fix',
             vscode.CodeActionKind.QuickFix
         );
         
-        fix.edit = new vscode.WorkspaceEdit();
-        fix.diagnostics = [diagnostic];
+        action.edit = new vscode.WorkspaceEdit();
+        action.diagnostics = [diagnostic];
         
-        // Find the function call on this line
-        const line = document.lineAt(diagnostic.range.start.line);
-        const lineText = line.text;
-        
-        // Find closing parenthesis of the function call
-        const closeParenIndex = this.findClosingParen(lineText, diagnostic.range.start.character);
-        if (closeParenIndex === -1) return fix;
-        
-        if (diff > 0) {
-            // Add missing arguments
-            const insertPos = new vscode.Position(line.lineNumber, closeParenIndex);
-            const args = Array(diff).fill('nil').join(', ');
-            fix.edit.insert(document.uri, insertPos, `, ${args}`);
-        } else {
-            // Remove extra arguments
-            const extraCount = -diff;
-            const argsToRemove = this.findLastNArguments(lineText, diagnostic.range.start.character, extraCount);
-            
-            if (argsToRemove && argsToRemove.length > 0) {
-                const firstArg = argsToRemove[0];
-                const lastArg = argsToRemove[argsToRemove.length - 1];
+        try {
+            // Apply each text edit from the analyzer
+            for (const edit of suggestedFix.textEdits) {
+                // Parse position from analyzer format (file:line:col)
+                const startParts = edit.pos.split(':');
+                const endParts = edit.end.split(':');
                 
-                // Find the comma before the first argument to remove
-                let deleteStart = firstArg.start;
-                let searchPos = deleteStart - 1;
-                const text = lineText;
-                
-                while (searchPos >= 0 && /\s/.test(text[searchPos])) {
-                    searchPos--;
+                if (startParts.length < 3 || endParts.length < 3) {
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Invalid position format in text edit: ${edit.pos} -> ${edit.end}`);
+                    continue;
                 }
                 
-                if (searchPos >= 0 && text[searchPos] === ',') {
-                    deleteStart = searchPos;
-                }
+                const startLine = parseInt(startParts[startParts.length - 2]) - 1; // Convert to 0-based
+                const startCol = parseInt(startParts[startParts.length - 1]) - 1;
+                const endLine = parseInt(endParts[endParts.length - 2]) - 1;
+                const endCol = parseInt(endParts[endParts.length - 1]) - 1;
                 
-                const deleteRange = new vscode.Range(
-                    line.lineNumber, 
-                    deleteStart,
-                    line.lineNumber,
-                    lastArg.end
+                const range = new vscode.Range(
+                    new vscode.Position(startLine, startCol),
+                    new vscode.Position(endLine, endCol)
                 );
                 
-                fix.edit.delete(document.uri, deleteRange);
-            }
-        }
-        
-        // Add command to save and reanalyze after applying the fix
-        fix.command = {
-            command: 'mtlog.saveAndAnalyze',
-            title: 'Save and reanalyze'
-        };
-        
-        return fix;
-    }
-    
-    private findLastNArguments(text: string, startPos: number, count: number): Array<{start: number, end: number}> | null {
-        // Parse the function call to find argument positions
-        const args: Array<{start: number, end: number}> = [];
-        let parenCount = 0;
-        let currentArgStart = -1;
-        let inString = false;
-        let stringChar = '';
-        
-        for (let i = startPos; i < text.length; i++) {
-            const char = text[i];
-            
-            // Handle string literals
-            if ((char === '"' || char === '\'' || char === '`') && (i === 0 || text[i-1] !== '\\')) {
-                if (!inString) {
-                    inString = true;
-                    stringChar = char;
-                } else if (char === stringChar) {
-                    inString = false;
-                }
-                continue;
+                action.edit.replace(document.uri, range, edit.newText);
+                
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Text edit: ${startLine}:${startCol} -> ${endLine}:${endCol} = "${edit.newText}"`);
             }
             
-            if (!inString) {
-                if (char === '(') {
-                    parenCount++;
-                    if (parenCount === 1 && currentArgStart === -1) {
-                        currentArgStart = i + 1;
-                    }
-                } else if (char === ')') {
-                    parenCount--;
-                    if (parenCount === 0 && currentArgStart !== -1) {
-                        // End of last argument
-                        const argEnd = i;
-                        // Trim whitespace from start
-                        while (currentArgStart < argEnd && /\s/.test(text[currentArgStart])) {
-                            currentArgStart++;
-                        }
-                        if (currentArgStart < argEnd) {
-                            args.push({start: currentArgStart, end: argEnd});
-                        }
-                        break;
-                    }
-                } else if (char === ',' && parenCount === 1) {
-                    // End of current argument
-                    if (currentArgStart !== -1) {
-                        const argEnd = i;
-                        // Trim whitespace
-                        while (currentArgStart < argEnd && /\s/.test(text[currentArgStart])) {
-                            currentArgStart++;
-                        }
-                        if (currentArgStart < argEnd) {
-                            args.push({start: currentArgStart, end: argEnd});
-                        }
-                    }
-                    currentArgStart = i + 1;
-                }
-            }
+            // Add command to save and reanalyze after applying the fix
+            action.command = {
+                command: 'mtlog.saveAndAnalyze',
+                title: 'Save and reanalyze'
+            };
+            
+            return action;
+        } catch (e) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Error creating action from analyzer fix: ${e}`);
+            return null;
         }
-        
-        // Return the last N arguments
-        if (args.length >= count) {
-            return args.slice(-count);
-        }
-        
-        return null;
     }
     
     private findClosingParen(text: string, startPos: number): number {
@@ -1288,9 +1074,6 @@ class MtlogCodeActionProvider implements vscode.CodeActionProvider {
     }
 }
 
-function escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 function getDiagnosticDescription(id: string): string {
     const descriptions: Record<string, string> = {

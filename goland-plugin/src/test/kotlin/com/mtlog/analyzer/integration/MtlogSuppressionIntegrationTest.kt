@@ -90,7 +90,7 @@ class MtlogSuppressionIntegrationTest : MtlogIntegrationTestBase() {
         
         // Clear any existing suppressions from previous tests
         state.suppressedDiagnostics = mutableListOf()
-        service.clearCache()
+        service.restartProcesses()
         
         // Set up test file with known issues
         createGoFile("test.go", """
@@ -133,7 +133,7 @@ class MtlogSuppressionIntegrationTest : MtlogIntegrationTestBase() {
         
         // Now suppress MTLOG001 and MTLOG004
         state.suppressedDiagnostics = mutableListOf("MTLOG001", "MTLOG004")
-        service.clearCache()
+        service.restartProcesses()
         
         // Run analyzer again with suppression
         val diagnosticsAfterSuppression = runRealAnalyzer()
@@ -218,7 +218,7 @@ class MtlogSuppressionIntegrationTest : MtlogIntegrationTestBase() {
         
         // Suppress MTLOG004 (PascalCase)
         state.suppressedDiagnostics = mutableListOf("MTLOG004")
-        service.clearCache()
+        service.restartProcesses()
         
         // Run analyzer again - should not have PascalCase warning
         val diagnosticsAfterSuppression = runRealAnalyzer()
@@ -229,7 +229,7 @@ class MtlogSuppressionIntegrationTest : MtlogIntegrationTestBase() {
         
         // Unsuppress MTLOG004
         state.suppressedDiagnostics = mutableListOf()
-        service.clearCache()
+        service.restartProcesses()
         
         // Run analyzer again - should have PascalCase warning again
         val diagnosticsAfterUnsuppression = runRealAnalyzer()

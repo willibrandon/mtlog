@@ -27,4 +27,7 @@ class MtlogSettingsState : BaseState() {
     
     @get:Tag("suppressedDiagnostics")
     var suppressedDiagnostics by list<String>()
+    
+    @get:Tag("logLevel")
+    var logLevel by string("INFO")
 }

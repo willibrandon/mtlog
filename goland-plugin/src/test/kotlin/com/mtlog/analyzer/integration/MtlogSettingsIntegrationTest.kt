@@ -84,7 +84,7 @@ class MtlogSettingsIntegrationTest : MtlogIntegrationTestBase() {
             
             // Now disable and re-analyze
             service.state.enabled = false
-            service.clearCache() // Clear any cached results
+            service.restartProcesses() // Clear any cached results
             
             diagnostics = runRealAnalyzer()
             val mtlogErrors = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
@@ -122,7 +122,7 @@ class MtlogSettingsIntegrationTest : MtlogIntegrationTestBase() {
             
             // Test with a non-existent path - expect LOG.error but allow test to pass
             service.state.analyzerPath = "/non/existent/path/to/mtlog-analyzer"
-            service.clearCache()
+            service.restartProcesses()
             
             // Use LoggedErrorProcessor to handle expected error
             LoggedErrorProcessor.executeWith<RuntimeException>(object : LoggedErrorProcessor() {

@@ -93,8 +93,7 @@ open class SuppressionManagerDialog(private val project: Project) : DialogWrappe
         }
         
         service.state.suppressedDiagnostics = newSuppressed
-        service.clearCache()
-        MtlogExternalAnnotator.clearCache()
+        service.restartProcesses()
         
         // Trigger re-analysis
         DaemonCodeAnalyzer.getInstance(project).restart()
