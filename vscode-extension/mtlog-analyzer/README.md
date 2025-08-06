@@ -37,16 +37,24 @@ Apply fixes by clicking the light bulb (💡) or pressing `Ctrl+.` (Windows/Linu
 ## Requirements
 
 - Go 1.21 or later
-- [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer) installed and in PATH
+- [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer) (automatically detected or can be installed via prompt)
 
 ## Installation
 
-1. Install mtlog-analyzer:
-   ```bash
-   go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
-   ```
+1. Install this extension from the VS Code Marketplace
 
-2. Install this extension from the VS Code Marketplace
+2. The extension will automatically find mtlog-analyzer if it's installed. If not found, you'll be prompted to install it with one click.
+
+### Automatic Detection
+
+The extension searches for mtlog-analyzer in the following locations (in order):
+1. Configured path in settings
+2. System PATH
+3. Go binary locations:
+   - `$GOBIN`
+   - `$GOPATH/bin`
+   - `~/go/bin` (default Go install location)
+   - Platform-specific locations (e.g., `/usr/local/go/bin` on macOS)
 
 ## Configuration
 
@@ -70,9 +78,20 @@ The extension runs `mtlog-analyzer` when you save Go files, parsing the output a
 ## Troubleshooting
 
 ### "mtlog-analyzer not found"
-- Ensure mtlog-analyzer is installed: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
-- Add Go bin directory to PATH: `export PATH=$PATH:$(go env GOPATH)/bin`
-- Or specify full path in settings: `"mtlog.analyzerPath": "/full/path/to/mtlog-analyzer"`
+
+If the extension can't find mtlog-analyzer:
+
+1. **Automatic Installation**: Click "Install" when prompted by the extension
+2. **Manual Installation**: Run `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+3. **PATH Issues**: 
+   - On macOS: If VS Code is launched from Dock/Spotlight, it may not inherit your shell PATH
+   - Solution: Launch VS Code from terminal with `code .` or restart VS Code after installation
+4. **Custom Location**: Specify the full path in settings:
+   ```json
+   {
+     "mtlog.analyzerPath": "/full/path/to/mtlog-analyzer"
+   }
+   ```
 
 ### No diagnostics appearing
 - Check Output panel (View → Output → mtlog-analyzer) for errors

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2025-08-06
+
+### Added
+- **IDE Installation UX** - Smart analyzer detection and auto-install prompts (#22)
+  - **VS Code Extension**
+    - Auto-detection in standard Go locations (`$GOBIN`, `$GOPATH/bin`, `~/go/bin`)
+    - One-click installation prompt when analyzer not found
+    - Improved error messages with specific paths and solutions
+    - Automatic path caching for performance
+  
+  - **GoLand Plugin**
+    - Smart path detection following Go's installation precedence
+    - Notification with Install/Settings actions when analyzer not found
+    - Support for platform-specific locations (Windows Apps, /usr/local/go/bin)
+    - findAnalyzerPath() made internal for testing
+
+### Fixed
+- **Build** - Fixed invalid Go version format in go.mod (changed from `1.23.0` to `1.23`)
+- **VS Code Extension** - Added test binaries to .vscodeignore to reduce package size
+
 ## [0.7.3] - 2025-08-05
 
 ### Changed
@@ -350,6 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.7.4]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.4
+[0.7.3]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.3
 [0.7.2]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.2
 [0.7.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.1
 [0.7.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.0

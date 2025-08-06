@@ -210,10 +210,8 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
     }
     
     private fun findAnalyzerPath(): String? {
-        // Use reflection to call the private method
-        val method = service.javaClass.getDeclaredMethod("findAnalyzerPath")
-        method.isAccessible = true
-        return method.invoke(service) as String?
+        // Since findAnalyzerPath is now internal, we can call it directly
+        return service.findAnalyzerPath()
     }
     
     private fun writeFilesToDisk(dir: File) {

@@ -11,3 +11,7 @@ vsc-extension-quickstart.md
 node_modules/**
 *.vsix
 package-lock.json
+**/mtlog-analyzer-test
+**/mtlog-analyzer-test.exe
+**/*_test
+**/*.test
