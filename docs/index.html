@@ -6,10 +6,6 @@
     <title>mtlog - Message Template Logging for Go</title>
     <meta name="description" content="Serilog-inspired structured logging for Go with message templates, rich formatting, and native Seq support.">
     
-    <!-- Go import vanity URL -->
-    <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
-    <meta name="go-source" content="mtlog.dev https://github.com/willibrandon/mtlog https://github.com/willibrandon/mtlog/tree/main{/dir} https://github.com/willibrandon/mtlog/blob/main{/dir}/{file}#L{line}">
-    
     <!-- Open Graph -->
     <meta property="og:title" content="mtlog - Message Template Logging for Go">
     <meta property="og:description" content="Zero-allocation structured logging with message templates. 17.3ns per operation. Serilog-inspired design for Go.">
@@ -278,16 +274,18 @@ logrLogger := mtlogr.NewLogger(...)</code></pre>
             <h3 class="text-3xl font-bold text-center mb-12">Quick Start</h3>
             
             <div class="bg-gray-800 rounded-lg p-4 mb-6">
-                <pre><code class="language-bash">go get mtlog.dev</code></pre>
+                <pre><code class="language-bash">go get github.com/willibrandon/mtlog</code></pre>
             </div>
             
             <div class="bg-gray-800 rounded-lg p-4">
                 <pre><code class="language-go">package main
 
 import (
-    "mtlog.dev"
-    "mtlog.dev/core"
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/core"
 )
+
+type User struct{}
 
 func main() {
     // Create a logger with console output

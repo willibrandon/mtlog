@@ -60,20 +60,20 @@ import (
 func main() {
     // Create a logger with console output
     log := mtlog.New(
-        mtlog.WithConsoleProperties(),
+        mtlog.WithConsole(),
         mtlog.WithMinimumLevel(core.InformationLevel),
     )
 
     // Simple logging
-    log.Information("Application started")
+    log.Info("Application started")
     
     // Message templates with properties
     userId := 123
-    log.Information("User {UserId} logged in", userId)
+    log.Info("User {UserId} logged in", userId)
     
     // Capturing complex types
     order := Order{ID: 456, Total: 99.95}
-    log.Information("Processing {@Order}", order)
+    log.Info("Processing {@Order}", order)
 }
 
 // For libraries that need error handling:
