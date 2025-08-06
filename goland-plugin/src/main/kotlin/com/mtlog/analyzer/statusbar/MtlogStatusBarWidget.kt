@@ -17,12 +17,12 @@ import javax.swing.Icon
 import com.intellij.icons.AllIcons
 
 /**
- * Status bar widget for mtlog analyzer.
+ * Status bar widget for mtlog-analyzer.
  */
 class MtlogStatusBarWidget(project: Project) : EditorBasedWidget(project), StatusBarWidget.IconPresentation {
     
     companion object {
-        const val ID = "MtlogAnalyzer"
+        const val ID = "mtlog-analyzer"
     }
     
     override fun ID(): String = ID

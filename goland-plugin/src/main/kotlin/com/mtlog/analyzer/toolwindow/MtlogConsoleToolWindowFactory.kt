@@ -19,7 +19,7 @@ import java.awt.BorderLayout
 import javax.swing.JPanel
 
 /**
- * Tool window factory for mtlog analyzer console output.
+ * Tool window factory for mtlog-analyzer console output.
  */
 class MtlogConsoleToolWindowFactory : ToolWindowFactory {
     
@@ -50,7 +50,7 @@ class MtlogConsoleToolWindowFactory : ToolWindowFactory {
         Disposer.register(toolWindow.disposable, consoleView)
         
         // Log initial message
-        MtlogLogger.info("mtlog analyzer console initialized", project)
+        MtlogLogger.info("mtlog-analyzer console initialized", project)
     }
     
     private fun createConsoleView(project: Project): ConsoleView {

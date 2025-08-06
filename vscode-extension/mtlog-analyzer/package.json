@@ -1,6 +1,6 @@
 {
   "name": "mtlog-analyzer",
-  "displayName": "mtlog analyzer",
+  "displayName": "mtlog-analyzer",
   "description": "Real-time mtlog template validation for Go",
   "icon": "assets/icon.png",
   "version": "0.7.3",
@@ -24,7 +24,7 @@
     "commands": [
       {
         "command": "mtlog.showOutput",
-        "title": "Show mtlog analyzer output"
+        "title": "Show mtlog-analyzer output"
       },
       {
         "command": "mtlog.analyzeNow",
@@ -76,7 +76,7 @@
       }
     ],
     "configuration": {
-      "title": "mtlog analyzer",
+      "title": "mtlog-analyzer",
       "properties": {
         "mtlog.analyzerPath": {
           "type": "string",

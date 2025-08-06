@@ -25,6 +25,6 @@ class MtlogStartupActivity : ProjectActivity {
         MtlogLogger.info("Registered MtlogDocumentListener", project)
         
         // Log startup message
-        MtlogLogger.info("mtlog analyzer started", project)
+        MtlogLogger.info("mtlog-analyzer started", project)
     }
 }

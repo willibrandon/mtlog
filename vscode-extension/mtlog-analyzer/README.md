@@ -1,4 +1,4 @@
-# mtlog analyzer for Visual Studio Code
+# mtlog-analyzer for Visual Studio Code
 
 Real-time validation for [mtlog](https://github.com/willibrandon/mtlog) message templates in Go code.
 

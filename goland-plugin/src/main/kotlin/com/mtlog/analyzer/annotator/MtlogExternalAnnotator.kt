@@ -114,7 +114,7 @@ class MtlogExternalAnnotator : ExternalAnnotator<MtlogInfo, MtlogResult>() {
         val project = file.project
         val service = project.service<MtlogProjectService>()
         if (!service.state.enabled) {
-            MtlogLogger.debug("Mtlog analyzer is disabled", project)
+            MtlogLogger.debug("mtlog-analyzer is disabled", project)
             return null
         }
         

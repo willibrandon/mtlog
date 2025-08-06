@@ -12,7 +12,7 @@ import com.mtlog.analyzer.annotator.MtlogExternalAnnotator
 import com.mtlog.analyzer.settings.MtlogSettingsConfigurable
 
 /**
- * Service for managing mtlog analyzer notifications.
+ * Service for managing mtlog-analyzer notifications.
  */
 @Service(Service.Level.PROJECT)
 class MtlogNotificationService(private val project: Project) {

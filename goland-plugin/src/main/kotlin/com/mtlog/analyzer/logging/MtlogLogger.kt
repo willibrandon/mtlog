@@ -13,7 +13,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Centralized logger for mtlog analyzer that outputs to multiple destinations:
+ * Centralized logger for mtlog-analyzer that outputs to multiple destinations:
  * - IntelliJ's diagnostic logger (idea.log)
  * - ConsoleView in tool window
  * - Event Log notifications for important messages
@@ -101,7 +101,7 @@ object MtlogLogger {
         
         NotificationGroupManager.getInstance()
             .getNotificationGroup(NOTIFICATION_GROUP_ID)
-            .createNotification("mtlog Analyzer", message, notificationType)
+            .createNotification("mtlog-analyzer", message, notificationType)
             .notify(project)
     }
     

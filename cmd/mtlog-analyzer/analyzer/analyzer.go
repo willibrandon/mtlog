@@ -51,7 +51,7 @@ func init() {
 	Analyzer.Flags.String("suppress", "", "comma-separated list of diagnostic IDs to suppress (e.g., MTLOG001,MTLOG004)")
 }
 
-// Analyzer is the mtlog analyzer that checks for common logging mistakes.
+// Analyzer is the mtlog-analyzer that checks for common logging mistakes.
 // It can be used with go vet or as a standalone tool.
 var Analyzer = &analysis.Analyzer{
 	Name:     "mtlog",

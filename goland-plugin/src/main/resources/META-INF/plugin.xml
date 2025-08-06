@@ -42,14 +42,14 @@
         <notificationGroup id="mtlog.analyzer.log" displayType="BALLOON" isLogByDefault="true"/>
         
         <statusBarWidgetFactory
-            id="MtlogAnalyzer"
+            id="mtlog-analyzer"
             implementation="com.mtlog.analyzer.statusbar.MtlogStatusBarWidgetFactory"
             order="first"/>
             
         <postStartupActivity
             implementation="com.mtlog.analyzer.startup.MtlogStartupActivity"/>
             
-        <toolWindow id="mtlogAnalyzer"
+        <toolWindow id="mtlog-analyzer"
                     anchor="bottom"
                     factoryClass="com.mtlog.analyzer.toolwindow.MtlogConsoleToolWindowFactory"
                     secondary="false"

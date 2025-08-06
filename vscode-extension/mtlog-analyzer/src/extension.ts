@@ -159,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
             await config.update('diagnosticsEnabled', !currentState, vscode.ConfigurationTarget.Workspace);
             
             const newState = !currentState ? 'enabled' : 'disabled';
-            vscode.window.showInformationMessage(`mtlog analyzer ${newState}`);
+            vscode.window.showInformationMessage(`mtlog-analyzer ${newState}`);
             logWithTimestamp(outputChannel, `Diagnostics ${newState}`);
             
             // Re-analyze all open files
@@ -878,7 +878,7 @@ async function installAnalyzer() {
 
 function showDiagnosticsSummary() {
     outputChannel.clear();
-    outputChannel.appendLine('=== mtlog analyzer summary ===');
+    outputChannel.appendLine('=== mtlog-analyzer summary ===');
     outputChannel.appendLine('');
     
     const errorCount = countIssuesBySeverity(vscode.DiagnosticSeverity.Error);

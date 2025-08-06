@@ -104,7 +104,7 @@ class MtlogProjectService(
      * Updates the status bar widget to reflect current state.
      */
     fun updateStatusBarWidget() {
-        WindowManager.getInstance().getStatusBar(project)?.updateWidget("MtlogAnalyzer")
+        WindowManager.getInstance().getStatusBar(project)?.updateWidget("mtlog-analyzer")
     }
     
     /**
@@ -368,9 +368,7 @@ class MtlogProjectService(
             val exitCode = process.waitFor()
             MtlogLogger.info("Analyzer exit code: $exitCode", project)
             
-            if (errors.isNotEmpty()) {
-                MtlogLogger.warn("Analyzer stderr (${errors.length} chars): ${truncateForLog(errors)}", project)
-            }
+            // Stderr output is expected for compilation errors, no need to log
             if (output.isNotEmpty()) {
                 MtlogLogger.debug("Analyzer stdout (${output.length} chars): ${truncateForLog(output)}", project)
             } else if (content != null) {

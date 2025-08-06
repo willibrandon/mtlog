@@ -84,7 +84,7 @@ class MtlogSettingsConfigurable(private val project: Project) : BoundConfigurabl
                         getter = { state.logLevel },
                         setter = { state.logLevel = it ?: "INFO" }
                     )
-                comment("Controls the verbosity of plugin logging in the mtlog Analyzer console")
+                comment("Controls the verbosity of plugin logging in the mtlog-analyzer console")
             }
         }
         
