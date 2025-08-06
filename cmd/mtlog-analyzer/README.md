@@ -173,21 +173,47 @@ log.Information("User {userId} logged in", id) // lowercase property name
 
 ## IDE Integration
 
+Both VS Code and GoLand extensions provide real-time validation with automatic analyzer detection and installation:
+
 ### VS Code
 
-For the best experience in Visual Studio Code, install the [mtlog-analyzer extension](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer):
+Install the [mtlog-analyzer extension](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer) from the VS Code Marketplace:
 
-1. Install mtlog-analyzer: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
-2. Install the extension from VS Code Marketplace (search for "mtlog-analyzer")
-3. Get instant feedback on template errors as you type
+1. Search for "mtlog-analyzer" in Extensions
+2. Click Install
+3. The extension will automatically find mtlog-analyzer or prompt to install it
 
-The extension provides:
+Features:
 - 🔍 Real-time diagnostics with squiggly underlines
 - 🎯 Precise error locations - click to jump to issues
-- 📊 Three severity levels: errors, warnings, and suggestions
+- 💡 Quick fixes for common issues (property names, argument counts)
+- 🚀 Auto-detection in standard Go locations (`$GOBIN`, `$GOPATH/bin`, `~/go/bin`)
+- 📦 One-click installation if not found
 - ⚙️ Configurable analyzer path and flags
 
-For manual setup without the extension, you can configure the Go extension to use mtlog-analyzer:
+### GoLand / IntelliJ IDEA
+
+Install the [mtlog-analyzer plugin](https://plugins.jetbrains.com/plugin/24877-mtlog-analyzer) from JetBrains Marketplace:
+
+1. Go to **Settings → Plugins → Marketplace**
+2. Search for "mtlog-analyzer"
+3. Click Install and restart
+4. The plugin will automatically find mtlog-analyzer or show an install prompt
+
+Features:
+- 🔍 Real-time validation as you type
+- 🎨 Intelligent highlighting by severity
+- 💡 Quick fixes via Alt+Enter
+- 🚀 Auto-detection in standard Go locations
+- 📦 One-click installation notification
+- 📊 Status bar widget for quick access
+- 🔇 Diagnostic suppression support
+
+### Manual IDE Setup
+
+If you prefer not to use the extensions:
+
+**VS Code** (via Go extension):
 ```json
 {
   "go.lintTool": "golangci-lint",
@@ -196,14 +222,12 @@ For manual setup without the extension, you can configure the Go extension to us
 }
 ```
 
-### GoLand / IntelliJ IDEA
-
+**GoLand** (via Go vet settings):
 1. Go to **Settings → Go → Linters → Go vet**
 2. Add custom vet tool:
    - Click **+** to add a new tool
    - Set path to `mtlog-analyzer`
    - Add any desired flags (e.g., `-strict`)
-3. Use **Alt+Enter** on highlighted issues to apply suggested fixes
 
 ### Vim/Neovim (with vim-go)
 
@@ -230,7 +254,7 @@ go vet -vettool=$(which mtlog-analyzer) -json ./... > fixes.json
 
 ## Go Version Compatibility
 
-The analyzer requires Go 1.23.0 or later due to its dependency on newer analysis framework features. The analyzer is built with Go 1.24.1 toolchain for optimal performance.
+The analyzer requires Go 1.23 or later due to its dependency on newer analysis framework features. The analyzer is built with Go 1.24.1 toolchain for optimal performance.
 
 ## Limitations
 

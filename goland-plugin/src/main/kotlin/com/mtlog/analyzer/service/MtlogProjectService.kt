@@ -20,6 +20,12 @@ import kotlin.io.path.exists
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import java.io.BufferedReader
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
+import com.intellij.notification.NotificationAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.mtlog.analyzer.MtlogBundle
+import com.mtlog.analyzer.actions.InstallAnalyzerAction
 
 /**
  * Diagnostic information from mtlog-analyzer.
@@ -120,6 +126,7 @@ class MtlogProjectService(
                 val process = createAnalyzerProcess(path)
                 if (process == null) {
                     MtlogLogger.error("Failed to create analyzer process for: $path", project)
+                    showAnalyzerNotFoundNotification()
                     throw IllegalStateException("Failed to create analyzer process")
                 }
                 
@@ -178,19 +185,26 @@ class MtlogProjectService(
         }
     }
     
-    private fun findAnalyzerPath(): String? {
+    internal fun findAnalyzerPath(): String? {
         val configuredPath = state.analyzerPath
         MtlogLogger.debug("findAnalyzerPath - configured path: $configuredPath", project)
         
-        // If it's an absolute path, use it directly
+        // If it's an absolute path that exists, use it directly
         if (configuredPath != null && Paths.get(configuredPath).isAbsolute) {
             val exists = Paths.get(configuredPath).exists()
             MtlogLogger.debug("Absolute path exists: $exists", project)
-            return if (exists) configuredPath else null
+            if (exists) return configuredPath
         }
         
         // Try to find in PATH
-        return findInPath(configuredPath ?: "mtlog-analyzer")
+        val pathResult = findInPath(configuredPath ?: "mtlog-analyzer")
+        if (pathResult != null) {
+            MtlogLogger.debug("Found in PATH: $pathResult", project)
+            return pathResult
+        }
+        
+        // Try Go installation locations
+        return findInGoInstallations()
     }
     
     private fun findInPath(name: String): String? {
@@ -207,6 +221,74 @@ class MtlogProjectService(
             }
         }
         
+        return null
+    }
+    
+    /**
+     * Searches for mtlog-analyzer in standard Go installation locations.
+     * Follows Go's installation precedence: GOBIN → GOPATH/bin → $HOME/go/bin
+     */
+    private fun findInGoInstallations(): String? {
+        val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+        val executableName = if (isWindows) "mtlog-analyzer.exe" else "mtlog-analyzer"
+        
+        // 1. Check GOBIN
+        val gobin = System.getenv("GOBIN")
+        if (!gobin.isNullOrEmpty()) {
+            val gobinPath = Paths.get(gobin, executableName)
+            if (gobinPath.exists()) {
+                MtlogLogger.debug("Found in GOBIN: ${gobinPath.absolutePathString()}", project)
+                return gobinPath.absolutePathString()
+            }
+        }
+        
+        // 2. Check GOPATH/bin (can be multiple paths)
+        val gopath = System.getenv("GOPATH")
+        if (!gopath.isNullOrEmpty()) {
+            val separator = if (isWindows) ";" else ":"
+            gopath.split(separator).forEach { path ->
+                val gopathBin = Paths.get(path, "bin", executableName)
+                if (gopathBin.exists()) {
+                    MtlogLogger.debug("Found in GOPATH/bin: ${gopathBin.absolutePathString()}", project)
+                    return gopathBin.absolutePathString()
+                }
+            }
+        }
+        
+        // 3. Check $HOME/go/bin (default when GOPATH not set)
+        val userHome = System.getProperty("user.home")
+        if (!userHome.isNullOrEmpty()) {
+            val defaultGoBin = Paths.get(userHome, "go", "bin", executableName)
+            if (defaultGoBin.exists()) {
+                MtlogLogger.debug("Found in ~/go/bin: ${defaultGoBin.absolutePathString()}", project)
+                return defaultGoBin.absolutePathString()
+            }
+        }
+        
+        // 4. Platform-specific locations
+        when {
+            isWindows -> {
+                // Check %LOCALAPPDATA%\Microsoft\WindowsApps (for scoop, etc.)
+                val localAppData = System.getenv("LOCALAPPDATA")
+                if (!localAppData.isNullOrEmpty()) {
+                    val windowsApps = Paths.get(localAppData, "Microsoft", "WindowsApps", executableName)
+                    if (windowsApps.exists()) {
+                        MtlogLogger.debug("Found in WindowsApps: ${windowsApps.absolutePathString()}", project)
+                        return windowsApps.absolutePathString()
+                    }
+                }
+            }
+            System.getProperty("os.name").lowercase().contains("mac") -> {
+                // Check /usr/local/go/bin (common on macOS)
+                val usrLocalGo = Paths.get("/usr", "local", "go", "bin", executableName)
+                if (usrLocalGo.exists()) {
+                    MtlogLogger.debug("Found in /usr/local/go/bin: ${usrLocalGo.absolutePathString()}", project)
+                    return usrLocalGo.absolutePathString()
+                }
+            }
+        }
+        
+        MtlogLogger.debug("mtlog-analyzer not found in any standard Go installation location", project)
         return null
     }
     
@@ -264,6 +346,7 @@ class MtlogProjectService(
         val analyzerPath = findAnalyzerPath()
         if (analyzerPath == null) {
             MtlogLogger.error("Could not find mtlog-analyzer", project)
+            showAnalyzerNotFoundNotification()
             return null
         }
         
@@ -715,5 +798,37 @@ class MtlogProjectService(
         }
         
         return diagnostics
+    }
+    
+    /**
+     * Shows a notification when mtlog-analyzer is not found.
+     */
+    private fun showAnalyzerNotFoundNotification() {
+        val notification = NotificationGroupManager.getInstance()
+            .getNotificationGroup("mtlog.analyzer")
+            .createNotification(
+                MtlogBundle.message("notification.analyzer.not.found"),
+                MtlogBundle.message("notification.analyzer.not.found.content"),
+                NotificationType.WARNING
+            )
+        
+        // Add Install action
+        notification.addAction(object : NotificationAction("Install") {
+            override fun actionPerformed(e: AnActionEvent, notification: com.intellij.notification.Notification) {
+                InstallAnalyzerAction().actionPerformed(e)
+                notification.expire()
+            }
+        })
+        
+        // Add Settings action
+        notification.addAction(object : NotificationAction("Settings") {
+            override fun actionPerformed(e: AnActionEvent, notification: com.intellij.notification.Notification) {
+                com.intellij.openapi.options.ShowSettingsUtil.getInstance()
+                    .showSettingsDialog(project, com.mtlog.analyzer.settings.MtlogSettingsConfigurable::class.java)
+                notification.expire()
+            }
+        })
+        
+        notification.notify(project)
     }
 }

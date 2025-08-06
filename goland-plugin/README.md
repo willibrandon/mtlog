@@ -17,10 +17,7 @@ Real-time validation for mtlog message templates in GoLand and other JetBrains I
 ## Requirements
 
 - GoLand 2024.2 or later (or IntelliJ IDEA Ultimate with Go plugin)
-- mtlog-analyzer installed:
-  ```bash
-  go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
-  ```
+- mtlog-analyzer (automatically detected or can be installed via notification)
 
 ## Installation
 
@@ -30,7 +27,18 @@ Real-time validation for mtlog message templates in GoLand and other JetBrains I
    - Search for "mtlog-analyzer"
    - Click Install
 
-2. Or download the `.zip` file from releases and install manually
+2. The plugin will automatically find mtlog-analyzer if it's installed. If not found, you'll see a notification with an "Install" button for one-click installation.
+
+### Automatic Detection
+
+The plugin searches for mtlog-analyzer in the following locations (in order):
+1. Configured path in settings
+2. System PATH
+3. Go binary locations:
+   - `$GOBIN`
+   - `$GOPATH/bin`
+   - `~/go/bin` (default Go install location)
+   - Platform-specific locations (e.g., `%LOCALAPPDATA%\Microsoft\WindowsApps` on Windows)
 
 ## Configuration
 
@@ -55,6 +63,24 @@ Use Alt+Enter on any diagnostic to see available quick fixes.
 You can suppress diagnostics using:
 - `//noinspection MTLog` - Suppress on the next line
 - `// MTLOG-IGNORE` - Inline suppression
+
+## Troubleshooting
+
+### "mtlog-analyzer not found"
+
+If the plugin can't find mtlog-analyzer:
+
+1. **Automatic Installation**: Click "Install" in the notification that appears
+2. **Manual Installation**: Run `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+3. **Custom Location**: Go to Settings → Tools → mtlog-analyzer and specify the full path
+4. **PATH Issues**: Ensure your Go bin directory is in your system PATH
+
+### No diagnostics appearing
+
+- Check the Event Log for analyzer errors
+- Verify mtlog-analyzer works from terminal: `mtlog-analyzer your-file.go`
+- Check Settings → Tools → mtlog-analyzer to ensure the plugin is enabled
+- Try restarting the analyzer from the status bar widget
 
 ## Development
 

@@ -24,7 +24,19 @@ class MtlogStartupActivity : ProjectActivity {
         EditorFactory.getInstance().eventMulticaster.addDocumentListener(documentListener, project)
         MtlogLogger.info("Registered MtlogDocumentListener", project)
         
+        // Check if analyzer is available
+        val service = project.service<MtlogProjectService>()
+        if (service.state.enabled) {
+            val analyzerPath = service.findAnalyzerPath()
+            if (analyzerPath == null) {
+                MtlogLogger.warn("mtlog-analyzer not found at startup", project)
+                // Don't show notification at startup - wait until user tries to use it
+            } else {
+                MtlogLogger.info("mtlog-analyzer found at: $analyzerPath", project)
+            }
+        }
+        
         // Log startup message
-        MtlogLogger.info("mtlog-analyzer started", project)
+        MtlogLogger.info("mtlog-analyzer plugin started", project)
     }
 }
