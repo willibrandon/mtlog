@@ -35,7 +35,7 @@ jobs:
     - name: Test mtlog-analyzer
       run: |
         cd cmd/mtlog-analyzer
-        go test -v ./...
+        go test -mod=readonly -v ./...
 
     - name: Test benchmarks module
       run: |
