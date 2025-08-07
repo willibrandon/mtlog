@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2025-08-07
+
+### Fixed
+- **GoLand Plugin** - Fixed @ApiStatus.OverrideOnly violation flagged by JetBrains verification
+  - Extracted installation logic to static companion method to avoid direct actionPerformed invocation
+  - Maintains full functionality while complying with IntelliJ Platform API requirements
+
 ## [0.7.4] - 2025-08-06
 
 ### Added
@@ -370,6 +377,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.7.5]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.5
 [0.7.4]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.4
 [0.7.3]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.3
 [0.7.2]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.2

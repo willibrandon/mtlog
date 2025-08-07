@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.4"
+version = "0.7.5"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,19 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.7.5</h2>
+            <ul>
+                <li>Fixed @ApiStatus.OverrideOnly violation flagged by JetBrains verification</li>
+                <li>Extracted installation logic to comply with IntelliJ Platform API requirements</li>
+            </ul>
+            <h2>0.7.4</h2>
+            <ul>
+                <li>Smart analyzer detection and auto-install prompts</li>
+                <li>Auto-detection in standard Go locations (GOBIN, GOPATH/bin, ~/go/bin)</li>
+                <li>Notification with Install/Settings actions when analyzer not found</li>
+                <li>Support for platform-specific locations (Windows Apps, /usr/local/go/bin)</li>
+                <li>Improved error messages with specific paths and solutions</li>
+            </ul>
             <h2>0.7.3</h2>
             <ul>
                 <li>Centralized all quick fixes in the analyzer for consistency</li>

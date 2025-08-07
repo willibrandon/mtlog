@@ -815,7 +815,7 @@ class MtlogProjectService(
         // Add Install action
         notification.addAction(object : NotificationAction("Install") {
             override fun actionPerformed(e: AnActionEvent, notification: com.intellij.notification.Notification) {
-                InstallAnalyzerAction().actionPerformed(e)
+                com.mtlog.analyzer.actions.InstallAnalyzerAction.installAnalyzer(project)
                 notification.expire()
             }
         })

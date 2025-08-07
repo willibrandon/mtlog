@@ -21,64 +21,69 @@ class InstallAnalyzerAction : AnAction() {
     
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        
-        ProgressManager.getInstance().run(object : Task.Backgroundable(
-            project,
-            "Installing mtlog-analyzer",
-            true
-        ) {
-            override fun run(indicator: ProgressIndicator) {
-                indicator.text = "Running go install..."
-                indicator.isIndeterminate = true
-                
-                try {
-                    val process = ProcessBuilder(
-                        "go", "install", 
-                        "github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest"
-                    ).start()
+        installAnalyzer(project)
+    }
+    
+    companion object {
+        fun installAnalyzer(project: Project) {
+            ProgressManager.getInstance().run(object : Task.Backgroundable(
+                project,
+                "Installing mtlog-analyzer",
+                true
+            ) {
+                override fun run(indicator: ProgressIndicator) {
+                    indicator.text = "Running go install..."
+                    indicator.isIndeterminate = true
                     
-                    val reader = BufferedReader(InputStreamReader(process.inputStream))
-                    val errorReader = BufferedReader(InputStreamReader(process.errorStream))
-                    
-                    val output = StringBuilder()
-                    val error = StringBuilder()
-                    
-                    reader.lines().forEach { output.append(it).append("\n") }
-                    errorReader.lines().forEach { error.append(it).append("\n") }
-                    
-                    val exitCode = process.waitFor()
-                    
-                    if (exitCode == 0) {
-                        showNotification(
-                            project,
-                            MtlogBundle.message("notification.analyzer.installed"),
-                            NotificationType.INFORMATION
-                        )
+                    try {
+                        val process = ProcessBuilder(
+                            "go", "install", 
+                            "github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest"
+                        ).start()
                         
-                        // Restart processes to pick up new analyzer
-                        project.service<MtlogProjectService>().restartProcesses()
-                    } else {
+                        val reader = BufferedReader(InputStreamReader(process.inputStream))
+                        val errorReader = BufferedReader(InputStreamReader(process.errorStream))
+                        
+                        val output = StringBuilder()
+                        val error = StringBuilder()
+                        
+                        reader.lines().forEach { output.append(it).append("\n") }
+                        errorReader.lines().forEach { error.append(it).append("\n") }
+                        
+                        val exitCode = process.waitFor()
+                        
+                        if (exitCode == 0) {
+                            showNotification(
+                                project,
+                                MtlogBundle.message("notification.analyzer.installed"),
+                                NotificationType.INFORMATION
+                            )
+                            
+                            // Restart processes to pick up new analyzer
+                            project.service<MtlogProjectService>().restartProcesses()
+                        } else {
+                            showNotification(
+                                project,
+                                MtlogBundle.message("notification.analyzer.install.failed", error.toString()),
+                                NotificationType.ERROR
+                            )
+                        }
+                    } catch (e: Exception) {
                         showNotification(
                             project,
-                            MtlogBundle.message("notification.analyzer.install.failed", error.toString()),
+                            MtlogBundle.message("notification.analyzer.install.failed", e.message ?: "Unknown error"),
                             NotificationType.ERROR
                         )
                     }
-                } catch (e: Exception) {
-                    showNotification(
-                        project,
-                        MtlogBundle.message("notification.analyzer.install.failed", e.message ?: "Unknown error"),
-                        NotificationType.ERROR
-                    )
                 }
-            }
-        })
-    }
-    
-    private fun showNotification(project: Project, content: String, type: NotificationType) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("mtlog.notifications")
-            .createNotification(content, type)
-            .notify(project)
+            })
+        }
+        
+        private fun showNotification(project: Project, content: String, type: NotificationType) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("mtlog.notifications")
+                .createNotification(content, type)
+                .notify(project)
+        }
     }
 }
