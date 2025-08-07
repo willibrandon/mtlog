@@ -21,10 +21,13 @@ func TestSuggestedFixes(t *testing.T) {
 			name: "MTLOG006 - Missing error parameter fixes",
 			dir:  "suggestedfix/mtlog006",
 		},
+		{
+			name: "MTLOG007 - Context key constants",
+			dir:  "suggestedfix/mtlog007",
+		},
 		// TODO: Add test data for other diagnostics with suggested fixes:
 		// - MTLOG004 (PascalCase properties)
 		// - MTLOG005 (Capturing hints)
-		// - MTLOG007 (Context key constants)
 	}
 	
 	for _, tt := range tests {
