@@ -213,7 +213,7 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
 
             func main() {
                 log := mtlog.New()
-                log.Information("User {UserId} logged in at {Time}", 123, nil /* TODO: provide value for Time */)
+                log.Information("User {UserId} logged in at {Time}", 123, nil) // TODO: provide value for Time
             }
             """.trimIndent())
     }

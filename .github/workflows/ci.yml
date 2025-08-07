@@ -210,7 +210,9 @@ jobs:
       run: |
         # Run tests with real mtlog-analyzer
         export PATH=$HOME/go/bin:$PATH
-        ./gradlew test --info 2>&1 | grep -v "WARN.*directory not found" || true
+        # Use set -o pipefail to ensure grep doesn't hide test failures
+        set -o pipefail
+        ./gradlew test --info 2>&1 | grep -v "WARN.*directory not found"
     
     - name: Run Plugin Verifier
       working-directory: goland-plugin
