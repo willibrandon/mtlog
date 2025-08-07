@@ -145,8 +145,11 @@ jobs:
         go-version: '1.23'
         cache: false
 
-    - name: Install mtlog-analyzer
-      run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+    - name: Build and Install mtlog-analyzer
+      run: |
+        cd cmd/mtlog-analyzer
+        go build -o $HOME/go/bin/mtlog-analyzer .
+        cd ../..
 
     - name: Install dependencies
       working-directory: vscode-extension/mtlog-analyzer
@@ -188,8 +191,11 @@ jobs:
         go-version: '1.23'
         cache: false
     
-    - name: Install mtlog-analyzer
-      run: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+    - name: Build and Install mtlog-analyzer
+      run: |
+        cd cmd/mtlog-analyzer
+        go build -o $HOME/go/bin/mtlog-analyzer .
+        cd ../..
     
     - name: Make gradlew executable
       working-directory: goland-plugin
