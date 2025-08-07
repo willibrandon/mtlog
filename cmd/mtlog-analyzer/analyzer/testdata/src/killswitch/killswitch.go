@@ -22,7 +22,7 @@ func (l *Logger) ForContext(key string, value interface{}) *Logger { return l }
 
 func testKillSwitch() {
 	log := &Logger{}
-	
+
 	// With disable-all flag, NONE of these should produce diagnostics
 	log.Information("User {UserId} logged in", 123, 456) // No diagnostic expected
 	log.Warning("User {userId} logged in", 123)          // No diagnostic expected

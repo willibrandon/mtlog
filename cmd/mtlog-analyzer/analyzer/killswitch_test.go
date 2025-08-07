@@ -12,7 +12,7 @@ import (
 // TestDisableAll tests the global kill switch
 func TestDisableAll(t *testing.T) {
 	testdata := analysistest.TestData()
-	
+
 	// Create a new analyzer with disable-all flag
 	a := &analysis.Analyzer{
 		Name:     analyzer.Analyzer.Name,
@@ -21,7 +21,7 @@ func TestDisableAll(t *testing.T) {
 		Run:      analyzer.Analyzer.Run,
 		Flags:    flag.FlagSet{},
 	}
-	
+
 	// Copy flag definitions
 	analyzer.Analyzer.Flags.VisitAll(func(f *flag.Flag) {
 		if f.Value.String() == "false" {
@@ -30,10 +30,10 @@ func TestDisableAll(t *testing.T) {
 			a.Flags.String(f.Name, f.DefValue, f.Usage)
 		}
 	})
-	
+
 	// Set disable-all flag
 	a.Flags.Set("disable-all", "true")
-	
+
 	// Should produce no diagnostics
-	analysistest.Run(t, testdata, a, "killswitch_test")
+	analysistest.Run(t, testdata, a, "killswitch")
 }

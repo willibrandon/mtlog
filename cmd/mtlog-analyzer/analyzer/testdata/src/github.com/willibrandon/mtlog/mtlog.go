@@ -34,4 +34,4 @@ func (l *Logger) E(template string, args ...interface{}) {}
 func (l *Logger) F(template string, args ...interface{}) {}
 
 // ForContext returns a logger for the given context
-func (l *Logger) ForContext(key, value string) *Logger { return l }
+func (l *Logger) ForContext(key string, value interface{}) *Logger { return l }

@@ -19,6 +19,7 @@ A production-ready static analysis tool for mtlog that catches common mistakes a
 - **Severity levels** - Differentiates between errors, warnings, and suggestions
 - **Suggested fixes** - Provides automatic fixes for common issues
 - **Error type verification** - Validates that error arguments are actually error types
+- **String-to-constant extraction** - Automatically extracts repeated context keys to constants
 
 ## Installation
 
@@ -81,6 +82,11 @@ log.Information("User {UserId} did {Action} as {UserId}", id, "login", id)
 
 // ❌ Using @ prefix for basic type
 log.Information("Count is {@Count}", 42)
+
+// ⚠️ Repeated context key - suggests extracting to constant
+log.ForContext("user_id", 123).Information("Login")
+log.ForContext("user_id", 456).Information("Logout")
+// Quick fix creates: const userIDContextKey = "user_id"
 
 // ✅ Correct usage
 log.Information("User {@User} has {Count} items", user, count)
@@ -186,7 +192,11 @@ Install the [mtlog-analyzer extension](https://marketplace.visualstudio.com/item
 Features:
 - 🔍 Real-time diagnostics with squiggly underlines
 - 🎯 Precise error locations - click to jump to issues
-- 💡 Quick fixes for common issues (property names, argument counts)
+- 💡 Quick fixes for common issues:
+  - Property naming (snake_case → PascalCase)
+  - Template argument mismatches (add/remove arguments)
+  - Missing error parameters (detect and add error variables)
+  - String-to-constant extraction (create constants for repeated keys)
 - 🚀 Auto-detection in standard Go locations (`$GOBIN`, `$GOPATH/bin`, `~/go/bin`)
 - 📦 One-click installation if not found
 - ⚙️ Configurable analyzer path and flags

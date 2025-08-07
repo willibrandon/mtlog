@@ -1,0 +1,50 @@
+# Change Log
+
+All notable changes to the "mtlog-analyzer" extension will be documented in this file.
+
+## [0.7.6] - 2025-08-07
+
+### Added
+- String-to-constant quick fix support for MTLOG007 diagnostics
+  - Automatically extracts repeated context keys to constants
+  - Replaces all occurrences of the string literal with the new constant
+
+### Fixed
+- Updated to handle new TODO comment format from analyzer
+
+## [0.7.5] - 2025-08-06
+
+### Fixed
+- No changes to VS Code extension in this release
+
+## [0.7.4] - 2025-08-06
+
+### Added
+- Smart analyzer detection and auto-install prompts
+  - Auto-detection in standard Go locations (`$GOBIN`, `$GOPATH/bin`, `~/go/bin`)
+  - One-click installation prompt when analyzer not found
+  - Improved error messages with specific paths and solutions
+  - Automatic path caching for performance
+
+## [0.7.3] - 2025-08-05
+
+### Changed
+- Centralized all quick fixes in the analyzer
+  - Extension now uses analyzer-provided suggested fixes exclusively
+  - Transitioned from file-based to stdin-based communication
+  - Removed ~500 lines of duplicate quick fix code
+  - Improved performance with streaming analysis
+
+### Added
+- Support for MTLOG001 template argument quick fixes
+- Support for MTLOG006 missing error parameter quick fixes
+
+## [0.7.2] - 2025-08-04
+
+### Added
+- Initial release of mtlog-analyzer VS Code extension
+- Real-time diagnostics from mtlog-analyzer
+- Quick fixes for property naming (PascalCase)
+- Support for Windows, macOS, and Linux
+- Configurable analyzer path
+- Automatic save and reanalysis after applying fixes

@@ -6,7 +6,12 @@ func testTemplateMismatchFixes() {
 	log := mtlog.New()
 
 	// Too few arguments - should suggest adding placeholders
-	log.Information("User {UserId} performed {Action} on {Resource}", nil /* TODO: provide value for UserId */, nil /* TODO: provide value for Action */, nil /* TODO: provide value for Resource */) // want `\[MTLOG001\] template has 3 properties but 0 arguments provided`
+	log.Information("User {UserId} performed {Action} on {Resource}", nil, nil, nil) // want `\[MTLOG001\] template has 3 properties but 0 arguments provided`
+	// TODO: provide value for UserId, Action, Resource
+	
+	// Too few arguments with existing comment - TODO should go on next line
+	log.Information("Failed {Operation}", nil) // existing comment // want `\[MTLOG001\] template has 1 properties but 0 arguments provided`
+	// TODO: provide value for Operation
 
 	// Too many arguments - should suggest removing extras
 	log.Information("Hello {Name}", "Alice") // want `\[MTLOG001\] template has 1 properties but 3 arguments provided`

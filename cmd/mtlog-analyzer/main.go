@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"go/ast"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/willibrandon/mtlog/cmd/mtlog-analyzer/analyzer"
@@ -23,12 +25,12 @@ type StdinRequest struct {
 
 // StdinDiagnostic represents a diagnostic in the output format
 type StdinDiagnostic struct {
-	Filename  string `json:"filename"`
-	Line      int    `json:"line"`
-	Column    int    `json:"column"`
-	Message   string `json:"message"`
-	Severity  string `json:"severity"`
-	DiagnosticID string `json:"diagnostic_id,omitempty"`
+	Filename       string         `json:"filename"`
+	Line           int            `json:"line"`
+	Column         int            `json:"column"`
+	Message        string         `json:"message"`
+	Severity       string         `json:"severity"`
+	DiagnosticID   string         `json:"diagnostic_id,omitempty"`
 	SuggestedFixes []SuggestedFix `json:"suggestedFixes,omitempty"`
 }
 
@@ -49,11 +51,8 @@ func main() {
 	// Check for -stdin flag before singlechecker processes args
 	stdinMode := false
 	fmt.Fprintf(os.Stderr, "Args: %v\n", os.Args)
-	for _, arg := range os.Args[1:] {
-		if arg == "-stdin" {
-			stdinMode = true
-			break
-		}
+	if slices.Contains(os.Args[1:], "-stdin") {
+		stdinMode = true
 	}
 
 	if stdinMode {
@@ -106,36 +105,27 @@ func runStdinMode() {
 }
 
 func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
-	// First try to detect if we're in a module context
-	hasModule := req.GoModule != ""
-	
+	// Convert relative path to absolute if needed
+	targetPath := req.Filename
+	if !filepath.IsAbs(targetPath) && req.GoModule != "" {
+		targetPath = filepath.Join(req.GoModule, targetPath)
+	}
+
 	// Use packages.Load with an overlay for the stdin content
 	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | 
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
 			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
-		Dir: req.GoModule,
+		Dir: filepath.Dir(targetPath),
 		Env: os.Environ(),
 		Overlay: map[string][]byte{
-			req.Filename: []byte(req.Content),
+			targetPath: []byte(req.Content),
 		},
 	}
-	
-	// If no module directory provided, try to work with current directory
-	if cfg.Dir == "" {
-		cfg.Dir = "."
-	}
-	
+
 	// Load the package containing our file
-	// Try to determine the package pattern from the file
-	var pattern string
-	if hasModule {
-		// For module mode, use "." to load the package in the module directory
-		pattern = "."
-	} else {
-		// For non-module mode, use file= pattern
-		pattern = "file=" + req.Filename
-	}
-	
+	// Use file= pattern to load specific file
+	pattern := "file=" + targetPath
+
 	pkgs, err := packages.Load(cfg, pattern)
 	if err != nil {
 		// If packages.Load fails completely, we could fall back to syntax-only analysis
@@ -143,17 +133,17 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 		fmt.Fprintf(os.Stderr, "Warning: packages.Load failed: %v\n", err)
 		return nil, fmt.Errorf("failed to load package: %w", err)
 	}
-	
+
 	if len(pkgs) == 0 {
 		return nil, fmt.Errorf("no packages found")
 	}
-	
+
 	// Handle multiple packages if necessary
 	var pkg *packages.Package
 	for _, p := range pkgs {
 		// Find the package that contains our file
 		for _, f := range p.GoFiles {
-			if f == req.Filename {
+			if f == targetPath || filepath.Base(f) == filepath.Base(targetPath) {
 				pkg = p
 				break
 			}
@@ -162,32 +152,33 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 			break
 		}
 	}
-	
+
 	// If we didn't find a package with our file, just use the first one
 	if pkg == nil && len(pkgs) > 0 {
 		pkg = pkgs[0]
 	}
-	
+
 	if pkg == nil {
-		return nil, fmt.Errorf("no package found containing %s", req.Filename)
+		return nil, fmt.Errorf("no package found containing %s", targetPath)
 	}
-	
+
 	if len(pkg.Errors) > 0 {
 		for _, err := range pkg.Errors {
 			fmt.Fprintf(os.Stderr, "Package error: %v\n", err)
 		}
 		// Don't fail on package errors - we can still do syntax-level analysis
 	}
-	
+
 	// Find our file in the package
 	var targetFile *ast.File
 	for _, f := range pkg.Syntax {
-		if pkg.Fset.Position(f.Pos()).Filename == req.Filename {
+		pos := pkg.Fset.Position(f.Pos()).Filename
+		if pos == targetPath || filepath.Base(pos) == filepath.Base(targetPath) {
 			targetFile = f
 			break
 		}
 	}
-	
+
 	if targetFile == nil {
 		return nil, fmt.Errorf("could not find target file in package")
 	}
@@ -208,7 +199,7 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 	var diagnostics []StdinDiagnostic
 	pass.Report = func(diag analysis.Diagnostic) {
 		pos := pkg.Fset.Position(diag.Pos)
-		
+
 		// Extract diagnostic ID from message if present
 		diagID := ""
 		message := diag.Message
@@ -259,7 +250,7 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 
 	// Initialize required analyzer state
 	pass.ResultOf = make(map[*analysis.Analyzer]interface{})
-	
+
 	// Also add inspect.Analyzer result if needed
 	if len(analyzer.Analyzer.Requires) > 0 {
 		// The analyzer requires inspect.Analyzer
@@ -282,4 +273,3 @@ func analyzeContent(req StdinRequest) ([]StdinDiagnostic, error) {
 	fmt.Fprintf(os.Stderr, "Returning %d diagnostics\n", len(diagnostics))
 	return diagnostics, nil
 }
-
