@@ -24,6 +24,12 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+// Common acronyms that should be all caps in constant names
+var commonAcronyms = []string{"ID", "URL", "API", "HTTP", "HTTPS", "DNS", "IP", "CPU", "RAM", "OS", "DB"}
+
+// Maximum attempts for making unique constant names
+const uniqueConstNameMaxAttempts = 100
+
 // Diagnostic IDs for suppression
 const (
 	DiagIDTemplateMismatch  = "MTLOG001" // Template/argument count mismatch
@@ -64,11 +70,70 @@ var Analyzer = &analysis.Analyzer{
 // Template cache to avoid redundant parsing within a single pass
 type templateCache struct {
 	cache map[string]templateInfo
+	fileCache map[string]*cachedFile  // Cache for source files
 }
 
 type templateInfo struct {
 	properties []string
 	err        error
+}
+
+// cachedFile holds cached source file content for indentation extraction
+type cachedFile struct {
+	lines []string  // Cached lines of the file
+}
+
+// getSourceLine retrieves a specific line from the source file, using cache if possible
+func (tc *templateCache) getSourceLine(filename string, lineNum int) (string, error) {
+	// Check if file is already cached
+	if tc.fileCache == nil {
+		tc.fileCache = make(map[string]*cachedFile)
+	}
+	
+	cached, exists := tc.fileCache[filename]
+	if !exists {
+		// Read the file for the first time
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			return "", err
+		}
+		
+		lines := strings.Split(string(content), "\n")
+		cached = &cachedFile{lines: lines}
+		tc.fileCache[filename] = cached
+	}
+	
+	// Return the requested line (1-based line numbers)
+	if lineNum <= 0 || lineNum > len(cached.lines) {
+		return "", fmt.Errorf("line %d out of range", lineNum)
+	}
+	
+	return cached.lines[lineNum-1], nil
+}
+
+// extractIndentation extracts the leading whitespace from a line
+func extractIndentation(line string) string {
+	var indent strings.Builder
+	for _, r := range line {
+		if r == '\t' || r == ' ' {
+			indent.WriteRune(r)
+		} else {
+			break
+		}
+	}
+	return indent.String()
+}
+
+// containsMixedIndent checks if the byte count suggests mixed tabs/spaces
+// For example: 3 bytes could be tab+2spaces, 4 bytes could be 4 spaces (not tabs)
+func containsMixedIndent(bytes int) bool {
+	// Common mixed patterns in Go code (rare but possible):
+	// 3 = tab + 2 spaces
+	// 5 = tab + 4 spaces  
+	// 6 = tab + 5 spaces
+	// 7 = tab + 6 spaces
+	// Basically any non-tab-aligned count could be mixed
+	return bytes == 3 || bytes == 5 || bytes == 6 || bytes == 7
 }
 
 // Severity levels for diagnostics
@@ -468,15 +533,27 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 			var todoEdit analysis.TextEdit
 			if hasExistingComment && lastCommentEnd > 0 {
 				// There's an existing comment, put TODO on the next line with proper indentation
-				// Get the indentation of the current line
-				callStartCol := pass.Fset.Position(call.Pos()).Column
+				// Use optimized approach: try token-based first, read file only if needed
+				file := pass.Fset.File(call.Pos())
+				lineStart := file.LineStart(file.Line(call.Pos()))
+				indentBytes := file.Offset(call.Pos()) - file.Offset(lineStart)
 				
-				// Use tabs for indentation to match Go conventions
-				indent := "\n"
-				for i := 1; i < callStartCol; i++ {
-					if i%8 == 1 {
-						indent += "\t"
+				var indent string
+				
+				// Check if we likely have mixed indentation
+				// This catches cases like tab+2spaces (3 bytes) or tab+tab+2spaces (4 bytes)
+				if indentBytes > 0 && containsMixedIndent(indentBytes) {
+					// Need to read actual source to preserve mixed indentation
+					pos := pass.Fset.Position(call.Pos())
+					if line, err := cache.getSourceLine(pos.Filename, pos.Line); err == nil {
+						indent = "\n" + extractIndentation(line)
+					} else {
+						// Fallback to tabs if we can't read the file
+						indent = "\n" + strings.Repeat("\t", indentBytes)
 					}
+				} else {
+					// Standard tab indentation (most common case, no file read needed)
+					indent = "\n" + strings.Repeat("\t", indentBytes)
 				}
 				
 				todoComment := indent + "// TODO: provide value for " + strings.Join(missingProps, ", ")
@@ -1005,53 +1082,57 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 	// Check if the key argument is a string literal
 	if lit, ok := call.Args[keyArgIndex].(*ast.BasicLit); ok && lit.Value != "" {
 		key := strings.Trim(lit.Value, `"`)
-		// Suggest using constants for common keys (from config)
-		for _, common := range config.CommonContextKeys {
-			if strings.EqualFold(key, common) {
-				// Check if diagnostic is suppressed
-				if !config.SuppressedDiagnostics[DiagIDContextKey] {
-					diagnostic := analysis.Diagnostic{
-						Pos:     lit.Pos(),
-						End:     lit.End(),
-						Message: fmt.Sprintf("[%s] suggestion: consider defining a constant for commonly used context key '%s'", DiagIDContextKey, key),
-					}
-					
-					// Get the file for this call
-					var file *ast.File
-					for _, f := range pass.Files {
-						if pass.Fset.Position(f.Pos()).Filename == pass.Fset.Position(lit.Pos()).Filename {
-							file = f
-							break
-						}
-					}
-					
-					if file != nil {
-						// Try to create comprehensive quick fix (only if 2+ occurrences)
-						fix := createContextKeyQuickFix(pass, lit, key)
-						if fix != nil {
-							diagnostic.SuggestedFixes = []analysis.SuggestedFix{*fix}
-						} else {
-							// Fallback to simple replacement suggestion (for single occurrences)
-							constName := generateContextKeyName(key)
-							diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
-								Message: fmt.Sprintf("Replace with constant %s", constName),
-								TextEdits: []analysis.TextEdit{{
-									Pos:     lit.Pos(),
-									End:     lit.End(),
-									NewText: []byte(constName),
-								}},
-							}}
-						}
-					}
-					
-					pass.Report(diagnostic)
-				}
-				break
-			}
-		}
+		checkCommonContextKey(pass, lit, key, config)
 	}
 }
 
+// checkCommonContextKey checks if a context key is common and suggests using a constant
+func checkCommonContextKey(pass *analysis.Pass, lit *ast.BasicLit, key string, config *Config) {
+	// Suggest using constants for common keys (from config)
+	for _, common := range config.CommonContextKeys {
+		if strings.EqualFold(key, common) {
+			// Check if diagnostic is suppressed
+			if !config.SuppressedDiagnostics[DiagIDContextKey] {
+				diagnostic := analysis.Diagnostic{
+					Pos:     lit.Pos(),
+					End:     lit.End(),
+					Message: fmt.Sprintf("[%s] suggestion: consider defining a constant for commonly used context key '%s'", DiagIDContextKey, key),
+				}
+				
+				// Get the file for this call
+				var file *ast.File
+				for _, f := range pass.Files {
+					if pass.Fset.Position(f.Pos()).Filename == pass.Fset.Position(lit.Pos()).Filename {
+						file = f
+						break
+					}
+				}
+				
+				if file != nil {
+					// Try to create comprehensive quick fix (only if 2+ occurrences)
+					fix := createContextKeyQuickFix(pass, lit, key)
+					if fix != nil {
+						diagnostic.SuggestedFixes = []analysis.SuggestedFix{*fix}
+					} else {
+						// Fallback to simple replacement suggestion (for single occurrences)
+						constName := generateContextKeyName(key)
+						diagnostic.SuggestedFixes = []analysis.SuggestedFix{{
+							Message: fmt.Sprintf("Replace with constant %s", constName),
+							TextEdits: []analysis.TextEdit{{
+								Pos:     lit.Pos(),
+								End:     lit.End(),
+								NewText: []byte(constName),
+							}},
+						}}
+					}
+				}
+				
+				pass.Report(diagnostic)
+			}
+			break
+		}
+	}
+}
 
 // checkErrorLoggingWithConfig checks for proper error logging patterns
 func checkErrorLoggingWithConfig(pass *analysis.Pass, call *ast.CallExpr, config *Config) {
@@ -1499,9 +1580,7 @@ func toPascalCase(s string) string {
 	return result
 }
 
-// ============================================================================
-// String-to-Constant Quick Fix Implementation (MTLOG007)
-// ============================================================================
+// --- String-to-Constant Quick Fix Implementation (MTLOG007) ---
 
 // createContextKeyQuickFix creates a comprehensive quick fix for extracting string literals to constants
 func createContextKeyQuickFix(pass *analysis.Pass, lit *ast.BasicLit, key string) *analysis.SuggestedFix {
@@ -1679,8 +1758,7 @@ func splitIntoWords(s string) []string {
 
 // isCommonAcronym checks if a word is a common acronym that should be all caps
 func isCommonAcronym(word string) bool {
-	acronyms := []string{"ID", "URL", "API", "HTTP", "HTTPS", "DNS", "IP", "CPU", "RAM", "OS", "DB"}
-	for _, acronym := range acronyms {
+	for _, acronym := range commonAcronyms {
 		if word == acronym {
 			return true
 		}
@@ -1695,7 +1773,7 @@ func makeUniqueConstName(name string, pkg *types.Package) string {
 	}
 	
 	// Add numeric suffix
-	for i := 2; i < 100; i++ {
+	for i := 2; i < uniqueConstNameMaxAttempts; i++ {
 		candidate := fmt.Sprintf("%s%d", name, i)
 		if pkg.Scope().Lookup(candidate) == nil {
 			return candidate

@@ -395,11 +395,21 @@ class StringToConstantQuickFixTest : MtlogIntegrationTestBase() {
             println("  Diagnostic: $diag")
         }
         
-        // Wait a bit for the results to be processed
-        Thread.sleep(500)
+        // Wait for highlights to be available, up to 5 seconds
+        val maxWaitMillis = 5000L
+        val pollIntervalMillis = 100L
+        var highlights: List<com.intellij.codeInsight.daemon.impl.HighlightInfo>? = null
+        val startTime = System.currentTimeMillis()
         
-        // Force a full highlighting pass which includes external annotators
-        val highlights = myFixture.doHighlighting()
+        while (System.currentTimeMillis() - startTime < maxWaitMillis) {
+            highlights = myFixture.doHighlighting()
+            if (highlights.isNotEmpty()) break
+            Thread.sleep(pollIntervalMillis)
+        }
+        
+        if (highlights == null || highlights.isEmpty()) {
+            error("No highlights found after waiting for $maxWaitMillis ms")
+        }
         println("Highlights found: ${highlights.size}")
         highlights.forEach { highlight ->
             println("  - ${highlight.description}: ${highlight.text} (severity: ${highlight.severity})")
