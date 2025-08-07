@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.5"
+version = "0.7.6"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,13 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.7.6</h2>
+            <ul>
+                <li>Added string-to-constant quick fix for MTLOG007 diagnostics</li>
+                <li>Extracts repeated context keys to properly named constants</li>
+                <li>Comprehensive test coverage with 10 different scenarios</li>
+                <li>Fixed test expectation for new TODO comment format</li>
+            </ul>
             <h2>0.7.5</h2>
             <ul>
                 <li>Fixed @ApiStatus.OverrideOnly violation flagged by JetBrains verification</li>

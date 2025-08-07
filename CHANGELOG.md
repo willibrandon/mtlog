@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.5] - 2025-08-07
+## [0.7.6] - 2025-08-07
+
+### Added
+- **Analyzer** - MTLOG007 quick fix for extracting repeated string literals to constants
+  - Detects when context keys (e.g., "user_id", "request_id") are used multiple times
+  - Generates appropriately named constants following Go naming conventions
+  - Intelligently handles acronyms (ID, URL, API, etc.) in constant names
+  - Finds optimal insertion position for const declarations
+  
+- **VS Code Extension** - String-to-constant quick fix support
+  - Automatically applies MTLOG007 suggested fixes from analyzer
+  - Replaces all occurrences of the string literal with the new constant
+  
+- **GoLand Plugin** - String-to-constant quick fix support  
+  - Full support for MTLOG007 suggested fixes
+  - Comprehensive test coverage with 10 different scenarios
+
+### Fixed
+- **Analyzer** - MTLOG001 TODO comment placement for existing inline comments
+  - Now places TODO on next line when there's already a comment on the same line
+  - Prevents double comments and maintains better code readability
+  
+- **CI/CD** - GoLand plugin tests now properly fail the CI pipeline
+  - Removed `|| true` that was hiding test failures
+  - Builds analyzer from source instead of using @latest for accurate testing
+
+## [0.7.5] - 2025-08-06
 
 ### Fixed
 - **GoLand Plugin** - Fixed @ApiStatus.OverrideOnly violation flagged by JetBrains verification
