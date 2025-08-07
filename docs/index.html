@@ -108,9 +108,6 @@
                     <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">Docs</a>
                     <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">GitHub</a>
                     <a href="/quick-reference" class="text-gray-400 hover:text-gray-100 transition">Reference</a>
-                    <span class="text-gray-700">|</span>
-                    <a href="https://plugins.jetbrains.com/plugin/28090-mtlog-analyzer" class="text-gray-400 hover:text-gray-100 transition">GoLand</a>
-                    <a href="https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer" class="text-gray-400 hover:text-gray-100 transition">VS Code</a>
                 </nav>
                 <!-- Theme Switcher -->
                 <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme">
@@ -314,6 +311,57 @@ func main() {
                 <a href="https://github.com/willibrandon/mtlog#quick-start" class="text-blue-400 hover:underline">
                     See more examples →
                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- IDE Extensions -->
+    <section id="ide-extensions" class="py-16 px-4 border-t border-gray-800">
+        <div class="container mx-auto max-w-4xl">
+            <h3 class="text-3xl font-bold text-center mb-8">IDE Extensions</h3>
+            <p class="text-gray-400 text-center mb-12">
+                Real-time validation for mtlog message templates with the mtlog-analyzer
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- VS Code Extension -->
+                <div class="bg-gray-800 rounded-lg p-8 text-center">
+                    <h4 class="text-xl font-semibold mb-4">Visual Studio Code</h4>
+                    <p class="text-gray-400 mb-6">
+                        Get instant feedback on template/argument mismatches, property naming, and more.
+                    </p>
+                    <a href="https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer" 
+                       class="inline-block">
+                        <img src="https://img.shields.io/visual-studio-marketplace/v/mtlog.mtlog-analyzer?style=for-the-badge&logo=visual-studio-code&label=VS%20Code%20Marketplace&color=007ACC" 
+                             alt="VS Code Marketplace">
+                    </a>
+                    <div class="mt-4">
+                        <code class="text-sm bg-gray-900 px-3 py-1 rounded">code --install-extension mtlog.mtlog-analyzer</code>
+                    </div>
+                </div>
+                
+                <!-- GoLand/IntelliJ Extension -->
+                <div class="bg-gray-800 rounded-lg p-8 text-center">
+                    <h4 class="text-xl font-semibold mb-4">GoLand / IntelliJ IDEA</h4>
+                    <p class="text-gray-400 mb-6">
+                        Real-time annotations with quick fixes for common issues.
+                    </p>
+                    <a href="https://plugins.jetbrains.com/plugin/28090-mtlog-analyzer" 
+                       class="inline-block">
+                        <img src="https://img.shields.io/jetbrains/plugin/v/28090?style=for-the-badge&logo=jetbrains&label=JetBrains%20Marketplace&color=000000" 
+                             alt="JetBrains Marketplace">
+                    </a>
+                    <div class="mt-4">
+                        <code class="text-sm bg-gray-900 px-3 py-1 rounded">Plugin ID: 28090</code>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-12 text-center">
+                <p class="text-gray-400 mb-4">First install the analyzer:</p>
+                <div class="bg-gray-800 rounded-lg p-4 inline-block">
+                    <code>go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest</code>
+                </div>
             </div>
         </div>
     </section>
