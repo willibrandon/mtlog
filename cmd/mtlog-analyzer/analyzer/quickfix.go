@@ -408,3 +408,123 @@ func createReplacementFix(occurrences []ast.Expr, constName, message string) *an
 		TextEdits: edits,
 	}
 }
+
+// suggestValidFormatSpecifier suggests a valid format specifier based on an invalid one
+func suggestValidFormatSpecifier(invalidFormat string) (string, bool) {
+	// Convert to lowercase for comparison
+	lower := strings.ToLower(invalidFormat)
+	
+	// Common mistakes and their corrections
+	switch {
+	// Integer/decimal formats
+	case lower == "d" || lower == "decimal" || lower == "int":
+		return "000", true
+	case strings.HasPrefix(lower, "d") && len(lower) > 1:
+		// e.g., "d3" -> "000"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return strings.Repeat("0", parseInt(digits, 3)), true
+		}
+		return "000", true
+		
+	// Float formats
+	case lower == "f" || lower == "float":
+		return "F2", true
+	case strings.HasPrefix(lower, "f") && len(lower) > 1:
+		// e.g., "f3" -> "F3"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return "F" + digits, true
+		}
+		return "F2", true
+		
+	// Percentage formats
+	case lower == "p" || lower == "percent" || lower == "percentage":
+		return "P", true
+	case strings.HasPrefix(lower, "p") && len(lower) > 1:
+		// e.g., "p1" -> "P1"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return "P" + digits, true
+		}
+		return "P", true
+		
+	// Exponential formats
+	case lower == "e" || lower == "exp" || lower == "exponential":
+		return "E", true
+	case strings.HasPrefix(lower, "e") && len(lower) > 1:
+		// e.g., "e2" -> "E2"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return "E" + digits, true
+		}
+		return "E", true
+		
+	// General formats
+	case lower == "g" || lower == "general":
+		return "G", true
+	case strings.HasPrefix(lower, "g") && len(lower) > 1:
+		// e.g., "g2" -> "G2"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return "G" + digits, true
+		}
+		return "G", true
+		
+	// Hexadecimal formats
+	case lower == "h" || lower == "hex" || lower == "hexadecimal":
+		return "X", true
+	case lower == "x" && len(invalidFormat) == 1:
+		// Single 'x' should become 'X' (uppercase is more common)
+		return "X", true
+	case strings.HasPrefix(lower, "h") && len(lower) > 1:
+		// e.g., "h8" -> "X8"
+		if digits := lower[1:]; isAllDigits(digits) {
+			return "X" + digits, true
+		}
+		return "X", true
+	case strings.HasPrefix(lower, "x") && len(lower) > 1:
+		// e.g., "x8" -> "X8" (keep original case)
+		if digits := lower[1:]; isAllDigits(digits) {
+			if invalidFormat[0] == 'X' {
+				return "X" + digits, true
+			}
+			return "x" + digits, true
+		}
+		return "X", true
+		
+	// Common .NET format strings that people might try
+	case lower == "c" || lower == "currency":
+		return "F2", true // Suggest float format for currency
+	case lower == "n" || lower == "number":
+		return "F0", true // Number format -> float with no decimals
+	case lower == "r" || lower == "roundtrip":
+		return "G", true // Roundtrip -> general format
+		
+	// Padding/alignment (just a number)
+	case isAllDigits(lower):
+		count := parseInt(lower, 3)
+		return strings.Repeat("0", count), true
+		
+	default:
+		// No suggestion available
+		return "", false
+	}
+}
+
+// isAllDigits checks if a string contains only digits
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// parseInt parses an integer with a default value
+func parseInt(s string, def int) int {
+	var val int
+	if n, err := fmt.Sscanf(s, "%d", &val); n == 1 && err == nil {
+		return val
+	}
+	return def
+}

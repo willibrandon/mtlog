@@ -65,6 +65,32 @@ func main() {
 }
 
 func runStdinMode() {
+	// Parse flags that were passed (excluding -stdin)
+	var analyzerFlags []string
+	for _, arg := range os.Args[1:] {
+		if arg != "-stdin" {
+			analyzerFlags = append(analyzerFlags, arg)
+		}
+	}
+	
+	// Apply flags to the analyzer
+	if len(analyzerFlags) > 0 {
+		fmt.Fprintf(os.Stderr, "Applying analyzer flags: %v\n", analyzerFlags)
+		for _, flag := range analyzerFlags {
+			// Remove leading dash(es)
+			flag = strings.TrimLeft(flag, "-")
+			
+			// Handle key=value flags
+			if strings.Contains(flag, "=") {
+				parts := strings.SplitN(flag, "=", 2)
+				analyzer.Analyzer.Flags.Set(parts[0], parts[1])
+			} else {
+				// Boolean flags
+				analyzer.Analyzer.Flags.Set(flag, "true")
+			}
+		}
+	}
+	
 	// Read JSON request from stdin
 	var req StdinRequest
 	decoder := json.NewDecoder(os.Stdin)

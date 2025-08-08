@@ -90,8 +90,36 @@ func validateFormatSpecifier(property string, config *Config) error {
 	}
 	
 	// Check if it's an alignment specifier
-	if len(format) > 0 && (format[0] == '-' || (format[0] >= '0' && format[0] <= '9')) {
-		return nil
+	// Alignment should be like "-10" (left align) or "10" (right align with spaces)
+	// But single digits like "3" are more likely intended as padding "000"
+	if len(format) > 0 {
+		if format[0] == '-' && len(format) > 1 {
+			// Check if rest is digits (e.g., "-10")
+			isAlign := true
+			for i := 1; i < len(format); i++ {
+				if format[i] < '0' || format[i] > '9' {
+					isAlign = false
+					break
+				}
+			}
+			if isAlign {
+				return nil
+			}
+		} else if len(format) >= 2 && format[0] >= '1' && format[0] <= '9' {
+			// Multi-digit alignment like "10", "20" etc
+			isAlign := true
+			for i := 1; i < len(format); i++ {
+				if format[i] < '0' || format[i] > '9' {
+					isAlign = false
+					break
+				}
+			}
+			if isAlign {
+				return nil
+			}
+		}
+		// Single digit is not considered alignment in strict mode
+		// It's probably meant to be padding like "000"
 	}
 	
 	// In strict mode, unknown formats are errors
