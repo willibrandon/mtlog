@@ -32,9 +32,12 @@ export class VSCodeMtlogLogger {
     
     /**
      * Initialize the logger singleton. Must be called before using static methods.
+     * Thread-safe: checks if instance already exists before creating.
      */
     static initialize(outputChannel: vscode.OutputChannel): void {
-        VSCodeMtlogLogger.instance = new VSCodeMtlogLogger(outputChannel);
+        if (!VSCodeMtlogLogger.instance) {
+            VSCodeMtlogLogger.instance = new VSCodeMtlogLogger(outputChannel);
+        }
     }
     
     /**

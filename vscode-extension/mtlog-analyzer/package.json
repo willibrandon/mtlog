@@ -112,6 +112,12 @@
           "default": [],
           "description": "List of diagnostic IDs to suppress",
           "uniqueItems": true
+        },
+        "mtlog.maxConcurrentAnalyses": {
+          "type": "number",
+          "minimum": 1,
+          "default": null,
+          "description": "Maximum number of files to analyze concurrently (defaults to CPU cores - 1)"
         }
       }
     }

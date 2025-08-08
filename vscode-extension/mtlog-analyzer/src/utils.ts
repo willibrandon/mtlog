@@ -33,12 +33,20 @@ export function findClosingParen(text: string, startPos: number): number {
         const char = text[i];
         
         // Handle string literals (", ', `)
-        if ((char === '"' || char === '\'' || char === '`') && (i === 0 || text[i-1] !== '\\')) {
-            if (!inString) {
-                inString = true;
-                stringChar = char;
-            } else if (char === stringChar) {
-                inString = false;
+        if (char === '"' || char === '\'' || char === '`') {
+            // Count preceding backslashes to determine if quote is escaped
+            let backslashCount = 0;
+            for (let j = i - 1; j >= 0 && text[j] === '\\'; j--) {
+                backslashCount++;
+            }
+            // If even number of backslashes (including 0), quote is not escaped
+            if (backslashCount % 2 === 0) {
+                if (!inString) {
+                    inString = true;
+                    stringChar = char;
+                } else if (char === stringChar) {
+                    inString = false;
+                }
             }
             continue;
         }

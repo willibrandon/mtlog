@@ -23,8 +23,18 @@ let analysisVersions = new Map<string, number>();
 let analysisQueue: string[] = [];
 /** Number of analyses currently running */
 let runningAnalyses = 0;
-/** Max parallel analyses (CPU cores - 1) */
-const maxConcurrentAnalyses = Math.max(1, os.cpus().length - 1);
+
+/**
+ * Get max parallel analyses from configuration or default to (CPU cores - 1).
+ */
+function getMaxConcurrentAnalyses(): number {
+    const config = vscode.workspace.getConfiguration('mtlog');
+    const userValue = config.get<number>('maxConcurrentAnalyses');
+    if (typeof userValue === 'number' && userValue > 0) {
+        return userValue;
+    }
+    return Math.max(1, os.cpus().length - 1);
+}
 
 /**
  * Initialize the diagnostics module with VS Code collections.
@@ -62,7 +72,8 @@ export function queueAnalysis(document: vscode.TextDocument): void {
  * Automatically called when capacity is available.
  */
 async function processQueue(): Promise<void> {
-    while (analysisQueue.length > 0 && runningAnalyses < maxConcurrentAnalyses) {
+    const maxConcurrent = getMaxConcurrentAnalyses();
+    while (analysisQueue.length > 0 && runningAnalyses < maxConcurrent) {
         const filePath = analysisQueue.shift();
         if (!filePath) continue;
         
@@ -315,7 +326,7 @@ function pushDiagInternal(
     
     // Validate line number exists in document
     const document = vscode.workspace.textDocuments.find(d => d.uri.fsPath === uri.fsPath);
-    if (!document || line - 1 >= document.lineCount) {
+    if (!document || line <= 0 || line - 1 >= document.lineCount) {
         if (outputChannel) {
             outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] Filtered out-of-range diagnostic: line ${line} (doc has ${document?.lineCount || 0} lines)`);
         }
