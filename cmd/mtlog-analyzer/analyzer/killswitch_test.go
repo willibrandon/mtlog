@@ -32,7 +32,9 @@ func TestDisableAll(t *testing.T) {
 	})
 
 	// Set disable-all flag
-	a.Flags.Set("disable-all", "true")
+	if err := a.Flags.Set("disable-all", "true"); err != nil {
+		t.Fatal(err)
+	}
 
 	// Should produce no diagnostics
 	analysistest.Run(t, testdata, a, "killswitch")

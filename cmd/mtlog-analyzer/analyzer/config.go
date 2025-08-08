@@ -1,5 +1,13 @@
 package analyzer
 
+import (
+	"flag"
+	"golang.org/x/tools/go/analysis"
+)
+
+// Environment variable for diagnostic suppression
+const EnvMtlogSuppress = "MTLOG_SUPPRESS"
+
 // Config holds configuration options for the analyzer
 type Config struct {
 	// CommonContextKeys defines additional context keys that should be considered "common"
@@ -40,4 +48,28 @@ func DefaultConfig() Config {
 		DisableAll:             false,
 		SuppressedDiagnostics:  make(map[string]bool),
 	}
+}
+
+// getBoolFlag is a helper function to lookup and extract boolean flag values
+func getBoolFlag(pass *analysis.Pass, flagName string) (bool, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if b, ok := getter.Get().(bool); ok {
+				return b, true
+			}
+		}
+	}
+	return false, false
+}
+
+// getStringFlag is a helper function to lookup and extract string flag values
+func getStringFlag(pass *analysis.Pass, flagName string) (string, bool) {
+	if f := pass.Analyzer.Flags.Lookup(flagName); f != nil {
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if s, ok := getter.Get().(string); ok {
+				return s, true
+			}
+		}
+	}
+	return "", false
 }

@@ -40,7 +40,9 @@ func TestIndividualSuppression(t *testing.T) {
 	})
 	
 	// Set suppress flag for MTLOG001
-	a.Flags.Set("suppress", "MTLOG001")
+	if err := a.Flags.Set("suppress", "MTLOG001"); err != nil {
+		t.Fatal(err)
+	}
 	
 	analysistest.Run(t, testdata, a, "suppress_mtlog001")
 }
@@ -68,7 +70,9 @@ func TestMultipleSuppression(t *testing.T) {
 	})
 	
 	// Set suppress flag for multiple IDs
-	a.Flags.Set("suppress", "MTLOG001,MTLOG004")
+	if err := a.Flags.Set("suppress", "MTLOG001,MTLOG004"); err != nil {
+		t.Fatal(err)
+	}
 	
 	analysistest.Run(t, testdata, a, "suppress_multiple")
 }
