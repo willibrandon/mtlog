@@ -54,23 +54,7 @@ class FormatSpecifierQuickFixTest : MtlogIntegrationTestBase() {
             println("  - ${it.description}")
         }
         
-        // For now, just check if we get ANY mtlog diagnostic
-        val hasMtlogDiagnostic = highlights.any { 
-            it.description?.contains("MTLOG") == true || 
-            it.description?.contains("format") == true ||
-            it.description?.contains("invalid") == true
-        }
-        
-        if (!hasMtlogDiagnostic) {
-            println("WARNING: No format specifier diagnostic found. This might be because:")
-            println("  1. The analyzer is not running with -strict flag")
-            println("  2. The analyzer is not installed or not found")
-            println("  3. The test environment is not set up correctly")
-            // For now, skip the test rather than fail
-            return
-        }
-        
-        // If we got here, we found the diagnostic - now check for quick fix
+        // Now check for quick fix
         val availableIntentions = myFixture.availableIntentions
         println("Available intentions: ${availableIntentions.map { it.text }}")
         
