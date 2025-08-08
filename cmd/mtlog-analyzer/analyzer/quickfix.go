@@ -469,8 +469,8 @@ func suggestValidFormatSpecifier(invalidFormat string) (string, bool) {
 	// Hexadecimal formats
 	case lower == "h" || lower == "hex" || lower == "hexadecimal":
 		return "X", true
-	case lower == "x" && len(invalidFormat) == 1:
-		// Single 'x' should become 'X' (uppercase is more common)
+	case len(invalidFormat) == 1 && (invalidFormat == "x" || invalidFormat == "X"):
+		// Single 'x' or 'X' should become 'X' (uppercase is standard)
 		return "X", true
 	case strings.HasPrefix(lower, "h") && len(lower) > 1:
 		// e.g., "h8" -> "X8"

@@ -107,6 +107,7 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 					propStart := -1
 					
 					for pos := 0; pos < len(templateStr); pos++ {
+						// Check for unescaped brace (mtlog uses {{ for escaping)
 						if templateStr[pos] == '{' && (pos == 0 || templateStr[pos-1] != '{') {
 							if propIndex == i {
 								propStart = pos + 1 // Skip the opening brace

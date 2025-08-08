@@ -40,11 +40,18 @@ class FormatSpecifierQuickFixTest : MtlogIntegrationTestBase() {
         
         myFixture.configureFromExistingVirtualFile(vFile)
         
-        // Wait for analyzer to run (longer for format specifier checks with strict mode)
-        Thread.sleep(2000)
+        // Poll for analyzer results with timeout
+        val maxWaitMillis = 5000L
+        val pollIntervalMillis = 100L
+        var waited = 0L
+        var highlights = myFixture.doHighlighting()
         
-        // Check that the inspection found the issue
-        val highlights = myFixture.doHighlighting()
+        // Keep polling until we get diagnostics or timeout
+        while (highlights.isEmpty() && waited < maxWaitMillis) {
+            Thread.sleep(pollIntervalMillis)
+            waited += pollIntervalMillis
+            highlights = myFixture.doHighlighting()
+        }
         
         // Debug output
         println("=== testInvalidIntegerFormat ===")
