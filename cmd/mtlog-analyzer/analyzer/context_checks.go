@@ -21,7 +21,7 @@ func checkContextUsage(pass *analysis.Pass, call *ast.CallExpr, config *Config) 
 			isContextCall = true
 			keyArgIndex = 0
 		case "PushProperty":
-			// Check if it's mtlog.PushProperty (package selector)
+			// Check if it's a package function call (mtlog.PushProperty) as opposed to a method call
 			if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "mtlog" {
 				isContextCall = true
 				keyArgIndex = 1 // PushProperty(logger, key, value)

@@ -13,7 +13,10 @@ import (
 // Common acronyms that should remain uppercase in constant names
 var commonAcronyms = []string{"ID", "URL", "API", "HTTP", "HTTPS", "DNS", "IP", "CPU", "RAM", "OS", "DB"}
 
-// Maximum attempts for making unique constant names
+// Maximum attempts for making unique constant names.
+// The value 100 is chosen as a reasonable upper bound to avoid excessive looping
+// when generating unique constant names. In practice, collisions are rare, so 100
+// attempts should be more than sufficient for expected use cases.
 const uniqueConstNameMaxAttempts = 100
 
 // Type checking helper functions

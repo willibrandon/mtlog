@@ -9,6 +9,16 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// templateMismatchContext groups parameters for creating template mismatch diagnostics
+type templateMismatchContext struct {
+	pass       *analysis.Pass
+	call       *ast.CallExpr
+	properties []string
+	argCount   int
+	cache      *templateCache
+	config     *Config
+}
+
 // checkTemplateArguments validates that the number of properties in the template
 // matches the number of arguments provided to the logging method.
 func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *templateCache, config *Config) {
@@ -69,7 +79,15 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	
 	// Check if argument count matches property count
 	if len(properties) != argCount {
-		createTemplateMismatchDiagnostic(pass, call, properties, argCount, cache, config)
+		ctx := &templateMismatchContext{
+			pass:       pass,
+			call:       call,
+			properties: properties,
+			argCount:   argCount,
+			cache:      cache,
+			config:     config,
+		}
+		createTemplateMismatchDiagnostic(ctx)
 		return
 	}
 
@@ -83,13 +101,13 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 }
 
 // createTemplateMismatchDiagnostic creates a diagnostic with suggested fixes for template/argument mismatch
-func createTemplateMismatchDiagnostic(pass *analysis.Pass, call *ast.CallExpr, properties []string, argCount int, cache *templateCache, config *Config) {
+func createTemplateMismatchDiagnostic(ctx *templateMismatchContext) {
 	message := fmt.Sprintf("template has %d properties but %d arguments provided", 
-		len(properties), argCount)
+		len(ctx.properties), ctx.argCount)
 	
 	// Apply downgrade if needed
 	severity := SeverityError
-	if config != nil && config.DowngradeErrors {
+	if ctx.config != nil && ctx.config.DowngradeErrors {
 		severity = SeverityWarning
 	}
 	
@@ -102,24 +120,24 @@ func createTemplateMismatchDiagnostic(pass *analysis.Pass, call *ast.CallExpr, p
 	message = fmt.Sprintf("[%s] %s", DiagIDTemplateMismatch, message)
 	
 	diagnostic := analysis.Diagnostic{
-		Pos:     call.Pos(),
-		End:     call.End(),
+		Pos:     ctx.call.Pos(),
+		End:     ctx.call.End(),
 		Message: message,
 	}
 	
 	// Add suggested fix based on the mismatch
-	if argCount < len(properties) {
-		addMissingArgumentsFix(&diagnostic, pass, call, properties, argCount, cache)
-	} else if argCount > len(properties) {
-		addExtraArgumentsFix(&diagnostic, call, properties, argCount)
+	if ctx.argCount < len(ctx.properties) {
+		addMissingArgumentsFix(&diagnostic, ctx.pass, ctx.call, ctx.properties, ctx.argCount, ctx.cache)
+	} else if ctx.argCount > len(ctx.properties) {
+		addExtraArgumentsFix(&diagnostic, ctx.call, ctx.properties, ctx.argCount)
 	}
 	
 	// Check if this diagnostic is suppressed
-	if config != nil && config.SuppressedDiagnostics[DiagIDTemplateMismatch] {
+	if ctx.config != nil && ctx.config.SuppressedDiagnostics[DiagIDTemplateMismatch] {
 		return // Diagnostic is suppressed
 	}
 	
-	pass.Report(diagnostic)
+	ctx.pass.Report(diagnostic)
 }
 
 // addMissingArgumentsFix adds a suggested fix for missing arguments
