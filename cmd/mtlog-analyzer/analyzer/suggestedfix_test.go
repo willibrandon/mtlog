@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
@@ -36,4 +37,27 @@ func TestSuggestedFixes(t *testing.T) {
 			analysistest.RunWithSuggestedFixes(t, testdata, Analyzer, tt.dir)
 		})
 	}
+}
+
+// TestMTLOG002FormatSpecifierFixes tests format specifier fixes with strict mode
+func TestMTLOG002FormatSpecifierFixes(t *testing.T) {
+	testdata := analysistest.TestData()
+	
+	// Save original flag state
+	originalStrict := false
+	if flag := Analyzer.Flags.Lookup("strict"); flag != nil {
+		if val, ok := flag.Value.(interface{ String() string }); ok {
+			originalStrict = val.String() == "true"
+		}
+	}
+	
+	// Set strict mode for this test
+	Analyzer.Flags.Set("strict", "true")
+	defer func() {
+		// Restore original state
+		Analyzer.Flags.Set("strict", fmt.Sprintf("%v", originalStrict))
+	}()
+	
+	// Run with suggested fix validation
+	analysistest.RunWithSuggestedFixes(t, testdata, Analyzer, "suggestedfix/mtlog002")
 }

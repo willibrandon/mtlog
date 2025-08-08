@@ -114,10 +114,10 @@
           "uniqueItems": true
         },
         "mtlog.maxConcurrentAnalyses": {
-          "type": "number",
+          "type": ["number", "null"],
           "minimum": 1,
           "default": null,
-          "description": "Maximum number of files to analyze concurrently (defaults to CPU cores - 1)"
+          "description": "Maximum number of files to analyze concurrently (defaults to CPU cores - 1 when not set)"
         }
       }
     }

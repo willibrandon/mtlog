@@ -92,8 +92,61 @@ func checkTemplateArguments(pass *analysis.Pass, call *ast.CallExpr, cache *temp
 	}
 
 	// Check for invalid format specifiers
-	for _, prop := range properties {
+	for i, prop := range properties {
 		if err := validateFormatSpecifier(prop, config); err != nil {
+			// Try to create a suggested fix for the invalid format
+			parts := strings.SplitN(prop, ":", 2)
+			if len(parts) == 2 {
+				propName := parts[0]
+				invalidFormat := parts[1]
+				
+				if suggestedFormat, ok := suggestValidFormatSpecifier(invalidFormat); ok {
+					// Find the position of this property in the template
+					templateStr := template
+					propIndex := 0
+					propStart := -1
+					
+					for pos := 0; pos < len(templateStr); pos++ {
+						// Check for unescaped brace (mtlog uses {{ for escaping)
+						if templateStr[pos] == '{' && (pos == 0 || templateStr[pos-1] != '{') {
+							if propIndex == i {
+								propStart = pos + 1 // Skip the opening brace
+								break
+							}
+							propIndex++
+						}
+					}
+					
+					if propStart >= 0 {
+						// Calculate the actual position in the file
+						litStart := lit.Pos() + 1 // Skip opening quote
+						propPos := litStart + token.Pos(propStart)
+						propEnd := propPos + token.Pos(len(prop))
+						
+						newProp := propName + ":" + suggestedFormat
+						
+						diagnostic := analysis.Diagnostic{
+							Pos:     call.Pos(),
+							End:     call.End(),
+							Message: fmt.Sprintf("[%s] invalid format specifier in property '%s': %v", 
+								DiagIDFormatSpecifier, prop, err),
+							SuggestedFixes: []analysis.SuggestedFix{{
+								Message: fmt.Sprintf("Change format from ':%s' to ':%s'", invalidFormat, suggestedFormat),
+								TextEdits: []analysis.TextEdit{{
+									Pos:     propPos,
+									End:     propEnd,
+									NewText: []byte(newProp),
+								}},
+							}},
+						}
+						
+						pass.Report(diagnostic)
+						continue
+					}
+				}
+			}
+			
+			// No suggested fix available, report without fix
 			reportDiagnosticWithID(pass, call.Pos(), SeverityError, config, DiagIDFormatSpecifier,
 				"invalid format specifier in property '%s': %v", prop, err)
 		}
