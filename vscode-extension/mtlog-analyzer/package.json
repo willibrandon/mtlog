@@ -112,6 +112,12 @@
           "default": [],
           "description": "List of diagnostic IDs to suppress",
           "uniqueItems": true
+        },
+        "mtlog.maxConcurrentAnalyses": {
+          "type": "number",
+          "minimum": 1,
+          "default": null,
+          "description": "Maximum number of files to analyze concurrently (defaults to CPU cores - 1)"
         }
       }
     }
@@ -125,14 +131,14 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
-    "@types/node": "16.x",
+    "@types/node": "18.x",
     "@types/vscode": "^1.74.0",
-    "@typescript-eslint/eslint-plugin": "^5.45.0",
-    "@typescript-eslint/parser": "^5.45.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
     "@vscode/test-electron": "^2.2.0",
-    "eslint": "^8.28.0",
+    "eslint": "^8.57.0",
     "mocha": "^10.1.0",
-    "typescript": "^4.9.3"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "glob": "^11.0.3"
