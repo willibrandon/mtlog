@@ -170,9 +170,9 @@ vim.api.nvim_create_user_command('MtlogCache', function(opts)
     vim.notify('mtlog cache cleared', vim.log.levels.INFO)
   elseif opts.args == 'stats' then
     local stats = cache.stats()
-    vim.notify(string.format('Cache: %d entries, ~%d bytes',
+    vim.notify(string.format('Cache: %d entries (hit rate: %.1f%%)',
       stats.entries,
-      stats.total_size
+      stats.hit_rate * 100
     ), vim.log.levels.INFO)
   else
     vim.notify('Usage: :MtlogCache [clear|stats]', vim.log.levels.WARN)

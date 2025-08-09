@@ -18,6 +18,9 @@ vim.opt.rtp:append(plenary_path)
 -- Set up package path for the plugin
 package.path = package.path .. ';./lua/?.lua;./lua/?/init.lua'
 
+-- Add tests directory to path for test utilities
+package.path = package.path .. ';./tests/?.lua'
+
 -- Configure for testing
 vim.g.mtlog_test_mode = true
 vim.g.mtlog_analyzer_path = '/home/brandon/go/bin/mtlog-analyzer'
