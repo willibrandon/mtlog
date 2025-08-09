@@ -85,6 +85,12 @@ jobs:
         chmod +x ./gradlew
         ./gradlew buildPlugin
 
+    - name: Package Neovim Plugin
+      run: |
+        cd neovim-plugin
+        tar czf ../mtlog-nvim.tar.gz .
+        cd ..
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -111,6 +117,20 @@ jobs:
           ### GoLand Plugin
           Install from JetBrains Marketplace or download the `.zip` file below.
           
+          ### Neovim Plugin
+          ```lua
+          -- Using lazy.nvim
+          {
+            'willibrandon/mtlog.nvim',
+            ft = 'go',
+            tag = '${{ steps.version.outputs.version }}',
+            config = function()
+              require('mtlog').setup()
+            end,
+          }
+          ```
+          Or download the `.tar.gz` file below for manual installation.
+          
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.prev_tag.outputs.prev_tag }}...${{ steps.version.outputs.version }}
         files: |
           mtlog-analyzer-linux-amd64
@@ -118,6 +138,7 @@ jobs:
           mtlog-analyzer-windows-amd64.exe
           vscode-extension/mtlog-analyzer/*.vsix
           goland-plugin/build/distributions/*.zip
+          mtlog-nvim.tar.gz
         draft: false
         prerelease: false
 
