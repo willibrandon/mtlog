@@ -553,14 +553,14 @@ func createLogValueStub(pass *analysis.Pass, argType types.Type) *analysis.Sugge
 	if named.Obj().Pkg() != pass.Pkg {
 		// For test purposes, also check if it's in the same file
 		typePos := named.Obj().Pos()
-		inCurrentFile := false
+		typeInCurrentFile := false
 		for _, file := range pass.Files {
 			if file.Pos() <= typePos && typePos < file.End() {
-				inCurrentFile = true
+				typeInCurrentFile = true
 				break
 			}
 		}
-		if !inCurrentFile {
+		if !typeInCurrentFile {
 			return nil
 		}
 	}

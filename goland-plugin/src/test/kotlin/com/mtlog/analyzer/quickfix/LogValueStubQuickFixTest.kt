@@ -171,23 +171,13 @@ class LogValueStubQuickFixTest : MtlogIntegrationTestBase() {
         
         // Force a full highlighting pass which includes external annotators
         val highlights = myFixture.doHighlighting()
-        println("=== applyQuickFixAndCheck ===")
-        println("Highlights found: ${highlights.size}")
-        highlights.forEach { highlight ->
-            println("  - ${highlight.description}: ${highlight.text} (severity: ${highlight.severity})")
-            highlight.findRegisteredQuickFix { descriptor, _ ->
-                println("    Quick fix: ${descriptor.action.text}")
-                null // Continue iteration
-            }
-        }
         
         // Verify MTLOG005 diagnostic exists
         val hasMtlog005 = highlights.any { it.description?.contains("MTLOG005") == true }
         assertTrue("Should have MTLOG005 diagnostic", hasMtlog005)
         
-        // Get all available intentions to debug
+        // Get all available intentions
         val allIntentions = myFixture.availableIntentions
-        println("Available intentions at caret: ${allIntentions.map { it.text }}")
         
         // Find the MTLOG005 highlight and its quick fixes
         val mtlog005Highlight = highlights.find { it.description?.contains("MTLOG005") == true }
@@ -197,7 +187,6 @@ class LogValueStubQuickFixTest : MtlogIntegrationTestBase() {
         var quickFixApplied = false
         mtlog005Highlight?.findRegisteredQuickFix { descriptor, range ->
             if (descriptor.action.text == quickFixText) {
-                println("Found matching quick fix: ${descriptor.action.text}")
                 myFixture.launchAction(descriptor.action)
                 quickFixApplied = true
                 return@findRegisteredQuickFix descriptor.action
@@ -220,23 +209,13 @@ class LogValueStubQuickFixTest : MtlogIntegrationTestBase() {
         
         // Force a full highlighting pass which includes external annotators
         val highlights = myFixture.doHighlighting()
-        println("=== applyQuickFixAndCheckContains ===")
-        println("Highlights found: ${highlights.size}")
-        highlights.forEach { highlight ->
-            println("  - ${highlight.description}: ${highlight.text} (severity: ${highlight.severity})")
-            highlight.findRegisteredQuickFix { descriptor, _ ->
-                println("    Quick fix: ${descriptor.action.text}")
-                null // Continue iteration
-            }
-        }
         
         // Verify MTLOG005 diagnostic exists
         val hasMtlog005 = highlights.any { it.description?.contains("MTLOG005") == true }
         assertTrue("Should have MTLOG005 diagnostic", hasMtlog005)
         
-        // Get all available intentions to debug
+        // Get all available intentions
         val allIntentions = myFixture.availableIntentions
-        println("Available intentions at caret: ${allIntentions.map { it.text }}")
         
         // Find the MTLOG005 highlight and its quick fixes
         val mtlog005Highlight = highlights.find { it.description?.contains("MTLOG005") == true }
@@ -246,7 +225,6 @@ class LogValueStubQuickFixTest : MtlogIntegrationTestBase() {
         var quickFixApplied = false
         mtlog005Highlight?.findRegisteredQuickFix { descriptor, range ->
             if (descriptor.action.text == quickFixText) {
-                println("Found matching quick fix: ${descriptor.action.text}")
                 myFixture.launchAction(descriptor.action)
                 quickFixApplied = true
                 return@findRegisteredQuickFix descriptor.action
