@@ -197,29 +197,42 @@ func checkDollarPrefix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, ar
 func checkNoPrefix(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, argType types.Type, propName string, config *Config) {
 	// No prefix - suggest @ for complex types
 	if !isBasicType(argType) && !isTimeType(argType) && !isStringer(argType) && !isErrorType(argType) {
-		// Create suggested fix to add @ prefix
+		// Check if diagnostic is suppressed
+		if config.SuppressedDiagnostics[DiagIDCapturingHints] {
+			return
+		}
+
+		var suggestedFixes []analysis.SuggestedFix
+		
+		// First fix: Add @ prefix
 		if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 			oldTemplate := lit.Value
 			newProp := "@" + propName
 			// Replace in the template, preserving quotes
 			newTemplate := strings.Replace(oldTemplate, "{"+propName, "{"+newProp, -1)
 			
-			// Check if diagnostic is suppressed
-			if !config.SuppressedDiagnostics[DiagIDCapturingHints] {
-				diag := analysis.Diagnostic{
-					Pos:     arg.Pos(),
-					Message: fmt.Sprintf("[%s] %s: consider using @ prefix for complex type %s to enable capturing", DiagIDCapturingHints, SeveritySuggestion, argType),
-					SuggestedFixes: []analysis.SuggestedFix{{
-						Message: fmt.Sprintf("Add @ prefix to '%s' for capturing", propName),
-						TextEdits: []analysis.TextEdit{{
-							Pos:     lit.Pos(),
-							End:     lit.End(),
-							NewText: []byte(newTemplate),
-						}},
-					}},
-				}
-				pass.Report(diag)
+			suggestedFixes = append(suggestedFixes, analysis.SuggestedFix{
+				Message: fmt.Sprintf("Add @ prefix to '%s' for capturing", propName),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     lit.Pos(),
+					End:     lit.End(),
+					NewText: []byte(newTemplate),
+				}},
+			})
+		}
+		
+		// Second fix: Generate LogValue() method stub
+		if logValueFix := createLogValueStub(pass, argType); logValueFix != nil {
+			suggestedFixes = append(suggestedFixes, *logValueFix)
+		}
+		
+		if len(suggestedFixes) > 0 {
+			diag := analysis.Diagnostic{
+				Pos:     arg.Pos(),
+				Message: fmt.Sprintf("[%s] %s: consider using @ prefix for complex type %s to enable capturing", DiagIDCapturingHints, SeveritySuggestion, argType),
+				SuggestedFixes: suggestedFixes,
 			}
+			pass.Report(diag)
 		} else {
 			reportDiagnosticWithID(pass, arg.Pos(), SeveritySuggestion, config, DiagIDCapturingHints,
 				"consider using @ prefix for complex type %s to enable capturing", argType)

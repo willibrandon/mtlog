@@ -19,6 +19,10 @@ func TestSuggestedFixes(t *testing.T) {
 			dir:  "suggestedfix/mtlog001",
 		},
 		{
+			name: "MTLOG005 - LogValue() stub generation",
+			dir:  "suggestedfix/mtlog005",
+		},
+		{
 			name: "MTLOG006 - Missing error parameter fixes",
 			dir:  "suggestedfix/mtlog006",
 		},
@@ -28,7 +32,6 @@ func TestSuggestedFixes(t *testing.T) {
 		},
 		// TODO: Add test data for other diagnostics with suggested fixes:
 		// - MTLOG004 (PascalCase properties)
-		// - MTLOG005 (Capturing hints)
 	}
 	
 	for _, tt := range tests {
