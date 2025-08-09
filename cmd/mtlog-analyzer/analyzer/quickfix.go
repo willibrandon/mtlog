@@ -528,3 +528,212 @@ func parseInt(s string, def int) int {
 	}
 	return def
 }
+
+// createLogValueStub generates a LogValue() method stub for a complex type
+func createLogValueStub(pass *analysis.Pass, argType types.Type) *analysis.SuggestedFix {
+	// Get the underlying named type
+	named, ok := argType.(*types.Named)
+	if !ok {
+		// Check if it's a pointer to a named type
+		if ptr, ok := argType.(*types.Pointer); ok {
+			named, ok = ptr.Elem().(*types.Named)
+			if !ok {
+				return nil
+			}
+		} else {
+			return nil
+		}
+	}
+	
+	// Don't generate for types from other packages
+	if named.Obj().Pkg() == nil {
+		return nil
+	}
+	// Check if the type is in the current package being analyzed
+	if named.Obj().Pkg() != pass.Pkg {
+		// For test purposes, also check if it's in the same file
+		typePos := named.Obj().Pos()
+		inCurrentFile := false
+		for _, file := range pass.Files {
+			if file.Pos() <= typePos && typePos < file.End() {
+				inCurrentFile = true
+				break
+			}
+		}
+		if !inCurrentFile {
+			return nil
+		}
+	}
+	
+	// Check if LogValue method already exists
+	if hasLogValueMethod(named) {
+		return nil
+	}
+	
+	// Get the struct type to inspect fields
+	structType, ok := named.Underlying().(*types.Struct)
+	if !ok {
+		// Not a struct, can't generate meaningful stub
+		return nil
+	}
+	
+	// Find the type declaration in the AST
+	typePos := named.Obj().Pos()
+	var targetFile *ast.File
+	for _, file := range pass.Files {
+		if file.Pos() <= typePos && typePos < file.End() {
+			targetFile = file
+			break
+		}
+	}
+	
+	if targetFile == nil {
+		return nil
+	}
+	
+	// Find the end of the type declaration to insert the method after
+	var typeDecl *ast.TypeSpec
+	ast.Inspect(targetFile, func(n ast.Node) bool {
+		if ts, ok := n.(*ast.TypeSpec); ok && ts.Name.Name == named.Obj().Name() {
+			typeDecl = ts
+			return false
+		}
+		return true
+	})
+	
+	if typeDecl == nil {
+		return nil
+	}
+	
+	// Generate the LogValue method stub
+	methodStub := generateLogValueMethodStub(named, structType)
+	
+	// Find the insertion point (after the type declaration)
+	insertPos := findMethodInsertPosition(targetFile, typeDecl)
+	
+	return &analysis.SuggestedFix{
+		Message: fmt.Sprintf("Generate LogValue() method for %s", named.Obj().Name()),
+		TextEdits: []analysis.TextEdit{{
+			Pos:     insertPos,
+			End:     insertPos,
+			NewText: []byte(methodStub),
+		}},
+	}
+}
+
+// hasLogValueMethod checks if a type already has a LogValue method
+func hasLogValueMethod(named *types.Named) bool {
+	for i := 0; i < named.NumMethods(); i++ {
+		method := named.Method(i)
+		if method.Name() == "LogValue" {
+			return true
+		}
+	}
+	return false
+}
+
+// generateLogValueMethodStub generates the LogValue method code
+func generateLogValueMethodStub(named *types.Named, structType *types.Struct) string {
+	typeName := named.Obj().Name()
+	receiverName := strings.ToLower(typeName[:1])
+	
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\n\n// LogValue provides a custom log representation for %s\n", typeName))
+	sb.WriteString(fmt.Sprintf("func (%s %s) LogValue() any {\n", receiverName, typeName))
+	sb.WriteString("\treturn map[string]any{\n")
+	
+	// List of common sensitive field names to warn about
+	sensitiveNames := map[string]bool{
+		"password": true, "pass": true, "passwd": true, "pwd": true,
+		"secret": true, "apikey": true, "api_key": true, "apiKey": true,
+		"token": true, "accesstoken": true, "access_token": true, "accessToken": true,
+		"refreshtoken": true, "refresh_token": true, "refreshToken": true,
+		"privatekey": true, "private_key": true, "privateKey": true,
+		"key": true, "authtoken": true, "auth_token": true, "authToken": true,
+		"credential": true, "credentials": true, "cred": true, "creds": true,
+		"ssn": true, "socialsecurity": true, "social_security": true,
+		"creditcard": true, "credit_card": true, "creditCard": true,
+		"cardnumber": true, "card_number": true, "cardNumber": true,
+		"cvv": true, "cvc": true, "securitycode": true, "security_code": true,
+	}
+	
+	// Generate field entries
+	for i := 0; i < structType.NumFields(); i++ {
+		field := structType.Field(i)
+		if !field.Exported() {
+			continue
+		}
+		
+		fieldName := field.Name()
+		fieldNameLower := strings.ToLower(fieldName)
+		
+		// Check if this might be a sensitive field
+		isSensitive := false
+		for sensitive := range sensitiveNames {
+			if strings.Contains(fieldNameLower, sensitive) {
+				isSensitive = true
+				break
+			}
+		}
+		
+		if isSensitive {
+			sb.WriteString(fmt.Sprintf("\t\t// \"%s\": %s.%s, // TODO: Review - potentially sensitive field\n", 
+				fieldName, receiverName, fieldName))
+		} else {
+			sb.WriteString(fmt.Sprintf("\t\t\"%s\": %s.%s,\n", fieldName, receiverName, fieldName))
+		}
+	}
+	
+	sb.WriteString("\t}\n")
+	sb.WriteString("}")
+	
+	return sb.String()
+}
+
+// findMethodInsertPosition finds where to insert a method for a type
+func findMethodInsertPosition(file *ast.File, typeDecl *ast.TypeSpec) token.Pos {
+	// First, try to find other methods for this type and insert after them
+	typeName := typeDecl.Name.Name
+	var lastMethodEnd token.Pos
+	
+	// Look for existing methods
+	for _, decl := range file.Decls {
+		if funcDecl, ok := decl.(*ast.FuncDecl); ok && funcDecl.Recv != nil {
+			if len(funcDecl.Recv.List) > 0 {
+				recvType := funcDecl.Recv.List[0].Type
+				
+				// Check if this is a method for our type
+				if ident, ok := recvType.(*ast.Ident); ok && ident.Name == typeName {
+					if funcDecl.End() > lastMethodEnd {
+						lastMethodEnd = funcDecl.End()
+					}
+				} else if star, ok := recvType.(*ast.StarExpr); ok {
+					if ident, ok := star.X.(*ast.Ident); ok && ident.Name == typeName {
+						if funcDecl.End() > lastMethodEnd {
+							lastMethodEnd = funcDecl.End()
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	if lastMethodEnd != 0 {
+		return lastMethodEnd
+	}
+	
+	// No existing methods, insert after the type declaration
+	// Find the GenDecl containing the TypeSpec
+	for _, decl := range file.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok {
+			for _, spec := range genDecl.Specs {
+				if spec == typeDecl {
+					return genDecl.End()
+				}
+			}
+		}
+	}
+	
+	// Fallback: insert at the end of the file
+	return file.End()
+}
