@@ -31,6 +31,9 @@ The extension provides automatic fixes for common issues:
 
 - **PascalCase property names** - Converts `userId` to `UserId`, `user_id` to `UserId`, etc.
 - **Argument mismatches** - Adds placeholder arguments for missing properties or removes excess arguments
+- **Format specifier corrections** - Fixes invalid format specifiers (e.g., `{Count:d3}` → `{Count:000}`)
+- **Context key constants** - Extracts repeated string literals to constants
+- **LogValue() method generation** - Creates stub implementations for safe logging of complex types
 
 Apply fixes by clicking the light bulb (💡) or pressing `Ctrl+.` (Windows/Linux) or `Cmd+.` (macOS) when your cursor is on the diagnostic.
 

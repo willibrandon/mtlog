@@ -20,6 +20,7 @@ A production-ready static analysis tool for mtlog that catches common mistakes a
 - **Suggested fixes** - Provides automatic fixes for common issues
 - **Error type verification** - Validates that error arguments are actually error types
 - **String-to-constant extraction** - Automatically extracts repeated context keys to constants
+- **LogValue() stub generation** - Creates safe logging implementations for complex types
 
 ## Installation
 
@@ -87,6 +88,14 @@ log.Information("Count is {@Count}", 42)
 log.ForContext("user_id", 123).Information("Login")
 log.ForContext("user_id", 456).Information("Logout")
 // Quick fix creates: const userIDContextKey = "user_id"
+
+// ⚠️ Invalid format specifier - suggests correction
+log.Information("Count: {Count:d3}", 42)
+// Quick fix changes to: {Count:000}
+
+// 💡 Complex type without capturing - suggests LogValue() stub
+log.Information("User details: {User}", user)
+// Quick fix generates LogValue() method with sensitive field detection
 
 // ✅ Correct usage
 log.Information("User {@User} has {Count} items", user, count)

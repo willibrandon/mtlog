@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.6"
+version = "0.7.7"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,14 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.7.7</h2>
+            <ul>
+                <li>Added format specifier quick fixes for MTLOG002 diagnostics</li>
+                <li>Automatically corrects invalid format specifiers (e.g., "d3" → "000", "f2" → "F2")</li>
+                <li>Added LogValue() method stub generation for MTLOG005 diagnostics</li>
+                <li>Smart detection and commenting of sensitive fields (passwords, tokens, API keys)</li>
+                <li>Comprehensive test coverage for all new quick fix scenarios</li>
+            </ul>
             <h2>0.7.6</h2>
             <ul>
                 <li>Added string-to-constant quick fix for MTLOG007 diagnostics</li>

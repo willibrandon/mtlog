@@ -9,7 +9,12 @@ Real-time validation for mtlog message templates in GoLand and other JetBrains I
 - 🎨 Intelligent highlighting:
   - Template/argument errors highlight the template string and arguments
   - Property naming warnings highlight only the property name
-- 🔧 Quick fixes for common issues (PascalCase conversion, argument count)
+- 🔧 Quick fixes for common issues:
+  - PascalCase property name conversion
+  - Template argument count corrections
+  - Format specifier fixes (e.g., `{Count:d3}` → `{Count:000}`)
+  - Context key constant extraction
+  - LogValue() method stub generation for safe logging
 - ⚙️ Configurable analyzer path and flags
 - 🚀 Performance optimized with caching and debouncing
 - 🖥️ Full support for Windows, macOS, and Linux

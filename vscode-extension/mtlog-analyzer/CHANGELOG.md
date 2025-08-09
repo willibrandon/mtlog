@@ -2,6 +2,24 @@
 
 All notable changes to the "mtlog-analyzer" extension will be documented in this file.
 
+## [0.7.7] - 2025-08-08
+
+### Added
+- Format specifier quick fixes for MTLOG002 diagnostics
+  - Automatically corrects invalid format specifiers
+  - Supports conversion from .NET-style format strings
+  - Handles all mtlog format types (numeric, float, percentage, etc.)
+- LogValue() method stub generation for MTLOG005 diagnostics
+  - Generates complete LogValue() method implementation
+  - Includes smart detection of sensitive fields
+  - Adds TODO comments for fields requiring review
+
+### Changed
+- Modularized extension codebase for better maintainability
+  - Separated analyzer, diagnostics, and code action logic
+  - Improved error handling and logging
+  - Updated all dependencies to latest versions
+
 ## [0.7.6] - 2025-08-07
 
 ### Added

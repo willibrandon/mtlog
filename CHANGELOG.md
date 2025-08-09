@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2025-08-08
+
+### Added
+- **Analyzer** - MTLOG002 quick fixes for invalid format specifiers (#29)
+  - Automatically suggests valid format specifiers based on common mistakes
+  - Handles .NET-style format strings (e.g., "d3" → "000", "f2" → "F2")
+  - Supports all mtlog format types: numeric, float, percentage, exponential, hexadecimal
+  - Available in strict mode for comprehensive format validation
+  
+- **Analyzer** - MTLOG005 enhanced capturing hints with LogValue() stub generation (#30)
+  - Dual quick fixes: add @ prefix OR generate LogValue() method stub
+  - Smart detection of sensitive fields (passwords, tokens, API keys, etc.)
+  - Generated stubs include TODO comments for sensitive fields
+  - Helps implement safe logging for complex types with sensitive data
+  
+- **VS Code Extension** - Format specifier and LogValue() quick fixes
+  - Full support for MTLOG002 format specifier corrections
+  - LogValue() method stub generation for complex types
+  - Seamless integration with analyzer's suggested fixes
+  
+- **GoLand Plugin** - Format specifier and LogValue() quick fixes
+  - Comprehensive support for MTLOG002 suggested fixes
+  - LogValue() stub generation with sensitive field detection
+  - Full test coverage for all new quick fix scenarios
+
+### Changed
+- **Analyzer** - Refactored codebase into focused, single-responsibility modules (#28)
+  - Separated type checking, string conversion, and context key logic
+  - Improved maintainability with clearer separation of concerns
+  - Enhanced testability through modular design
+  
+- **VS Code Extension** - Modularized codebase and updated dependencies
+  - Cleaner separation of analyzer, diagnostics, and code action modules
+  - Updated all dependencies to latest versions
+  - Improved error handling and logging
+
+### Fixed
+- **Analyzer** - Improved error handling in test flag restoration
+  - Proper handling of Set() error returns in test cleanup
+  - More robust test framework flag management
+  
+- **Documentation** - Enhanced IDE extension badges for better visibility
+  - Improved contrast for both light and dark mode compatibility
+  - Clearer visual indicators in marketplace listings
+
 ## [0.7.6] - 2025-08-07
 
 ### Added
