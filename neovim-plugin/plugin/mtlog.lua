@@ -484,6 +484,13 @@ end, {
   desc = 'Manage analysis queue',
 })
 
+vim.api.nvim_create_user_command('MtlogCodeAction', function()
+  local lsp_integration = require('mtlog.lsp_integration')
+  lsp_integration.show_code_actions()
+end, {
+  desc = 'Show mtlog code actions',
+})
+
 vim.api.nvim_create_user_command('MtlogQuickFix', function()
   local diagnostics = require('mtlog.diagnostics')
   local diag = diagnostics.get_diagnostic_at_cursor()
@@ -570,63 +577,4 @@ vim.api.nvim_create_autocmd({ 'FileType' }, {
   end,
 })
 
--- Provide code action integration (only for Neovim 0.8+)
-if vim.fn.has('nvim-0.8') == 1 then
-  vim.api.nvim_create_autocmd('LspAttach', {
-    group = group,
-    callback = function(args)
-      local bufnr = args.buf
-      local client = vim.lsp.get_client_by_id(args.data.client_id)
-      
-      if client and vim.bo[bufnr].filetype == 'go' then
-        -- Add mtlog code actions
-        local original_handler = vim.lsp.handlers['textDocument/codeAction']
-        
-        vim.lsp.handlers['textDocument/codeAction'] = function(err, result, ctx, config)
-          if not err and result then
-            -- Add mtlog quick fixes as code actions
-          local diagnostics = require('mtlog.diagnostics')
-          local diag = diagnostics.get_diagnostic_at_cursor(bufnr)
-          
-          if diag and diag.user_data and diag.user_data.suggested_fixes then
-            result = result or {}
-            
-            for i, fix in ipairs(diag.user_data.suggested_fixes) do
-              table.insert(result, {
-                title = fix.description or fix.title or 'mtlog: Apply fix',
-                kind = 'quickfix',
-                diagnostics = { diag },
-                command = {
-                  title = 'Apply mtlog fix',
-                  command = 'mtlog.applyFix',
-                  arguments = { diag, i },
-                },
-              })
-            end
-          end
-        end
-        
-        -- Call original handler
-        if original_handler then
-          original_handler(err, result, ctx, config)
-        end
-      end
-    end
-  end,
-  })
-  
-  -- Register LSP command for applying fixes
-  vim.lsp.commands['mtlog.applyFix'] = function(command, ctx)
-  local diagnostics = require('mtlog.diagnostics')
-  local diag = command.arguments[1]
-  local fix_index = command.arguments[2]
-  
-    if diagnostics.apply_suggested_fix(diag, fix_index) then
-      vim.notify('Applied mtlog fix', vim.log.levels.INFO)
-      -- Re-analyze buffer
-      require('mtlog').analyze_buffer(ctx.bufnr)
-    else
-      vim.notify('Failed to apply mtlog fix', vim.log.levels.ERROR)
-    end
-  end
-end
+-- LSP integration is now handled by the lsp_integration module during setup

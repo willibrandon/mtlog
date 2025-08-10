@@ -184,6 +184,61 @@ require('mtlog').setup({
 | `:MtlogSuppress [id]` | Suppress a diagnostic ID |
 | `:MtlogUnsuppress [id]` | Unsuppress a diagnostic ID |
 | `:MtlogShowSuppressions` | Show suppressed diagnostics |
+| `:MtlogCodeAction` | Show mtlog code actions menu |
+
+## LSP Integration
+
+The plugin integrates with Neovim's built-in LSP client to provide code actions through the standard interface.
+
+### Features
+
+- **Native Code Actions** - mtlog quick fixes appear in `vim.lsp.buf.code_action()` menu
+- **Suppress Actions** - Suppress diagnostics directly from the code actions menu
+- **Standard Keybindings** - Works with your existing LSP keybindings (e.g., `<leader>ca`)
+
+### Configuration
+
+```lua
+require('mtlog').setup({
+  lsp_integration = {
+    enabled = true,              -- Enable LSP integration (default: true)
+    show_suppress_action = true, -- Show suppress action in menu (default: true)
+  },
+})
+```
+
+### Usage
+
+With LSP integration enabled, you can:
+
+1. **Use standard LSP code action keybinding:**
+   ```lua
+   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = 'Code action' })
+   ```
+
+2. **Filter for mtlog actions only:**
+   ```lua
+   vim.keymap.set('n', '<leader>cm', function()
+     vim.lsp.buf.code_action({
+       filter = function(action)
+         return action.data and action.data.source == 'mtlog-analyzer'
+       end,
+     })
+   end, { desc = 'mtlog code actions' })
+   ```
+
+3. **Use the dedicated command:**
+   ```vim
+   :MtlogCodeAction
+   ```
+
+### Integration with Other LSP Plugins
+
+The LSP integration works seamlessly with:
+- **telescope.nvim** - `<leader>ca` with Telescope UI
+- **fzf-lua** - Code actions with fuzzy finding  
+- **nvim-cmp** - Code action completion
+- **null-ls** - Alongside other code action providers
 
 ## Keybindings
 

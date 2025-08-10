@@ -42,6 +42,13 @@ function M.setup(opts)
   -- Initialize context rules
   context.setup()
   
+  -- Setup LSP integration if enabled
+  if config.get('lsp_integration.enabled') ~= false then
+    local lsp_integration = require('mtlog.lsp_integration')
+    lsp_integration.setup()
+    lsp_integration.register_commands()
+  end
+  
   -- Create autocmd group
   autocmd_group = vim.api.nvim_create_augroup('MtlogAnalyzer', { clear = true })
   
@@ -63,6 +70,12 @@ function M.setup(opts)
           -- Default behavior
           if utils.is_go_project() and not enabled then
             M.enable()
+          end
+          
+          -- Attach LSP integration to buffer
+          if config.get('lsp_integration.enabled') ~= false then
+            local lsp_integration = require('mtlog.lsp_integration')
+            lsp_integration.attach(args.buf)
           end
         end,
       })
@@ -146,6 +159,12 @@ function M.disable()
   -- Clear autocmds
   if autocmd_group then
     vim.api.nvim_clear_autocmds({ group = autocmd_group })
+  end
+  
+  -- Stop the fake LSP client
+  if config.get('lsp_integration.enabled') ~= false then
+    local lsp_integration = require('mtlog.lsp_integration')
+    lsp_integration.stop()
   end
   
   -- Clear all diagnostics

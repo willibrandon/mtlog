@@ -124,6 +124,12 @@ local defaults = {
   -- Context rules for auto-enabling/disabling
   context_rules = {},  -- User-defined context rules
   use_builtin_rules = true,  -- Use built-in context rules
+  
+  -- LSP integration settings
+  lsp_integration = {
+    enabled = true,  -- Enable LSP code actions
+    show_suppress_action = true,  -- Show suppress action in code actions
+  },
 }
 
 -- Current configuration
