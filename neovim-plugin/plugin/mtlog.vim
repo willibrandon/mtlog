@@ -1,10 +1,13 @@
--- Plugin initialization for mtlog.nvim
--- This file is automatically loaded by Neovim
+" Plugin initialization for mtlog.nvim
+" This file is automatically loaded by Neovim
 
-if vim.g.loaded_mtlog then
-  return
-end
-vim.g.loaded_mtlog = 1
+if exists('g:loaded_mtlog')
+  finish
+endif
+let g:loaded_mtlog = 1
+
+lua << EOF
+-- Begin Lua code
 
 -- Create user commands
 vim.api.nvim_create_user_command('MtlogAnalyze', function(opts)
@@ -623,3 +626,6 @@ vim.api.nvim_create_autocmd({ 'FileType' }, {
 })
 
 -- LSP integration is now handled by the lsp_integration module during setup
+
+EOF
+" End of plugin/mtlog.vim
