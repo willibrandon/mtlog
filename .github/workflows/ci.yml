@@ -263,9 +263,10 @@ jobs:
         nvim --headless -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/spec/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
     
     - name: Validate Health Check
+      working-directory: neovim-plugin
       run: |
-        # Run checkhealth and write buffer to file (only way to capture output in headless)
-        nvim --headless -c "checkhealth mtlog" -c "w! health.txt" -c "qa!"
+        # Run checkhealth with minimal init that loads the plugin
+        nvim --headless -u tests/minimal_init.lua -c "checkhealth mtlog" -c "w! health.txt" -c "qa!"
         # Check if analyzer is detected
         if grep -q "mtlog-analyzer is installed\|mtlog-analyzer version" health.txt; then
           echo "✅ Health check passed: mtlog-analyzer detected"
