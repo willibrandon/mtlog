@@ -249,9 +249,23 @@ vim.keymap.set('n', '<leader>ma', ':MtlogAnalyze<CR>', { desc = 'Analyze current
 vim.keymap.set('n', '<leader>mw', ':MtlogAnalyzeWorkspace<CR>', { desc = 'Analyze workspace' })
 vim.keymap.set('n', '<leader>mf', ':MtlogQuickFix<CR>', { desc = 'Apply quick fix' })
 vim.keymap.set('n', '<leader>mc', ':MtlogClear<CR>', { desc = 'Clear diagnostics' })
+vim.keymap.set('n', '<leader>mh', ':MtlogHelp<CR>', { desc = 'Show help' })
+vim.keymap.set('n', '<leader>m?', ':MtlogExplain<CR>', { desc = 'Explain diagnostic' })
 vim.keymap.set('n', ']m', function() require('mtlog.diagnostics').goto_next() end, { desc = 'Next mtlog diagnostic' })
 vim.keymap.set('n', '[m', function() require('mtlog.diagnostics').goto_prev() end, { desc = 'Previous mtlog diagnostic' })
 ```
+
+## Help System
+
+The plugin includes a comprehensive interactive help system:
+
+- **`:MtlogHelp`** - Interactive help menu with topics
+- **`:MtlogHelp quick`** - Quick reference card
+- **`:MtlogExplain`** - Explain diagnostic at cursor
+- **`:MtlogExplain MTLOG001`** - Explain specific diagnostic code
+- **`:help mtlog`** - Full Vim documentation
+
+First-time users will see a welcome message with quick start instructions.
 
 ## Statusline Integration
 

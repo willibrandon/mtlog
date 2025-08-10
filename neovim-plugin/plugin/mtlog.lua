@@ -557,6 +557,48 @@ end, {
   desc = 'Apply mtlog quick fix at cursor',
 })
 
+-- Help commands
+vim.api.nvim_create_user_command('MtlogHelp', function(opts)
+  local help = require('mtlog.help')
+  
+  if opts.args == '' then
+    help.show_menu()
+  elseif opts.args == 'quick' then
+    help.show_quick_reference()
+  else
+    -- Try to show specific topic
+    help.show_topic(opts.args)
+  end
+end, {
+  nargs = '?',
+  complete = function()
+    local help = require('mtlog.help')
+    local topics = vim.tbl_keys(help.topics)
+    table.insert(topics, 'quick')
+    return topics
+  end,
+  desc = 'Show mtlog help',
+})
+
+vim.api.nvim_create_user_command('MtlogExplain', function(opts)
+  local help = require('mtlog.help')
+  
+  if opts.args == '' then
+    -- Explain diagnostic at cursor
+    help.explain_at_cursor()
+  else
+    -- Explain specific diagnostic code
+    help.explain_diagnostic(opts.args)
+  end
+end, {
+  nargs = '?',
+  complete = function()
+    return { 'MTLOG001', 'MTLOG002', 'MTLOG003', 'MTLOG004', 
+             'MTLOG005', 'MTLOG006', 'MTLOG007', 'MTLOG008' }
+  end,
+  desc = 'Explain mtlog diagnostic',
+})
+
 -- Set up autocommands for lazy loading
 local group = vim.api.nvim_create_augroup('MtlogLazyLoad', { clear = true })
 

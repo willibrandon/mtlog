@@ -1,0 +1,456 @@
+*mtlog.txt*    mtlog-analyzer integration for Neovim
+
+================================================================================
+CONTENTS                                                         *mtlog-contents*
+
+    1. Introduction ......................................... |mtlog-intro|
+    2. Requirements ......................................... |mtlog-requirements|
+    3. Installation ......................................... |mtlog-installation|
+    4. Configuration ........................................ |mtlog-config|
+    5. Commands ............................................. |mtlog-commands|
+    6. Features ............................................. |mtlog-features|
+        6.1 Diagnostics ..................................... |mtlog-diagnostics|
+        6.2 Quick Fixes ..................................... |mtlog-quickfixes|
+        6.3 Suppressions .................................... |mtlog-suppressions|
+        6.4 LSP Integration ................................. |mtlog-lsp|
+        6.5 Context Rules ................................... |mtlog-context|
+        6.6 Queue Management ................................ |mtlog-queue|
+    7. Telescope Integration ................................ |mtlog-telescope|
+    8. Statusline Integration ............................... |mtlog-statusline|
+    9. Troubleshooting ...................................... |mtlog-troubleshooting|
+    10. About ............................................... |mtlog-about|
+
+================================================================================
+INTRODUCTION                                                        *mtlog-intro*
+
+mtlog.nvim provides seamless integration with mtlog-analyzer, a static analysis
+tool for the mtlog structured logging library. It catches common logging
+mistakes at development time, improving code quality and preventing runtime
+errors.
+
+Key benefits:
+• Real-time validation of message templates
+• Automatic quick fixes for common issues
+• LSP integration for native code actions
+• Smart context-aware analysis control
+• Efficient queue-based processing
+
+================================================================================
+REQUIREMENTS                                                 *mtlog-requirements*
+
+• Neovim >= 0.8.0
+• Go project using the mtlog library
+• mtlog-analyzer installed (install with: go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest)
+• Optional: Telescope.nvim for enhanced UI
+• Optional: gopls for full LSP integration
+
+================================================================================
+INSTALLATION                                                 *mtlog-installation*
+
+Using lazy.nvim: >lua
+    {
+      'willibrandon/mtlog',
+      ft = 'go',
+      dir = vim.fn.expand('~/path/to/mtlog/neovim-plugin'),
+      config = function()
+        require('mtlog').setup({
+          -- your configuration
+        })
+      end,
+      dependencies = {
+        'nvim-telescope/telescope.nvim', -- optional
+      },
+    }
+<
+
+Using packer.nvim: >lua
+    use {
+      '~/path/to/mtlog/neovim-plugin',
+      ft = 'go',
+      config = function()
+        require('mtlog').setup()
+      end,
+    }
+<
+
+================================================================================
+CONFIGURATION                                                     *mtlog-config*
+
+Setup function accepts these options: >lua
+    require('mtlog').setup({
+      -- Analyzer settings
+      analyzer_path = 'mtlog-analyzer',       -- Path to analyzer binary
+      analyzer_flags = {},                    -- Additional flags
+      
+      -- Auto-enable for Go projects
+      auto_enable = true,
+      auto_analyze = true,
+      
+      -- Debouncing
+      debounce_ms = 250,
+      
+      -- Diagnostics
+      diagnostics_enabled = true,             -- Global kill switch
+      show_diagnostics = true,
+      virtual_text = true,
+      signs = true,
+      underline = true,
+      update_in_insert = false,
+      severity_sort = true,
+      
+      -- Suppressed diagnostics (e.g., {'MTLOG001', 'MTLOG005'})
+      suppressed_diagnostics = {},
+      
+      -- LSP Integration
+      lsp_integration = {
+        enabled = true,                      -- Enable fake LSP client
+        show_suppress_action = true,         -- Show suppress in code actions
+      },
+      
+      -- Context rules for auto-enable/disable
+      context_rules = {},                    -- Custom rules
+      use_builtin_rules = true,             -- Use default rules
+      
+      -- Queue settings
+      queue = {
+        max_concurrent = nil,                -- Auto-detect from CPU
+        timeout_ms = 10000,
+      },
+    })
+<
+
+Context Rules Example: >lua
+    context_rules = {
+      {
+        type = 'path',
+        pattern = '_test%.go$',              -- Test files
+        action = 'disable',
+        description = 'Disable for test files',
+      },
+      {
+        type = 'buffer',
+        line_count = { max = 1000 },         -- Large files
+        action = 'disable',
+        description = 'Disable for large files',
+      },
+      {
+        type = 'project',
+        has_file = 'go.mod',                 -- Go modules
+        action = 'enable',
+        description = 'Enable for Go modules',
+      },
+    }
+<
+
+================================================================================
+COMMANDS                                                       *mtlog-commands*
+
+                                                               *:MtlogAnalyze*
+:MtlogAnalyze [file]
+    Run analyzer on current buffer or specified file.
+
+                                                       *:MtlogAnalyzeWorkspace*
+:MtlogAnalyzeWorkspace
+    Analyze all Go files in the workspace.
+
+                                                                 *:MtlogClear*
+:MtlogClear[!]
+    Clear diagnostics for current buffer. Use ! to clear all buffers.
+
+                                                                *:MtlogEnable*
+:MtlogEnable
+    Enable the analyzer for the current session.
+
+                                                               *:MtlogDisable*
+:MtlogDisable
+    Disable the analyzer for the current session.
+
+                                                                *:MtlogToggle*
+:MtlogToggle
+    Toggle analyzer on/off.
+
+                                                     *:MtlogToggleDiagnostics*
+:MtlogToggleDiagnostics
+    Toggle the global diagnostics kill switch.
+
+                                                              *:MtlogSuppress*
+:MtlogSuppress [diagnostic_id]
+    Suppress a diagnostic ID (e.g., MTLOG001).
+
+                                                            *:MtlogUnsuppress*
+:MtlogUnsuppress [diagnostic_id]
+    Remove suppression for a diagnostic ID.
+
+                                                         *:MtlogUnsuppressAll*
+:MtlogUnsuppressAll
+    Clear all diagnostic suppressions.
+
+                                                       *:MtlogShowSuppressions*
+:MtlogShowSuppressions
+    Display currently suppressed diagnostics.
+
+                                                     *:MtlogManageSuppressions*
+:MtlogManageSuppressions
+    Open Telescope picker to manage suppressions.
+
+                                                             *:MtlogWorkspace*
+:MtlogWorkspace {save|load|path}
+    Manage workspace configuration (.mtlog.json).
+
+                                                                *:MtlogStatus*
+:MtlogStatus
+    Show plugin status and diagnostic counts.
+
+                                                                 *:MtlogCache*
+:MtlogCache {clear|stats}
+    Manage the analysis cache.
+
+                                                               *:MtlogContext*
+:MtlogContext {show|test|add-builtin|clear}
+    Manage context rules for automatic control.
+
+                                                                 *:MtlogQueue*
+:MtlogQueue {show|stats|clear|pause|resume}
+    Manage the analysis queue.
+
+                                                            *:MtlogCodeAction*
+:MtlogCodeAction
+    Show mtlog code actions at cursor.
+
+                                                              *:MtlogQuickFix*
+:MtlogQuickFix
+    Apply quick fix at cursor position.
+
+================================================================================
+FEATURES                                                       *mtlog-features*
+
+--------------------------------------------------------------------------------
+DIAGNOSTICS                                                  *mtlog-diagnostics*
+
+The plugin detects these diagnostic codes:
+
+• MTLOG001: Template/argument mismatch
+• MTLOG002: Invalid format specifier
+• MTLOG003: Missing error in Error/Fatal calls
+• MTLOG004: Property name should be PascalCase
+• MTLOG005: Duplicate property in template
+• MTLOG006: Type should implement LogValue
+• MTLOG007: String should be constant
+• MTLOG008: Dynamic template warning
+
+Diagnostics appear as:
+• Virtual text (configurable)
+• Signs in the sign column
+• Underlines in the buffer
+• Entries in the quickfix list
+
+--------------------------------------------------------------------------------
+QUICK FIXES                                                  *mtlog-quickfixes*
+
+Many diagnostics come with automatic fixes:
+
+• MTLOG001: Add missing arguments or remove extra ones
+• MTLOG002: Correct format specifiers
+• MTLOG003: Add error parameter
+• MTLOG004: Convert to PascalCase
+• MTLOG005: Remove duplicate properties
+• MTLOG007: Extract string to constant
+
+Apply fixes:
+• `:MtlogQuickFix` at cursor position
+• `:lua vim.lsp.buf.code_action()` for LSP integration
+• `<leader>mf` with recommended mappings
+
+--------------------------------------------------------------------------------
+SUPPRESSIONS                                                *mtlog-suppressions*
+
+Suppress diagnostics you don't want to see:
+
+Session suppression: >vim
+    :MtlogSuppress MTLOG004
+<
+
+Workspace suppression (saved to .mtlog.json): >vim
+    :MtlogSuppress MTLOG004
+    " Choose 'Yes' when prompted to save to workspace
+<
+
+Environment variable suppression: >bash
+    export MTLOG_SUPPRESS="MTLOG004,MTLOG008"
+<
+
+Inline suppression in code: >go
+    // mtlog:disable-next-line MTLOG004
+    log.Info("message with {snake_case}", value)
+<
+
+--------------------------------------------------------------------------------
+LSP INTEGRATION                                                     *mtlog-lsp*
+
+The plugin creates a fake LSP client to integrate with Neovim's built-in LSP
+features. This allows mtlog code actions to appear alongside gopls actions.
+
+Enable in config: >lua
+    lsp_integration = {
+      enabled = true,
+      show_suppress_action = true,
+    }
+<
+
+Use standard LSP commands: >vim
+    :lua vim.lsp.buf.code_action()
+<
+
+The mtlog actions will appear in the code action menu with gopls and other
+LSP providers.
+
+--------------------------------------------------------------------------------
+CONTEXT RULES                                                   *mtlog-context*
+
+Context rules automatically enable/disable analysis based on file properties.
+This feature is unique to the Neovim plugin.
+
+Rule types:
+• `path` - Match file paths with patterns
+• `buffer` - Match buffer properties (line count, size)
+• `project` - Match project properties (has_file, has_dir)
+• `custom` - Custom Lua function
+
+Example rules: >lua
+    context_rules = {
+      -- Disable for test files
+      {
+        type = 'path',
+        pattern = '_test%.go$',
+        action = 'disable',
+      },
+      -- Disable for generated files
+      {
+        type = 'path',
+        pattern = '%.pb%.go$',
+        action = 'disable',
+      },
+      -- Disable for large files
+      {
+        type = 'buffer',
+        line_count = { max = 1000 },
+        action = 'disable',
+      },
+      -- Custom function
+      {
+        type = 'custom',
+        check = function(bufnr)
+          return vim.bo[bufnr].readonly
+        end,
+        action = 'disable',
+      },
+    }
+<
+
+Built-in rules available via `:MtlogContext add-builtin`.
+
+--------------------------------------------------------------------------------
+QUEUE MANAGEMENT                                                   *mtlog-queue*
+
+The plugin uses a priority queue to manage analysis tasks efficiently:
+
+Priority levels:
+• HIGH (1) - Current buffer changes
+• NORMAL (2) - Visible buffers
+• LOW (3) - Background/workspace analysis
+
+Features:
+• CPU-aware concurrency limits
+• Automatic deduplication
+• Graceful cancellation
+• Progress tracking
+
+Monitor with `:MtlogQueue show` or `:MtlogQueue stats`.
+
+================================================================================
+TELESCOPE INTEGRATION                                         *mtlog-telescope*
+
+If Telescope is installed, additional pickers are available:
+
+                                                    *telescope.mtlog.diagnostics*
+:Telescope mtlog diagnostics
+    Browse and jump to diagnostics across all buffers.
+
+                                                   *telescope.mtlog.suppressions*
+:Telescope mtlog suppressions
+    Manage suppressed diagnostics with preview.
+
+                                                      *telescope.mtlog.quickfixes*
+:Telescope mtlog quickfixes
+    Browse available quick fixes for current buffer.
+
+Setup in Telescope config: >lua
+    require('telescope').load_extension('mtlog')
+<
+
+================================================================================
+STATUSLINE INTEGRATION                                       *mtlog-statusline*
+
+Add diagnostic counts to your statusline:
+
+For lualine: >lua
+    sections = {
+      lualine_c = {
+        {
+          require('mtlog.statusline').component,
+          cond = require('mtlog.statusline').has_diagnostics,
+        },
+      },
+    }
+<
+
+For custom statuslines: >lua
+    local counts = require('mtlog').get_counts()
+    local status = string.format('E:%d W:%d', counts.errors, counts.warnings)
+<
+
+================================================================================
+TROUBLESHOOTING                                         *mtlog-troubleshooting*
+
+Analyzer not found:
+1. Install: `go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest`
+2. Ensure it's in PATH: `which mtlog-analyzer`
+3. Or set explicit path in config: `analyzer_path = '/full/path/to/mtlog-analyzer'`
+
+No diagnostics appearing:
+1. Check status: `:MtlogStatus`
+2. Run manually: `:MtlogAnalyze`
+3. Check kill switch: `:MtlogToggleDiagnostics`
+4. Review suppressions: `:MtlogShowSuppressions`
+5. Test context rules: `:MtlogContext test`
+
+LSP integration issues:
+1. Ensure gopls is installed: `go install golang.org/x/tools/gopls@latest`
+2. Check LSP clients: `:LspInfo`
+3. Verify config: `lsp_integration = { enabled = true }`
+4. Try manual action: `:MtlogCodeAction`
+
+Performance issues:
+1. Adjust debounce: `debounce_ms = 500`
+2. Limit concurrency: `queue = { max_concurrent = 2 }`
+3. Disable auto-analyze: `auto_analyze = false`
+4. Use context rules to limit scope
+
+================================================================================
+ABOUT                                                            *mtlog-about*
+
+mtlog.nvim is part of the mtlog ecosystem, bringing structured logging
+best practices to Go development.
+
+Repository: https://github.com/willibrandon/mtlog
+Issues: https://github.com/willibrandon/mtlog/issues
+License: MIT
+
+Related projects:
+• mtlog - The core Go logging library
+• mtlog-analyzer - Static analysis tool
+• VS Code extension - For Visual Studio Code users
+• GoLand plugin - For JetBrains IDE users
+
+================================================================================
+vim:tw=80:ts=4:ft=help:norl:

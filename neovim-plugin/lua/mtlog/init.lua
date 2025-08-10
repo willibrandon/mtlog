@@ -49,6 +49,16 @@ function M.setup(opts)
     lsp_integration.register_commands()
   end
   
+  -- Show welcome message for first-time users
+  if config.get('show_welcome') ~= false then
+    local help = require('mtlog.help')
+    if help.is_first_time() then
+      vim.defer_fn(function()
+        help.show_welcome()
+      end, 100)
+    end
+  end
+  
   -- Create autocmd group
   autocmd_group = vim.api.nvim_create_augroup('MtlogAnalyzer', { clear = true })
   
