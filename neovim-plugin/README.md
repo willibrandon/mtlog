@@ -15,7 +15,7 @@ A Neovim plugin for [mtlog-analyzer](https://github.com/willibrandon/mtlog), pro
 
 - Neovim >= 0.8.0
 - Go >= 1.21
-- [mtlog-analyzer](https://github.com/willibrandon/mtlog/cmd/mtlog-analyzer) installed
+- [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer) installed
 
 ## Installation
 
