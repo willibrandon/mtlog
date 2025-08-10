@@ -248,9 +248,36 @@ If you prefer not to use the extensions:
    - Set path to `mtlog-analyzer`
    - Add any desired flags (e.g., `-strict`)
 
+### Neovim
+
+Install the comprehensive [mtlog.nvim plugin](https://github.com/willibrandon/mtlog/tree/main/neovim-plugin):
+
+```lua
+-- Using lazy.nvim
+{
+  'willibrandon/mtlog',
+  rtp = 'neovim-plugin',
+  ft = 'go',
+  config = function()
+    require('mtlog').setup()
+  end,
+}
+```
+
+Features:
+- 🔍 Real-time analysis on save with debouncing
+- 🎯 LSP integration for code actions
+- 💡 Quick fixes for all diagnostics
+- 📊 Statusline diagnostic counts
+- 🚫 Diagnostic suppression with persistence
+- ⚡ Performance optimized with caching
+- 🎮 Kill switch for instant enable/disable
+- 📋 Context rules for selective analysis
+- 🔭 Telescope extension for browsing
+
 ### Vim/Neovim (with vim-go)
 
-Add to your `.vimrc` or `init.vim`:
+For basic integration using vim-go, add to your `.vimrc` or `init.vim`:
 ```vim
 let g:go_metalinter_enabled = ['vet', 'golint', 'errcheck']
 let g:go_metalinter_command = 'golangci-lint'
