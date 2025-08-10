@@ -111,6 +111,13 @@ function M.get_component(opts)
   return result
 end
 
+-- Simple status function for statusline (no parameters needed)
+---@return string
+function M.status()
+  local counts = diagnostics.get_counts()
+  return string.format('E:%d W:%d', counts.errors, counts.warnings)
+end
+
 -- Get colored statusline component
 ---@param opts table? Options
 ---@return string Statusline component with highlight groups

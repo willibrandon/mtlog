@@ -570,7 +570,7 @@ The plugin integrates with Neovim's built-in LSP client to provide code actions.
 
 ## Screenshots
 
-<!-- Add screenshots here -->
+![mtlog.nvim in action](../assets/neovim-plugin-demo.png)
 
 ## Contributing
 

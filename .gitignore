@@ -69,3 +69,6 @@ vscode-extension-tests/**/*.vscode-testuser-data/
 .claude/agents/
 .claude/settings.local.json
 CLAUDE.local.md
+
+# MTLog specific files
+.mtlog.json

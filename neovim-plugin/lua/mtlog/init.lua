@@ -412,19 +412,10 @@ function M.suppress_diagnostic(diagnostic_id, skip_prompt)
   if not vim.tbl_contains(suppressed, diagnostic_id) then
     table.insert(suppressed, diagnostic_id)
     config.set('suppressed_diagnostics', suppressed)
+    -- Always save to workspace file to persist the change
+    local workspace = require('mtlog.workspace')
+    workspace.save_suppressions(suppressed)
     vim.notify(string.format('Suppressed diagnostic %s', diagnostic_id), vim.log.levels.INFO)
-    
-    -- Optionally save to workspace config (skip in tests or when running headless)
-    if not skip_prompt and vim.fn.has('nvim-0.7') == 1 and not vim.opt.headless:get() then
-      vim.ui.select({'Yes', 'No'}, {
-        prompt = 'Save suppression to workspace config?',
-      }, function(choice)
-        if choice == 'Yes' then
-          local workspace = require('mtlog.workspace')
-          workspace.save_suppressions()
-        end
-      end)
-    end
     
     -- Re-analyze to apply suppression
     M.reanalyze_all()
@@ -468,6 +459,9 @@ function M.unsuppress_diagnostic(diagnostic_id)
   if idx then
     table.remove(suppressed, idx)
     config.set('suppressed_diagnostics', suppressed)
+    -- Save to workspace file to persist the change
+    local workspace = require('mtlog.workspace')
+    workspace.save_suppressions(suppressed)
     vim.notify(string.format('Unsuppressed diagnostic %s', diagnostic_id), vim.log.levels.INFO)
     
     -- Re-analyze to apply change
@@ -480,6 +474,9 @@ end
 -- Clear all suppressions
 function M.unsuppress_all()
   config.set('suppressed_diagnostics', {})
+  -- Save to workspace file to persist the change
+  local workspace = require('mtlog.workspace')
+  workspace.save_suppressions(config.get('suppressed_diagnostics') or {})
   vim.notify('Cleared all diagnostic suppressions', vim.log.levels.INFO)
   M.reanalyze_all()
 end
