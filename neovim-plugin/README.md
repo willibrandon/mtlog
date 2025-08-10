@@ -1,6 +1,6 @@
 # mtlog.nvim
 
-A Neovim plugin for [mtlog-analyzer](https://github.com/willibrandon/mtlog), providing real-time static analysis for Go code using the mtlog structured logging library.
+A Neovim plugin for [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer), providing real-time static analysis for Go code using the mtlog structured logging library.
 
 ## Features
 
