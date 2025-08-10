@@ -9,6 +9,7 @@ local analyzer = require('mtlog.analyzer')
 local diagnostics = require('mtlog.diagnostics')
 local utils = require('mtlog.utils')
 local cache = require('mtlog.cache')
+local queue = require('mtlog.queue')
 
 -- Plugin state
 local initialized = false
@@ -33,6 +34,9 @@ function M.setup(opts)
   
   -- Initialize diagnostics namespace
   diagnostics.setup()
+  
+  -- Initialize queue system
+  queue.setup()
   
   -- Create autocmd group
   autocmd_group = vim.api.nvim_create_augroup('MtlogAnalyzer', { clear = true })
@@ -80,6 +84,23 @@ function M.enable()
       callback = function(args)
         if not utils.is_vendor_path(args.file) then
           debounced_analyze(args.buf)
+        end
+      end,
+    })
+    
+    -- Cancel pending analyses when leaving a buffer quickly
+    vim.api.nvim_create_autocmd('BufLeave', {
+      group = autocmd_group,
+      pattern = '*.go',
+      callback = function(args)
+        -- Cancel low-priority analyses for this file if switching buffers
+        local filepath = vim.api.nvim_buf_get_name(args.buf)
+        if filepath and filepath ~= '' then
+          -- Only cancel if there are other pending analyses
+          local stats = queue.get_stats()
+          if stats.pending > 2 then
+            queue.cancel_file(filepath)
+          end
         end
       end,
     })
@@ -159,8 +180,18 @@ function M.analyze_buffer(bufnr)
     end
   end
   
-  -- Run analyzer (pass bufnr to ensure correct buffer content is used)
-  analyzer.analyze_file(filepath, function(results, err)
+  -- Determine priority based on buffer visibility
+  local priority = queue.priority.NORMAL
+  if bufnr == vim.api.nvim_get_current_buf() then
+    priority = queue.priority.HIGH
+  elseif vim.fn.bufwinid(bufnr) ~= -1 then
+    priority = queue.priority.NORMAL
+  else
+    priority = queue.priority.LOW
+  end
+  
+  -- Queue the analysis with priority
+  queue.enqueue(filepath, function(results, err)
     -- Already wrapped in vim.schedule in the analyzer callback
     if err then
       -- Always show errors when manually running command
@@ -182,7 +213,7 @@ function M.analyze_buffer(bufnr)
       diagnostics.clear(bufnr)
       vim.notify('No issues found', vim.log.levels.INFO)
     end
-  end, bufnr)
+  end, { bufnr = bufnr, priority = priority })
 end
 
 -- Analyze entire workspace
@@ -205,8 +236,9 @@ function M.analyze_workspace()
     replace = progress_id,
   })
   
+  -- Queue all files with low priority for workspace analysis
   for _, filepath in ipairs(go_files) do
-    analyzer.analyze_file(filepath, function(results, err)
+    queue.enqueue(filepath, function(results, err)
       progress = progress + 1
       
       if not err and results then
@@ -237,7 +269,7 @@ function M.analyze_workspace()
           replace = progress_id,
         })
       end
-    end)
+    end, { priority = queue.priority.LOW })
   end
 end
 

@@ -289,6 +289,104 @@ end, {
   desc = 'Manage mtlog cache',
 })
 
+vim.api.nvim_create_user_command('MtlogQueue', function(opts)
+  local queue = require('mtlog.queue')
+  
+  if opts.args == 'clear' then
+    queue.clear()
+  elseif opts.args == 'pause' then
+    queue.pause()
+  elseif opts.args == 'resume' then
+    queue.resume()
+  elseif opts.args == 'stats' then
+    local stats = queue.get_stats()
+    local lines = {
+      'Queue Statistics:',
+      string.format('  Pending: %d', stats.pending),
+      string.format('  Active: %d/%d', stats.active, stats.max_concurrent),
+      string.format('  Completed: %d', stats.completed),
+      string.format('  Failed: %d', stats.failed),
+      string.format('  Cancelled: %d', stats.cancelled),
+      string.format('  Status: %s', stats.paused and 'Paused' or 'Running'),
+    }
+    vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO)
+  elseif opts.args == 'show' then
+    -- Show queue contents
+    local entries = queue.get_queue()
+    if #entries == 0 then
+      vim.notify('Queue is empty', vim.log.levels.INFO)
+    else
+      local lines = { 'Analysis Queue:', '' }
+      for i, entry in ipairs(entries) do
+        local status_icon = entry.status == 'processing' and '⚡' or '⏳'
+        local priority_label = entry.priority == 1 and 'HIGH' or entry.priority == 2 and 'NORMAL' or 'LOW'
+        local time_info = ''
+        if entry.status == 'processing' and entry.elapsed then
+          time_info = string.format(' (%.1fs)', entry.elapsed / 1000)
+        elseif entry.waiting then
+          time_info = string.format(' (waiting %.1fs)', entry.waiting / 1000)
+        end
+        table.insert(lines, string.format('%d. %s [%s] %s%s - %s',
+          i, status_icon, priority_label, vim.fn.fnamemodify(entry.filepath, ':t'),
+          time_info, entry.status))
+      end
+      
+      -- Show in floating window
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+      
+      local width = 0
+      for _, line in ipairs(lines) do
+        width = math.max(width, #line)
+      end
+      
+      local win_opts = {
+        relative = 'cursor',
+        row = 1,
+        col = 0,
+        width = width + 4,
+        height = #lines,
+        style = 'minimal',
+        border = 'rounded',
+      }
+      
+      if vim.fn.has('nvim-0.9') == 1 then
+        win_opts.title = ' Analysis Queue '
+        win_opts.title_pos = 'center'
+      end
+      
+      local win = vim.api.nvim_open_win(buf, true, win_opts)
+      
+      -- Close on any key
+      vim.api.nvim_buf_set_keymap(buf, 'n', '<Esc>', '', { 
+        silent = true,
+        callback = function()
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      })
+      vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '', { 
+        silent = true,
+        callback = function()
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      })
+    end
+  else
+    vim.notify('Usage: :MtlogQueue [show|stats|clear|pause|resume]', vim.log.levels.WARN)
+  end
+end, {
+  nargs = 1,
+  complete = function()
+    return { 'show', 'stats', 'clear', 'pause', 'resume' }
+  end,
+  desc = 'Manage analysis queue',
+})
+
 vim.api.nvim_create_user_command('MtlogQuickFix', function()
   local diagnostics = require('mtlog.diagnostics')
   local diag = diagnostics.get_diagnostic_at_cursor()

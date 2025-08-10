@@ -177,7 +177,12 @@ require('mtlog').setup({
 | `:MtlogToggle` | Toggle analyzer |
 | `:MtlogStatus` | Show plugin status |
 | `:MtlogCache {clear\|stats}` | Manage cache |
+| `:MtlogQueue {show\|stats\|clear\|pause\|resume}` | Manage analysis queue |
 | `:MtlogQuickFix` | Apply quick fix at cursor |
+| `:MtlogToggleDiagnostics` | Toggle global diagnostics kill switch |
+| `:MtlogSuppress [id]` | Suppress a diagnostic ID |
+| `:MtlogUnsuppress [id]` | Unsuppress a diagnostic ID |
+| `:MtlogShowSuppressions` | Show suppressed diagnostics |
 
 ## Keybindings
 

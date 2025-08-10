@@ -77,15 +77,25 @@ func main() {
       end)
     end, 2000)
     
-    it('should handle non-existent files', function(done)
+    it('should handle non-existent files', function()
+      local completed = false
+      local test_results = nil
+      local test_err = nil
+      
       analyzer.analyze_file('/tmp/non_existent_file.go', function(results, err)
-        vim.schedule(function()
-          -- Should either error or return empty results
-          assert.is_true(err ~= nil or #results == 0)
-          done()
-        end)
+        test_results = results
+        test_err = err
+        completed = true
       end)
-    end, 1000)
+      
+      -- Wait for completion
+      vim.wait(1000, function()
+        return completed
+      end)
+      
+      -- Should either error or return empty results
+      assert.is_true(test_err ~= nil or (test_results and #test_results == 0))
+    end)
   end)
   
   describe('debouncing', function()
