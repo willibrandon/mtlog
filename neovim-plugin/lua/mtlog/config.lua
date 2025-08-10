@@ -130,6 +130,11 @@ local defaults = {
     enabled = true,  -- Enable LSP code actions
     show_suppress_action = true,  -- Show suppress action in code actions
   },
+  
+  -- Quick fix settings
+  quick_fix = {
+    auto_save = true,  -- Automatically save file after applying quick fix
+  },
 }
 
 -- Current configuration

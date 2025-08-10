@@ -493,6 +493,7 @@ end, {
 
 vim.api.nvim_create_user_command('MtlogQuickFix', function()
   local diagnostics = require('mtlog.diagnostics')
+  local config = require('mtlog.config')
   local diag = diagnostics.get_diagnostic_at_cursor()
   
   if not diag then
@@ -516,8 +517,10 @@ vim.api.nvim_create_user_command('MtlogQuickFix', function()
       local filepath = vim.api.nvim_buf_get_name(bufnr)
       diagnostics.clear(bufnr)  -- Clear diagnostics immediately
       require('mtlog.cache').invalidate(filepath)
-      -- Save the buffer to ensure changes are written
-      vim.cmd('write')
+      -- Save the buffer if auto_save is enabled
+      if config.get('quick_fix.auto_save') then
+        vim.cmd('write')
+      end
       -- Small delay to let the buffer update and file save
       vim.defer_fn(function()
         require('mtlog').analyze_buffer(bufnr)

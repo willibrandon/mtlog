@@ -60,76 +60,49 @@ function M.get_go_files()
   local config = require('mtlog.config')
   local ignore_patterns = config.get('ignore_patterns') or {}
   
-  -- Try to use git ls-files first
-  local git_cmd = 'git ls-files --cached --others --exclude-standard | grep -E "\\.go$"'
-  local handle = io.popen(git_cmd .. ' 2>/dev/null')
+  -- Use vim.fn.glob as primary method (safe and portable)
+  local glob_files = vim.fn.glob('**/*.go', false, true)
   
-  if handle then
-    for line in handle:lines() do
-      local filepath = vim.fn.fnamemodify(line, ':p')
-      local should_ignore = false
-      
-      -- Check against ignore patterns
-      for _, pattern in ipairs(ignore_patterns) do
-        if filepath:match(pattern) then
-          should_ignore = true
-          break
-        end
-      end
-      
-      if not should_ignore and not M.is_vendor_path(filepath) then
-        table.insert(files, filepath)
-      end
-    end
-    handle:close()
-    
-    if #files > 0 then
-      return files
-    end
-  end
+  -- If in a git repository, filter using git status
+  local git_root = M.get_git_root()
+  local is_git_repo = git_root ~= nil
+  local git_ignored = {}
   
-  -- Fallback to find command
-  local find_cmd = 'find . -type f -name "*.go" 2>/dev/null'
-  handle = io.popen(find_cmd)
-  
-  if handle then
-    for line in handle:lines() do
-      local filepath = vim.fn.fnamemodify(line, ':p')
-      local should_ignore = false
-      
-      -- Check against ignore patterns
-      for _, pattern in ipairs(ignore_patterns) do
-        if filepath:match(pattern) then
-          should_ignore = true
-          break
-        end
-      end
-      
-      if not should_ignore and not M.is_vendor_path(filepath) then
-        table.insert(files, filepath)
-      end
-    end
-    handle:close()
-  end
-  
-  -- Final fallback to vim.fn.glob
-  if #files == 0 then
-    local glob_files = vim.fn.glob('**/*.go', false, true)
+  if is_git_repo then
+    -- Get list of ignored files using git check-ignore
+    -- This is safer than using shell pipes
     for _, file in ipairs(glob_files) do
-      local filepath = vim.fn.fnamemodify(file, ':p')
-      local should_ignore = false
-      
-      -- Check against ignore patterns
+      local result = vim.fn.system({'git', 'check-ignore', file})
+      if vim.v.shell_error == 0 then
+        -- File is ignored by git
+        git_ignored[file] = true
+      end
+    end
+  end
+  
+  -- Filter files
+  for _, file in ipairs(glob_files) do
+    local filepath = vim.fn.fnamemodify(file, ':p')
+    local should_ignore = false
+    
+    -- Skip git-ignored files
+    if git_ignored[file] then
+      should_ignore = true
+    end
+    
+    -- Check against ignore patterns
+    if not should_ignore then
       for _, pattern in ipairs(ignore_patterns) do
         if filepath:match(pattern) then
           should_ignore = true
           break
         end
       end
-      
-      if not should_ignore and not M.is_vendor_path(filepath) then
-        table.insert(files, filepath)
-      end
+    end
+    
+    -- Check vendor path
+    if not should_ignore and not M.is_vendor_path(filepath) then
+      table.insert(files, filepath)
     end
   end
   
@@ -139,14 +112,29 @@ end
 -- Get Git root directory
 ---@return string? Git root or nil
 function M.get_git_root()
-  local handle = io.popen('git rev-parse --show-toplevel 2>/dev/null')
-  if handle then
-    local root = handle:read('*l')
-    handle:close()
-    if root and root ~= '' then
+  -- Use vim.fn.system for safer execution
+  local result = vim.fn.system({'git', 'rev-parse', '--show-toplevel'})
+  if vim.v.shell_error == 0 then
+    -- Remove trailing newline
+    local root = vim.trim(result)
+    if root ~= '' then
       return root
     end
   end
+  
+  -- Fallback: check for .git directory in parent directories
+  local path = vim.fn.getcwd()
+  while path and path ~= '/' do
+    if vim.fn.isdirectory(path .. '/.git') == 1 then
+      return path
+    end
+    local parent = vim.fn.fnamemodify(path, ':h')
+    if parent == path then
+      break
+    end
+    path = parent
+  end
+  
   return nil
 end
 

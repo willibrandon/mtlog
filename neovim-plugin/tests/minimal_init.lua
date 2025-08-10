@@ -23,7 +23,8 @@ package.path = package.path .. ';./tests/?.lua'
 
 -- Configure for testing
 vim.g.mtlog_test_mode = true
-vim.g.mtlog_analyzer_path = '/home/brandon/go/bin/mtlog-analyzer'
+-- Use environment variable for analyzer path, falling back to PATH lookup
+vim.g.mtlog_analyzer_path = vim.env.MTLOG_ANALYZER_PATH or vim.fn.exepath('mtlog-analyzer') or 'mtlog-analyzer'
 
 -- Disable any auto commands during testing
 vim.opt.swapfile = false

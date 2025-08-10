@@ -89,11 +89,24 @@ function M.save(data)
     return false
   end
   
-  -- Pretty format the JSON
-  local formatted = vim.fn.system('jq . 2>/dev/null', json)
-  if vim.v.shell_error ~= 0 then
-    -- Fallback to unformatted if jq is not available
-    formatted = json
+  -- Pretty format the JSON using Neovim's built-in formatting
+  -- This adds proper indentation without external dependencies
+  local formatted = json
+  if vim.json.encode then
+    -- Re-decode and encode with indent for pretty printing
+    local decoded = vim.json.decode(json)
+    if decoded then
+      -- Add newlines and indentation manually for readability
+      formatted = vim.fn.json_encode(decoded)
+      if formatted == json then
+        -- If json_encode doesn't format, do basic formatting
+        formatted = json:gsub(',', ',\n  ')
+        formatted = formatted:gsub('{', '{\n  ')
+        formatted = formatted:gsub('}', '\n}')
+        formatted = formatted:gsub('%[', '[\n  ')
+        formatted = formatted:gsub('%]', '\n]')
+      end
+    end
   end
   
   if not utils.write_file(config_path, formatted) then
