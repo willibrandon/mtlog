@@ -9,6 +9,7 @@ Each release includes:
 - **mtlog-analyzer** - Static analysis tool (binaries for Linux, macOS, Windows)
 - **VS Code extension** - Real-time validation in Visual Studio Code
 - **GoLand plugin** - Real-time validation in JetBrains IDEs
+- **Neovim plugin** - Comprehensive plugin for Neovim (distributed via repository with rtp)
 
 All components share the same version number for consistency.
 
@@ -20,8 +21,12 @@ All components share the same version number for consistency.
 # Update version numbers
 # - vscode-extension/mtlog-analyzer/package.json
 # - goland-plugin/build.gradle.kts
+# - neovim-plugin/CHANGELOG.md (if first release, otherwise automatic)
 
 # Update CHANGELOG.md
+# Move items from Unreleased to new version section
+
+# Update neovim-plugin/CHANGELOG.md
 # Move items from Unreleased to new version section
 
 # Update SECURITY.md
@@ -29,15 +34,15 @@ All components share the same version number for consistency.
 
 # Commit changes
 git add -A
-git commit -m "chore: prepare v0.7.0 release"
+git commit -m "chore: prepare v0.8.0 release"
 git push origin main
 ```
 
 ### 2. Create and Push Tag
 
 ```bash
-git tag v0.7.0
-git push origin v0.7.0
+git tag v0.8.0
+git push origin v0.8.0
 ```
 
 ### 3. Automated Release Process
@@ -49,6 +54,8 @@ The GitHub Actions workflow will automatically:
 4. Create GitHub release with all artifacts
 5. Publish VS Code extension to marketplace
 6. Publish GoLand plugin to JetBrains marketplace
+
+Note: The Neovim plugin is distributed as part of the repository and doesn't require separate packaging.
 
 ### 4. Manual Steps (if needed)
 
@@ -79,12 +86,12 @@ We follow semantic versioning (MAJOR.MINOR.PATCH):
 ### To re-run a release
 ```bash
 # Delete the tag locally and remotely
-git tag -d v0.7.0
-git push --delete origin v0.7.0
+git tag -d v0.8.0
+git push --delete origin v0.8.0
 
 # Recreate and push
-git tag v0.7.0
-git push origin v0.7.0
+git tag v0.8.0
+git push origin v0.8.0
 ```
 
 ## CI/CD Configuration

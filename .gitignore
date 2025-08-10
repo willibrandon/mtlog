@@ -1,6 +1,3 @@
-.claude/settings.local.json
-CLAUDE.local.md
-
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -67,3 +64,8 @@ vscode-extension-tests/**/.vscode-test/
 vscode-extension-tests/*.vscode-testuser-data/
 vscode-extension-tests/**/*.vscode-testuser-data/
 **/SRCmtlogvscode-extension-tests.vscode-test*/
+
+# Claude specific files
+.claude/agents/
+.claude/settings.local.json
+CLAUDE.local.md

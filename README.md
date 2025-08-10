@@ -825,6 +825,32 @@ The plugin provides:
 - ⚙️ Configurable analyzer path, flags, and severity levels
 - 🚀 Performance optimized with caching and debouncing
 
+#### Neovim Plugin
+
+For Neovim users, a comprehensive plugin is included in the repository at [neovim-plugin/](./neovim-plugin/):
+
+```lua
+-- Install with lazy.nvim
+{
+  'willibrandon/mtlog',
+  rtp = 'neovim-plugin',
+  ft = 'go',
+  config = function()
+    require('mtlog').setup()
+  end,
+}
+```
+
+The plugin provides:
+- 🔍 Real-time analysis on save with debouncing
+- 🎯 LSP integration for code actions
+- 🔧 Quick fixes and diagnostic suppression
+- 📊 Statusline integration with diagnostic counts
+- ⚡ Advanced features: queue management, context rules, help system
+- 🚀 Performance optimized with caching and async operations
+
+See the [plugin README](./neovim-plugin/README.md) for detailed configuration and usage.
+
 ## Advanced Usage
 
 ### Custom Sinks
