@@ -185,11 +185,29 @@ local function run_analyzer_async(filepath, callback, bufnr)
   local analyzer_flags = config.get('analyzer_flags') or {}
   
   -- Build command - use stdin mode like VS Code and JetBrains
-  local cmd = { analyzer_path, '-stdin' }
+  local base_cmd = { analyzer_path, '-stdin' }
   
   -- Add custom flags
   for _, flag in ipairs(analyzer_flags) do
-    table.insert(cmd, flag)
+    table.insert(base_cmd, flag)
+  end
+  
+  -- Set up environment for suppressed diagnostics (like GoLand does)
+  local suppressed = config.get('suppressed_diagnostics') or {}
+  local cmd = base_cmd
+  
+  if #suppressed > 0 then
+    -- Wrap command with environment variable
+    local cmd_str = table.concat(base_cmd, ' ')
+    cmd = { 'sh', '-c', 'MTLOG_SUPPRESS=' .. table.concat(suppressed, ',') .. ' ' .. cmd_str }
+    if vim.g.mtlog_debug then
+      vim.notify('Setting MTLOG_SUPPRESS=' .. table.concat(suppressed, ','), vim.log.levels.INFO)
+    end
+  end
+  
+  -- Debug: Log the full command
+  if vim.g.mtlog_debug then
+    vim.notify('Analyzer command: ' .. table.concat(cmd, ' '), vim.log.levels.INFO)
   end
   
   -- Get the file content from buffer if available, otherwise from disk
@@ -320,16 +338,29 @@ local function run_analyzer_async(filepath, callback, bufnr)
       end,
       on_exit = function(_, exit_code)
         vim.schedule(function()
-          if exit_code ~= 0 then
-            local stderr_text = table.concat(stderr, '\n')
-            callback(nil, 'Analyzer error: ' .. stderr_text)
-            return
+          -- In stdin mode, JSON array is in stdout regardless of exit code
+          local json_output = table.concat(stdout, '\n')
+          
+          if vim.g.mtlog_debug then
+            vim.notify('Analyzer exit code: ' .. exit_code, vim.log.levels.INFO)
+            vim.notify('Analyzer stdout length: ' .. #json_output, vim.log.levels.INFO)
+            if #stderr > 0 then
+              vim.notify('Analyzer stderr: ' .. table.concat(stderr, '\n'), vim.log.levels.WARN)
+            end
           end
           
-          -- In stdin mode, JSON array is in stdout
-          local json_output = table.concat(stdout, '\n')
+          -- Try to parse JSON output first
           local diagnostics = parse_json_output(json_output)
-          callback(diagnostics or {}, nil)
+          if diagnostics then
+            callback(diagnostics, nil)
+          elseif exit_code ~= 0 and #stderr > 0 then
+            -- Only treat as error if we have stderr and no JSON
+            local stderr_text = table.concat(stderr, '\n')
+            callback(nil, 'Analyzer error: ' .. stderr_text)
+          else
+            -- No diagnostics found
+            callback({}, nil)
+          end
         end)
       end,
     })

@@ -367,4 +367,22 @@ function M.format_diagnostic_message(code, message)
   return message
 end
 
+-- Get human-readable description for diagnostic codes
+---@param code string Diagnostic code (e.g., "MTLOG001")
+---@return string Description
+function M.get_diagnostic_description(code)
+  local descriptions = {
+    MTLOG001 = "Template/argument mismatch",
+    MTLOG002 = "Invalid format specifier",
+    MTLOG003 = "Missing error in Error/Fatal log",
+    MTLOG004 = "Property name not PascalCase",
+    MTLOG005 = "Complex type needs LogValue() method",
+    MTLOG006 = "Duplicate property in template",
+    MTLOG007 = "String context key should be constant",
+    MTLOG008 = "General information",
+  }
+  
+  return descriptions[code] or "Unknown diagnostic"
+end
+
 return M

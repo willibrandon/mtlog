@@ -73,6 +73,78 @@ end, {
   desc = 'Toggle mtlog-analyzer',
 })
 
+vim.api.nvim_create_user_command('MtlogToggleDiagnostics', function()
+  require('mtlog').toggle_diagnostics()
+end, {
+  desc = 'Toggle global diagnostics kill switch',
+})
+
+vim.api.nvim_create_user_command('MtlogSuppress', function(opts)
+  require('mtlog').suppress_diagnostic(opts.args ~= '' and opts.args or nil)
+end, {
+  nargs = '?',
+  complete = function()
+    return { 'MTLOG001', 'MTLOG002', 'MTLOG003', 'MTLOG004', 'MTLOG005', 'MTLOG006', 'MTLOG007', 'MTLOG008' }
+  end,
+  desc = 'Suppress a diagnostic ID',
+})
+
+vim.api.nvim_create_user_command('MtlogUnsuppress', function(opts)
+  require('mtlog').unsuppress_diagnostic(opts.args ~= '' and opts.args or nil)
+end, {
+  nargs = '?',
+  complete = function()
+    local config = require('mtlog.config')
+    return config.get('suppressed_diagnostics') or {}
+  end,
+  desc = 'Unsuppress a diagnostic ID',
+})
+
+vim.api.nvim_create_user_command('MtlogUnsuppressAll', function()
+  require('mtlog').unsuppress_all()
+end, {
+  desc = 'Clear all diagnostic suppressions',
+})
+
+vim.api.nvim_create_user_command('MtlogShowSuppressions', function()
+  require('mtlog').show_suppressions()
+end, {
+  desc = 'Show currently suppressed diagnostics',
+})
+
+vim.api.nvim_create_user_command('MtlogManageSuppressions', function()
+  -- Use Telescope if available
+  local ok, telescope = pcall(require, 'telescope')
+  if ok then
+    telescope.extensions.mtlog.suppressions()
+  else
+    -- Fallback to simple UI
+    require('mtlog').show_suppressions()
+  end
+end, {
+  desc = 'Manage suppressed diagnostics with Telescope',
+})
+
+vim.api.nvim_create_user_command('MtlogWorkspace', function(opts)
+  local workspace = require('mtlog.workspace')
+  
+  if opts.args == 'save' then
+    workspace.save_suppressions()
+  elseif opts.args == 'load' then
+    workspace.load_suppressions()
+  elseif opts.args == 'path' then
+    vim.notify('Workspace config: ' .. workspace.get_config_path(), vim.log.levels.INFO)
+  else
+    vim.notify('Usage: :MtlogWorkspace [save|load|path]', vim.log.levels.WARN)
+  end
+end, {
+  nargs = 1,
+  complete = function()
+    return { 'save', 'load', 'path' }
+  end,
+  desc = 'Manage mtlog workspace configuration',
+})
+
 vim.api.nvim_create_user_command('MtlogStatus', function()
   local mtlog = require('mtlog')
   local analyzer = require('mtlog.analyzer')
@@ -111,12 +183,24 @@ vim.api.nvim_create_user_command('MtlogStatus', function()
   table.insert(lines, '')
   table.insert(lines, 'Diagnostics:')
   
+  local config = require('mtlog.config')
+  local diagnostics_enabled = config.get('diagnostics_enabled')
+  if not diagnostics_enabled then
+    table.insert(lines, '  ⚠ Kill switch active - diagnostics disabled')
+  end
+  
   local counts = mtlog.get_counts()
   table.insert(lines, string.format('  Total: %d', counts.total))
   table.insert(lines, string.format('  Errors: %d', counts.errors))
   table.insert(lines, string.format('  Warnings: %d', counts.warnings))
   table.insert(lines, string.format('  Info: %d', counts.info))
   table.insert(lines, string.format('  Hints: %d', counts.hints))
+  
+  -- Suppressed diagnostics
+  local suppressed = config.get('suppressed_diagnostics') or {}
+  if #suppressed > 0 then
+    table.insert(lines, string.format('  Suppressed: %s', table.concat(suppressed, ', ')))
+  end
   
   -- Cache stats
   local cache = require('mtlog.cache')
@@ -153,11 +237,31 @@ vim.api.nvim_create_user_command('MtlogStatus', function()
   
   local win = vim.api.nvim_open_win(buf, true, win_opts)  -- true to focus the window
   
-  -- Close on any key
-  local close_cmd = string.format('<cmd>lua vim.api.nvim_win_close(%d, true)<CR>', win)
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<Esc>', close_cmd, { silent = true })
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', close_cmd, { silent = true })
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', close_cmd, { silent = true })
+  -- Close on any key - use vim.schedule to ensure the window ID is captured correctly
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<Esc>', '', { 
+    silent = true,
+    callback = function()
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end
+  })
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '', { 
+    silent = true,
+    callback = function()
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end
+  })
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', { 
+    silent = true,
+    callback = function()
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end
+  })
 end, {
   desc = 'Show mtlog-analyzer status',
 })

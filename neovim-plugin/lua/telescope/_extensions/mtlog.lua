@@ -154,6 +154,103 @@ M.diagnostics = function(opts)
   }):find()
 end
 
+-- Picker for managing suppressed diagnostics
+M.suppressions = function(opts)
+  opts = opts or {}
+  
+  local config = require('mtlog.config')
+  local mtlog_utils = require('mtlog.utils')
+  local suppressed = config.get('suppressed_diagnostics') or {}
+  
+  if #suppressed == 0 then
+    vim.notify('No diagnostics are currently suppressed', vim.log.levels.INFO)
+    return
+  end
+  
+  -- Create displayer
+  local displayer = entry_display.create({
+    separator = ' ',
+    items = {
+      { width = 10 }, -- Diagnostic ID
+      { remaining = true }, -- Description
+    },
+  })
+  
+  -- Build list of suppressed diagnostics with descriptions
+  local items = {}
+  for _, id in ipairs(suppressed) do
+    table.insert(items, {
+      id = id,
+      description = mtlog_utils.get_diagnostic_description(id),
+    })
+  end
+  
+  -- Create finder
+  local finder = finders.new_table({
+    results = items,
+    entry_maker = function(item)
+      return {
+        value = item,
+        display = function(entry)
+          return displayer({
+            { item.id, 'TelescopeResultsConstant' },
+            { item.description, 'TelescopeResultsString' },
+          })
+        end,
+        ordinal = item.id .. ' ' .. item.description,
+      }
+    end,
+  })
+  
+  -- Create picker
+  pickers.new(opts, {
+    prompt_title = 'Suppressed Diagnostics',
+    finder = finder,
+    sorter = conf.generic_sorter(opts),
+    attach_mappings = function(prompt_bufnr, map)
+      -- Default action: unsuppress the selected diagnostic
+      actions.select_default:replace(function()
+        local selection = action_state.get_selected_entry()
+        if selection then
+          actions.close(prompt_bufnr)
+          require('mtlog').unsuppress_diagnostic(selection.value.id)
+        end
+      end)
+      
+      -- Multi-select to unsuppress multiple
+      map('i', '<Tab>', actions.toggle_selection + actions.move_selection_worse)
+      map('i', '<S-Tab>', actions.toggle_selection + actions.move_selection_better)
+      
+      -- Unsuppress all selected
+      map('i', '<CR>', function()
+        local picker = action_state.get_current_picker(prompt_bufnr)
+        local multi_selections = picker:get_multi_selection()
+        
+        actions.close(prompt_bufnr)
+        
+        if #multi_selections > 0 then
+          for _, selection in ipairs(multi_selections) do
+            require('mtlog').unsuppress_diagnostic(selection.value.id)
+          end
+        else
+          local selection = action_state.get_selected_entry()
+          if selection then
+            require('mtlog').unsuppress_diagnostic(selection.value.id)
+          end
+        end
+      end)
+      
+      -- Clear all suppressions
+      map('i', '<C-a>', function()
+        actions.close(prompt_bufnr)
+        require('mtlog').unsuppress_all()
+      end)
+      
+      return true
+    end,
+  }):find()
+end
+
 -- Picker for viewing workspace analysis results
 M.workspace = function(opts)
   opts = opts or {}
@@ -202,5 +299,6 @@ return telescope.register_extension({
     mtlog = M.diagnostics,
     diagnostics = M.diagnostics,
     workspace = M.workspace,
+    suppressions = M.suppressions,
   },
 })

@@ -7,6 +7,9 @@ local defaults = {
   -- Path to mtlog-analyzer executable
   analyzer_path = 'mtlog-analyzer',
   
+  -- Global diagnostics kill switch
+  diagnostics_enabled = true,
+  
   -- Automatically enable for Go projects
   auto_enable = true,
   
@@ -72,11 +75,40 @@ local defaults = {
   -- Analyzer command flags
   analyzer_flags = {},
   
+  -- Suppressed diagnostic IDs
+  suppressed_diagnostics = {},
+  
   -- File patterns to ignore
   ignore_patterns = {
     'vendor/',
     '%.pb%.go$',
     '_test%.go$',
+  },
+  
+  -- Keybinding configuration
+  keymaps = {
+    toggle = '<leader>mt',
+    suppress = '<leader>ms', 
+    quick_fix = '<leader>mf',
+    manage_suppressions = '<leader>mS',
+  },
+  
+  -- Performance settings
+  performance = {
+    max_concurrent = nil,  -- Max concurrent analyses (nil = CPU count - 1)
+  },
+  
+  -- Debug settings
+  debug = {
+    log_level = 'INFO',  -- ERROR, WARN, INFO, DEBUG
+    show_analyzer_output = false,
+  },
+  
+  -- Auto-command patterns
+  autocmds = {
+    disable_in_test_files = true,  -- Auto-disable in _test.go files
+    disable_patterns = {},  -- File patterns to auto-disable
+    enable_patterns = {},  -- File patterns to auto-enable
   },
   
   -- Diagnostic float configuration
@@ -97,6 +129,7 @@ local config = {}
 local function validate_config(opts)
   vim.validate({
     analyzer_path = { opts.analyzer_path, 'string', true },
+    diagnostics_enabled = { opts.diagnostics_enabled, 'boolean', true },
     auto_enable = { opts.auto_enable, 'boolean', true },
     auto_analyze = { opts.auto_analyze, 'boolean', true },
     debounce_ms = { opts.debounce_ms, 'number', true },
@@ -108,8 +141,13 @@ local function validate_config(opts)
     cache = { opts.cache, { 'table', 'boolean' }, true },
     show_errors = { opts.show_errors, 'boolean', true },
     analyzer_flags = { opts.analyzer_flags, 'table', true },
+    suppressed_diagnostics = { opts.suppressed_diagnostics, 'table', true },
     ignore_patterns = { opts.ignore_patterns, 'table', true },
     float = { opts.float, 'table', true },
+    keymaps = { opts.keymaps, 'table', true },
+    performance = { opts.performance, 'table', true },
+    debug = { opts.debug, 'table', true },
+    autocmds = { opts.autocmds, 'table', true },
   })
   
   -- Validate nested tables
