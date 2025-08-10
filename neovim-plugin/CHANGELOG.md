@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-08-10
+
+### Fixed
+- **Plugin Loading** - Fixed commands not registering with lazy.nvim and other plugin managers
+  - Renamed `plugin/mtlog.lua` to `plugin/mtlog.vim` with Lua heredoc syntax
+  - Commands now load correctly regardless of plugin manager or lazy loading strategy
+  - Ensures compatibility with all Neovim plugin managers (lazy.nvim, packer, vim-plug, etc.)
+
 ## [0.8.0] - 2025-08-10
 
 ### Features

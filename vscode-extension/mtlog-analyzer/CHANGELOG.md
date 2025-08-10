@@ -2,6 +2,12 @@
 
 All notable changes to the "mtlog-analyzer" extension will be documented in this file.
 
+## [0.8.1] - 2025-08-10
+
+### Changed
+- Version bump for v0.8.1 patch release
+- No functional changes in VS Code extension
+
 ## [0.8.0] - 2025-08-10
 
 ### Changed

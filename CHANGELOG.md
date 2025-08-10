@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-08-10
+
+### Fixed
+- **Neovim Plugin** - Fixed commands not loading with lazy.nvim and other plugin managers
+  - Renamed `plugin/mtlog.lua` to `plugin/mtlog.vim` and wrapped Lua code in vim heredoc
+  - This ensures proper command registration regardless of plugin manager or loading strategy
+  - Commands are now available immediately after plugin installation without manual setup
+
 ## [0.8.0] - 2025-08-10
 
 ### Added
@@ -463,6 +471,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.8.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.8.1
+[0.8.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.8.0
+[0.7.7]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.7
+[0.7.6]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.6
 [0.7.5]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.5
 [0.7.4]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.4
 [0.7.3]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.3
