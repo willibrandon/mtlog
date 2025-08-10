@@ -13,7 +13,7 @@ A Neovim plugin for [mtlog-analyzer](https://github.com/willibrandon/mtlog), pro
 
 ## Requirements
 
-- Neovim >= 0.7.0
+- Neovim >= 0.8.0
 - Go >= 1.21
 - [mtlog-analyzer](https://github.com/willibrandon/mtlog/cmd/mtlog-analyzer) installed
 
