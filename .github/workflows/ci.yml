@@ -264,8 +264,16 @@ jobs:
     
     - name: Validate Health Check
       run: |
-        nvim --headless -c "checkhealth mtlog" -c "qa!" 2>&1 | tee health.log
-        grep -q "mtlog-analyzer is installed" health.log || echo "Health check validation skipped"
+        # Run checkhealth and write buffer to file (only way to capture output in headless)
+        nvim --headless -c "checkhealth mtlog" -c "w! health.txt" -c "qa!"
+        # Check if analyzer is detected
+        if grep -q "mtlog-analyzer is installed\|mtlog-analyzer version" health.txt; then
+          echo "✅ Health check passed: mtlog-analyzer detected"
+        else
+          echo "❌ Health check failed - output:"
+          cat health.txt
+          exit 1
+        fi
 
   integration:
     name: Integration Tests

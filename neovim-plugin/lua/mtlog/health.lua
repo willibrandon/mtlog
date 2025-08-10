@@ -154,7 +154,8 @@ func main() {
 ]]
     
     if utils.write_file(test_file, test_content) then
-      local result = vim.fn.system(analyzer_path .. ' -json ' .. test_file .. ' 2>/dev/null')
+      local cmd = (analyzer_path or 'mtlog-analyzer') .. ' -json ' .. test_file .. ' 2>/dev/null'
+      local result = vim.fn.system(cmd)
       vim.fn.delete(test_file)
       
       if vim.v.shell_error == 0 then
@@ -243,25 +244,25 @@ local function check_configuration()
   end
   
   -- Check debounce
-  info(string.format('Debounce: %dms', cfg.debounce_ms))
+  info(string.format('Debounce: %dms', cfg.debounce_ms or 100))
   
   -- Check virtual text
-  if cfg.virtual_text.enabled then
+  if cfg.virtual_text and cfg.virtual_text.enabled then
     ok('Virtual text is enabled')
   else
     info('Virtual text is disabled')
   end
   
   -- Check signs
-  if cfg.signs.enabled then
+  if cfg.signs and cfg.signs.enabled then
     ok('Sign column is enabled')
   else
     info('Sign column is disabled')
   end
   
   -- Check cache
-  if cfg.cache.enabled then
-    ok(string.format('Cache is enabled (TTL: %ds)', cfg.cache.ttl_seconds))
+  if cfg.cache and cfg.cache.enabled then
+    ok(string.format('Cache is enabled (TTL: %ds)', cfg.cache.ttl_seconds or 300))
     
     -- Check cache stats
     local cache = require('mtlog.cache')
@@ -272,9 +273,9 @@ local function check_configuration()
   end
   
   -- Check rate limiting
-  if cfg.rate_limit.enabled then
+  if cfg.rate_limit and cfg.rate_limit.enabled then
     ok(string.format('Rate limiting is enabled (%d files/sec)', 
-      cfg.rate_limit.max_files_per_second))
+      cfg.rate_limit.max_files_per_second or 10))
   else
     info('Rate limiting is disabled')
   end
