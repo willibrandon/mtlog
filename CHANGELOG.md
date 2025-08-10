@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-08-10
+
+### Added
+- **Neovim Plugin** - Comprehensive plugin for mtlog-analyzer integration (#31)
+  - Real-time analysis with debouncing and smart activation
+  - LSP integration providing code actions through standard interface
+  - Queue management for concurrent analysis with pause/resume
+  - Context rules for auto-enable/disable based on patterns
+  - Diagnostic suppression at session and workspace levels
+  - Interactive help system with `:MtlogHelp` and `:MtlogExplain`
+  - Telescope integration for fuzzy finding
+  - Statusline component with diagnostic counts
+  - 30+ test files with comprehensive coverage
+  - Requires Neovim >= 0.8.0
+
 ## [0.7.7] - 2025-08-08
 
 ### Added

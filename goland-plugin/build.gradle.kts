@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.7.7"
+version = "0.8.0"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,11 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.8.0</h2>
+            <ul>
+                <li>Version bump for unified release with new Neovim plugin</li>
+                <li>No functional changes in GoLand plugin</li>
+            </ul>
             <h2>0.7.7</h2>
             <ul>
                 <li>Added format specifier quick fixes for MTLOG002 diagnostics</li>

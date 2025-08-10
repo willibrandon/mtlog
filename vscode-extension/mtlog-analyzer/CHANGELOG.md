@@ -2,6 +2,12 @@
 
 All notable changes to the "mtlog-analyzer" extension will be documented in this file.
 
+## [0.8.0] - 2025-08-10
+
+### Changed
+- Version bump for consistency with mtlog v0.8.0 release
+- No functional changes in this release
+
 ## [0.7.7] - 2025-08-08
 
 ### Added
