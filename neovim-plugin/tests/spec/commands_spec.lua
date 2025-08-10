@@ -482,7 +482,7 @@ func main() {}
     it('should apply single fix directly', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_set_current_buf(bufnr)
-      vim.api.nvim_buf_set_name(bufnr, 'test.go')
+      vim.api.nvim_buf_set_name(bufnr, 'test_quickfix_single.go')
       vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
         'log.Info("Test {property}")'
       })
