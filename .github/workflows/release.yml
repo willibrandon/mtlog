@@ -121,7 +121,8 @@ jobs:
           ```lua
           -- Using lazy.nvim
           {
-            'willibrandon/mtlog.nvim',
+            'willibrandon/mtlog',
+            rtp = 'neovim-plugin',
             ft = 'go',
             tag = '${{ steps.version.outputs.version }}',
             config = function()
