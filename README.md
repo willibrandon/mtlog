@@ -833,11 +833,15 @@ For Neovim users, a comprehensive plugin is included in the repository at [neovi
 -- Install with lazy.nvim
 {
   'willibrandon/mtlog',
-  rtp = 'neovim-plugin',
-  ft = 'go',
-  config = function()
+  lazy = false,  -- Load immediately to ensure commands are available
+  config = function(plugin)
+    -- Handle the plugin's subdirectory structure
+    vim.opt.rtp:append(plugin.dir .. "/neovim-plugin")
+    vim.cmd("runtime plugin/mtlog.vim")
+    
     require('mtlog').setup()
   end,
+  ft = 'go',
 }
 ```
 
