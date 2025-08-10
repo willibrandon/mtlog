@@ -265,7 +265,7 @@ jobs:
     - name: Validate Health Check
       run: |
         nvim --headless -c "checkhealth mtlog" -c "qa!" 2>&1 | tee health.log
-        grep -q "mtlog-analyzer found" health.log || echo "Health check validation skipped"
+        grep -q "mtlog-analyzer is installed" health.log || echo "Health check validation skipped"
 
   integration:
     name: Integration Tests
