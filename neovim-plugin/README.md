@@ -24,15 +24,21 @@ A Neovim plugin for [mtlog-analyzer](https://github.com/willibrandon/mtlog/tree/
 ```lua
 {
   'willibrandon/mtlog',
-  rtp = 'neovim-plugin',
-  ft = 'go',
-  config = function()
+  lazy = false,  -- Load immediately to ensure commands are available
+  config = function(plugin)
+    -- Handle the plugin's subdirectory structure
+    vim.opt.rtp:append(plugin.dir .. "/neovim-plugin")
+    vim.cmd("runtime plugin/mtlog.vim")
+    
     require('mtlog').setup({
       -- your configuration
     })
   end,
+  ft = 'go',  -- Only load for Go files
 }
 ```
+
+> **Note for lazy.nvim users:** This plugin is part of a monorepo with its Neovim files in the `neovim-plugin` subdirectory. The lazy.nvim configuration above handles this structure by manually adjusting the runtime path.
 
 ### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
@@ -535,6 +541,14 @@ Run `:checkhealth mtlog` to verify your installation:
 - Plugin status
 
 ## Troubleshooting
+
+### Commands not available with lazy.nvim
+
+If commands like `:MtlogStatus` are not available after installation with lazy.nvim:
+
+1. Ensure you're using the configuration shown above with `lazy = false`
+2. The config function must include both the runtime path adjustment and the explicit runtime command
+3. Check that the plugin files exist: `ls ~/.local/share/nvim/lazy/mtlog/neovim-plugin/plugin/`
 
 ### Analyzer not found
 
