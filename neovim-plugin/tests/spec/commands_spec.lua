@@ -17,7 +17,7 @@ describe('mtlog commands', function()
     vim.g.mtlog_analyzer_path = vim.fn.exepath('echo')  -- Use echo as mock analyzer
     
     -- Load the plugin commands (normally loaded automatically by Neovim)
-    vim.cmd('runtime plugin/mtlog.lua')
+    vim.cmd('runtime plugin/mtlog.vim')
     
     -- Load the plugin
     mtlog = require('mtlog')
