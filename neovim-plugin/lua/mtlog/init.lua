@@ -10,6 +10,7 @@ local diagnostics = require('mtlog.diagnostics')
 local utils = require('mtlog.utils')
 local cache = require('mtlog.cache')
 local queue = require('mtlog.queue')
+local context = require('mtlog.context')
 
 -- Plugin state
 local initialized = false
@@ -38,6 +39,9 @@ function M.setup(opts)
   -- Initialize queue system
   queue.setup()
   
+  -- Initialize context rules
+  context.setup()
+  
   -- Create autocmd group
   autocmd_group = vim.api.nvim_create_augroup('MtlogAnalyzer', { clear = true })
   
@@ -50,7 +54,13 @@ function M.setup(opts)
       vim.api.nvim_create_autocmd({ 'BufEnter', 'BufNewFile' }, {
         group = autocmd_group,
         pattern = '*.go',
-        callback = function()
+        callback = function(args)
+          -- Apply context rules first
+          if context.apply_context(args.buf) then
+            return
+          end
+          
+          -- Default behavior
           if utils.is_go_project() and not enabled then
             M.enable()
           end
@@ -82,6 +92,11 @@ function M.enable()
       group = autocmd_group,
       pattern = '*.go',
       callback = function(args)
+        -- Check context rules
+        if not context.should_analyze(args.buf) then
+          return
+        end
+        
         if not utils.is_vendor_path(args.file) then
           debounced_analyze(args.buf)
         end
@@ -145,6 +160,11 @@ function M.analyze_buffer(bufnr)
   -- Check global kill switch
   if not config.get('diagnostics_enabled') then
     diagnostics.clear(bufnr)
+    return
+  end
+  
+  -- Check context rules
+  if not context.should_analyze(bufnr) then
     return
   end
   

@@ -178,6 +178,7 @@ require('mtlog').setup({
 | `:MtlogStatus` | Show plugin status |
 | `:MtlogCache {clear\|stats}` | Manage cache |
 | `:MtlogQueue {show\|stats\|clear\|pause\|resume}` | Manage analysis queue |
+| `:MtlogContext {show\|test\|add-builtin\|clear}` | Manage context rules |
 | `:MtlogQuickFix` | Apply quick fix at cursor |
 | `:MtlogToggleDiagnostics` | Toggle global diagnostics kill switch |
 | `:MtlogSuppress [id]` | Suppress a diagnostic ID |
@@ -285,6 +286,173 @@ diagnostics.show_float()
 -- Set to quickfix/location list
 diagnostics.setqflist()
 diagnostics.setloclist()
+```
+
+## Context Rules
+
+**Note:** This feature is exclusive to the Neovim plugin, providing advanced control not available in VS Code or GoLand extensions.
+
+Context rules allow you to automatically enable, disable, or ignore analysis based on file paths, buffer properties, or custom conditions.
+
+### Built-in Rules
+
+The plugin includes several built-in rules that can be enabled:
+
+```lua
+require('mtlog').setup({
+  use_builtin_rules = true,  -- Enable built-in rules
+})
+```
+
+Built-in rules include:
+- **ignore_vendor** - Ignore files in vendor directories
+- **ignore_testdata** - Ignore test data files  
+- **disable_large_files** - Disable for files > 100KB
+
+### Custom Context Rules
+
+Define custom rules to control when analysis runs:
+
+```lua
+require('mtlog').setup({
+  context_rules = {
+    -- Path-based rule (glob pattern)
+    {
+      type = 'path',
+      pattern = '*/generated/*',
+      action = 'ignore',
+      description = 'Ignore generated files',
+    },
+    
+    -- Path-based rule (regex)
+    {
+      type = 'path',
+      pattern = '.*\\.pb\\.go$',
+      regex = true,
+      action = 'ignore',
+      description = 'Ignore protobuf files',
+    },
+    
+    -- Buffer property rule
+    {
+      type = 'buffer',
+      line_count = { max = 10000 },  -- Trigger for files > 10000 lines
+      action = 'disable',
+      description = 'Disable for very large files',
+    },
+    
+    -- Project marker rule
+    {
+      type = 'project',
+      markers = { 'go.mod' },
+      marker_content = {
+        ['go.mod'] = 'github.com/willibrandon/mtlog',
+      },
+      action = 'enable',
+      analyze_immediately = true,
+      description = 'Auto-enable for mtlog projects',
+    },
+    
+    -- Custom matcher function
+    {
+      type = 'custom',
+      action = 'disable',
+      matcher = function(bufnr, filepath)
+        -- Custom logic here
+        return filepath:match('_test%.go$') ~= nil
+      end,
+      description = 'Disable for test files',
+    },
+  },
+})
+```
+
+### Rule Types
+
+#### Path Rules (`type = 'path'`)
+- `pattern` - Glob or regex pattern to match file paths
+- `regex` - Set to true to use regex instead of glob
+
+#### Buffer Rules (`type = 'buffer'`)
+- `modified` - Match modified/unmodified buffers
+- `readonly` - Match readonly buffers
+- `buftype` - Match specific buffer types ('nofile', 'terminal', etc.)
+- `filesize` - Match based on file size:
+  - `max` - Trigger when size exceeds this value
+  - `min` - Trigger when size is below this value
+- `line_count` - Match based on line count:
+  - `max` - Trigger when lines exceed this value
+  - `min` - Trigger when lines are below this value
+
+#### Project Rules (`type = 'project'`)
+- `markers` - Files/directories that identify project root (e.g., 'go.mod', '.git')
+- `marker_content` - Optional content patterns to match in marker files
+
+#### Custom Rules (`type = 'custom'`)
+- `matcher` - Function that receives (bufnr, filepath) and returns boolean
+
+### Rule Actions
+
+- `enable` - Enable the analyzer
+- `disable` - Disable the analyzer (can be re-enabled manually)
+- `ignore` - Permanently ignore this buffer
+- `custom` - Run a custom handler function
+
+### Managing Context Rules
+
+```vim
+" Show current context rules
+:MtlogContext show
+
+" Test rules against current buffer
+:MtlogContext test
+
+" Add a built-in rule interactively
+:MtlogContext add-builtin
+
+" Clear all context rules
+:MtlogContext clear
+```
+
+### Examples
+
+#### Ignore Generated Files
+```lua
+{
+  type = 'path',
+  pattern = '*.generated.go',
+  action = 'ignore',
+}
+```
+
+#### Disable for Large Files
+```lua
+{
+  type = 'buffer',
+  filesize = { max = 500000 },  -- 500KB
+  action = 'disable',
+}
+```
+
+#### Enable Only for Specific Projects
+```lua
+{
+  type = 'project',
+  markers = { '.mtlog-enabled' },
+  action = 'enable',
+}
+```
+
+#### Custom Test File Detection
+```lua
+{
+  type = 'custom',
+  matcher = function(bufnr, filepath)
+    -- Skip integration tests but analyze unit tests
+    return filepath:match('integration_test%.go$') ~= nil
+  end,
+  action = 'ignore',
+}
 ```
 
 ## Health Check

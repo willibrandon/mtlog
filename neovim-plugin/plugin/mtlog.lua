@@ -289,6 +289,103 @@ end, {
   desc = 'Manage mtlog cache',
 })
 
+vim.api.nvim_create_user_command('MtlogContext', function(opts)
+  local context = require('mtlog.context')
+  
+  if opts.args == 'show' then
+    local lines = context.get_rules_summary()
+    
+    if #lines == 1 then
+      vim.notify(lines[1], vim.log.levels.INFO)
+    else
+      -- Show in floating window
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+      
+      local width = 0
+      for _, line in ipairs(lines) do
+        width = math.max(width, #line)
+      end
+      
+      local win_opts = {
+        relative = 'cursor',
+        row = 1,
+        col = 0,
+        width = width + 4,
+        height = #lines,
+        style = 'minimal',
+        border = 'rounded',
+      }
+      
+      if vim.fn.has('nvim-0.9') == 1 then
+        win_opts.title = ' Context Rules '
+        win_opts.title_pos = 'center'
+      end
+      
+      local win = vim.api.nvim_open_win(buf, true, win_opts)
+      
+      -- Close on any key
+      vim.api.nvim_buf_set_keymap(buf, 'n', '<Esc>', '', { 
+        silent = true,
+        callback = function()
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      })
+      vim.api.nvim_buf_set_keymap(buf, 'n', 'q', '', { 
+        silent = true,
+        callback = function()
+          if vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      })
+    end
+    
+  elseif opts.args == 'test' then
+    -- Test context rules on current buffer
+    local bufnr = vim.api.nvim_get_current_buf()
+    local action, rule = context.evaluate(bufnr)
+    
+    if action then
+      vim.notify(string.format('Context match: %s - %s', 
+        action, rule.description or 'No description'), vim.log.levels.INFO)
+    else
+      vim.notify('No context rules match current buffer', vim.log.levels.INFO)
+    end
+    
+  elseif opts.args == 'add-builtin' then
+    -- Add built-in rules
+    local builtin = context.builtin_rules
+    vim.ui.select(vim.tbl_keys(builtin), {
+      prompt = 'Select built-in rule to add:',
+      format_item = function(key)
+        return string.format('%s - %s', key, builtin[key].description)
+      end,
+    }, function(choice)
+      if choice then
+        context.add_rule(builtin[choice])
+        vim.notify(string.format('Added built-in rule: %s', choice), vim.log.levels.INFO)
+      end
+    end)
+    
+  elseif opts.args == 'clear' then
+    context.clear_rules()
+    vim.notify('Cleared all context rules', vim.log.levels.INFO)
+    
+  else
+    vim.notify('Usage: :MtlogContext [show|test|add-builtin|clear]', vim.log.levels.WARN)
+  end
+end, {
+  nargs = 1,
+  complete = function()
+    return { 'show', 'test', 'add-builtin', 'clear' }
+  end,
+  desc = 'Manage context rules',
+})
+
 vim.api.nvim_create_user_command('MtlogQueue', function(opts)
   local queue = require('mtlog.queue')
   

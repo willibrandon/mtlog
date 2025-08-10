@@ -120,6 +120,10 @@ local defaults = {
     header = '',
     prefix = '',
   },
+  
+  -- Context rules for auto-enabling/disabling
+  context_rules = {},  -- User-defined context rules
+  use_builtin_rules = true,  -- Use built-in context rules
 }
 
 -- Current configuration
