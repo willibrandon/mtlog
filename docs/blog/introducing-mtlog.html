@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Introducing mtlog - Readable, Structured Logging for Go</title>
+    <meta name="description" content="mtlog brings message template logging to Go. Logs humans can read at 2 AM. Structured data machines can query at 9 AM.">
+    
+    <!-- Go import -->
+    <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
+    <meta name="go-source" content="mtlog.dev https://github.com/willibrandon/mtlog https://github.com/willibrandon/mtlog/tree/main{/dir} https://github.com/willibrandon/mtlog/blob/main{/dir}/{file}#L{line}">
+    
+    <!-- JSON-LD Article Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Introducing mtlog - Readable, Structured Logging for Go",
+      "author": [{ "@type": "Person", "name": "Brandon Williams" }],
+      "datePublished": "2025-08-10T00:00:00Z",
+      "dateModified": "2025-08-10T00:00:00Z",
+      "description": "Logs humans can read at 2 AM. Structured data machines can query at 9 AM. In Go.",
+      "mainEntityOfPage": "https://mtlog.dev/blog/introducing-mtlog",
+      "url": "https://mtlog.dev/blog/introducing-mtlog",
+      "publisher": { "@type": "Organization", "name": "mtlog" }
+    }
+    </script>
+    
+    <!-- Canonical -->
+    <link rel="canonical" href="https://mtlog.dev/blog/introducing-mtlog">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Introducing mtlog - Readable, Structured Logging for Go">
+    <meta property="og:description" content="Logs humans can read at 2 AM. Structured data machines can query at 9 AM. In Go.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://mtlog.dev/blog/introducing-mtlog">
+    <meta property="article:published_time" content="2025-08-10T00:00:00Z">
+    <meta property="article:author" content="Brandon Williams">
+    
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Introducing mtlog - Readable, Structured Logging for Go">
+    <meta name="twitter:description" content="Readable logs + structured data, with static analysis and IDE plugins.">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <link id="prism-theme-dark" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link id="prism-theme-light" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" disabled />
+    
+    <!-- Prevent theme flash -->
+    <script>
+    (() => {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored || (prefersDark ? 'dark' : 'light');
+        if (theme === 'light') {
+          document.documentElement.classList.add('light');
+          document.body?.classList.add('light', 'bg-white', 'text-gray-900');
+          document.body?.classList.remove('bg-gray-900', 'text-gray-100');
+          const prismDark = document.getElementById('prism-theme-dark');
+          const prismLight = document.getElementById('prism-theme-light');
+          if (prismDark) prismDark.disabled = true;
+          if (prismLight) prismLight.disabled = false;
+        }
+      } catch {}
+    })();
+    </script>
+    
+    <style>
+        /* Custom gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Theme transition */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Light theme adjustments */
+        body.light pre[class*="language-"] {
+            background-color: #f5f5f5;
+            border: 1px solid #e5e5e5;
+        }
+        
+        /* Navigation link colors for light mode */
+        body.light nav a {
+            color: #6b7280;
+        }
+        body.light nav a:hover {
+            color: #111827;
+        }
+        
+        /* Fix text contrast in light mode */
+        body.light .text-gray-300 {
+            color: #374151; /* gray-700 */
+        }
+        body.light .text-gray-400 {
+            color: #4b5563; /* gray-600 */
+        }
+        body.light .text-gray-500 {
+            color: #6b7280; /* gray-500 */
+        }
+        body.light .article-content {
+            color: #1f2937; /* gray-800 */
+        }
+        body.light .article-content h2,
+        body.light .article-content h3 {
+            color: #111827; /* gray-900 */
+        }
+        body.light code {
+            color: #dc2626; /* red-600 for inline code */
+        }
+        body.light .bg-gray-800 code {
+            color: inherit; /* Keep syntax highlighting in code blocks */
+        }
+        body.light .text-gray-100 {
+            color: #111827; /* gray-900 for strong contrast */
+        }
+        
+        /* Code block styling */
+        pre[class*="language-"] {
+            border-radius: 0.5rem;
+            margin: 0;
+            font-size: 0.875rem;
+        }
+        
+        /* Article styling */
+        .article-content {
+            line-height: 1.7;
+        }
+        
+        .article-content h2 {
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .article-content h3 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .article-content p {
+            margin-bottom: 1.5rem;
+        }
+        
+        .article-content ul, .article-content ol {
+            margin-bottom: 1.5rem;
+            padding-left: 2rem;
+        }
+        
+        .article-content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .article-content pre {
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Skip to content -->
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded z-50">Skip to content</a>
+    <!-- Header -->
+    <header class="border-b border-gray-800">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <a href="/" class="text-2xl font-bold gradient-text">mtlog</a>
+                <span class="text-gray-500">/</span>
+                <a href="/blog" class="text-gray-400 hover:text-gray-100">Blog</a>
+            </div>
+            <div class="flex items-center gap-6">
+                <nav class="flex gap-6">
+                    <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">Docs</a>
+                    <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">GitHub</a>
+                    <a href="/quick-reference" class="text-gray-400 hover:text-gray-100 transition">Reference</a>
+                </nav>
+                <!-- Theme Switcher -->
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme" aria-pressed="false">
+                    <svg class="w-5 h-5 hidden dark-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg class="w-5 h-5 light-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main">
+    <article class="py-16 px-4">
+        <div class="container mx-auto max-w-4xl">
+            <!-- Article Header -->
+            <header class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4">
+                    Introducing mtlog
+                </h1>
+                <p class="text-xl text-blue-400 font-semibold mb-6">
+                    Logs humans can read at 2 AM. Structured data machines can query at 9 AM. In Go.
+                </p>
+                <div class="text-gray-500 text-sm">
+                    <time datetime="2025-08-10">August 10, 2025</time> • 5 min read
+                </div>
+            </header>
+
+            <!-- Article Content -->
+            <div class="article-content text-gray-300">
+                <p class="text-lg mb-8">
+                    Go developers often face a trade-off when it comes to logging: readable logs that are great for humans but lack structured data for queries, or structured logs that are great for machines but verbose and awkward to read in raw form.
+                </p>
+
+                <p class="text-lg mb-8 font-semibold text-gray-100">
+                    With mtlog, you don't have to choose.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">Why mtlog?</h2>
+                
+                <p>
+                    mtlog brings message template logging—popularized by Serilog in the .NET ecosystem—to Go. The result: logs that read like prose at 2 AM and contain rich structured properties for 9 AM production queries.
+                </p>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-go">// Human-friendly and structured
+log.Info("User {UserId} purchased {@Order} from {IP} in {Duration:F2}ms",
+    userId, order, ipAddress, duration)</code></pre>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-sm font-semibold text-gray-400 mb-2">Humans see:</h4>
+                        <code class="text-sm text-green-400">User 123 purchased {Id:456 Total:99.95 Items:[...]} from 192.168.1.5 in 153ms</code>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <h4 class="text-sm font-semibold text-gray-400 mb-2">Machines see:</h4>
+                        <code class="text-sm text-blue-400">{"UserId":123,"Order":{"Id":456,"Total":99.95,"Items":[...]},"IP":"192.168.1.5","Duration":153}</code>
+                    </div>
+                </div>
+
+                <h2 class="text-3xl font-bold text-gray-100">Key Features</h2>
+
+                <ul class="list-disc space-y-3 mb-8">
+                    <li><strong>Message templates</strong> with <code>{Property}</code>, OTEL-style <code>{http.method}</code> names, capture hints (<code>@</code> for destructuring, <code>$</code> for stringification), and format specifiers.</li>
+                    <li><strong>Clear syntax for built-ins:</strong> <code>${Message}</code>, <code>${Timestamp}</code>, <code>${Level}</code>—no collisions with user properties.</li>
+                    <li><strong>Zero allocations</strong> for simple log events (≈17 ns/op).</li>
+                    <li><strong>Adapters</strong> for slog and logr so you can integrate without rewriting your whole app.</li>
+                    <li><strong>A full sink ecosystem:</strong> console (themes), rolling file, Seq (CLEF), Elasticsearch, Splunk, async, and durable buffering.</li>
+                    <li><strong>Dynamic level control</strong> at runtime—locally or via Seq.</li>
+                </ul>
+
+                <h2 class="text-3xl font-bold text-gray-100">Built with Lessons Learned</h2>
+
+                <p>
+                    mtlog's design is informed by years of structured logging experience in other ecosystems:
+                </p>
+
+                <ul class="list-disc space-y-2 mb-8">
+                    <li>OTEL dotted names (<code>{http.method}</code>, <code>{service.name}</code>) treated as flat property names for compatibility.</li>
+                    <li><code>${...}</code> output template syntax avoids <code>{Message}</code> collisions and keeps future extensibility open.</li>
+                    <li>Format specifiers that actually work—<code>{Duration:F2}</code>, <code>{Price:F2}</code>, <code>{Percent:P1}</code>—not just afterthoughts.</li>
+                    <li>Clear capture semantics—<code>@</code> means capture structured data, <code>$</code> means stringify.</li>
+                </ul>
+
+                <h2 class="text-3xl font-bold text-gray-100">Tooling From Day One</h2>
+
+                <p>
+                    Logging isn't just about API design—it's about using it correctly, everywhere.
+                </p>
+
+                <p>
+                    mtlog ships with the <strong>mtlog-analyzer</strong>, a static analysis tool that:
+                </p>
+
+                <ul class="list-disc space-y-2 mb-8">
+                    <li>Catches template/argument mismatches</li>
+                    <li>Flags duplicate or misnamed properties</li>
+                    <li>Suggests capture hints for complex types</li>
+                    <li>Warns about error logs without error values</li>
+                    <li>Detects dynamic templates that can't be analyzed</li>
+                </ul>
+
+                <p>
+                    And it's not just CLI—real-time feedback is available via:
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-gray-800 rounded-lg p-4 text-center">
+                        <h4 class="font-semibold mb-2">
+                            <a href="https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer" class="text-blue-400 hover:underline">VS Code extension</a>
+                        </h4>
+                        <p class="text-sm text-gray-400">Squiggly underlines & quick fixes</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 text-center">
+                        <h4 class="font-semibold mb-2">
+                            <a href="https://plugins.jetbrains.com/plugin/28090-mtlog-analyzer" class="text-blue-400 hover:underline">GoLand plugin</a>
+                        </h4>
+                        <p class="text-sm text-gray-400">Real-time annotations</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg p-4 text-center">
+                        <h4 class="font-semibold mb-2">
+                            <a href="https://github.com/willibrandon/mtlog/tree/main/neovim-plugin" class="text-blue-400 hover:underline">Neovim plugin</a>
+                        </h4>
+                        <p class="text-sm text-gray-400">LSP integration & code actions</p>
+                    </div>
+                </div>
+
+                <p>
+                    In all of them, you'll see squiggly underlines, quick-fixes, and even interactive help with wrong/right examples.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">Output Templates Without Collisions</h2>
+
+                <p>
+                    In most logging libraries, output templates share syntax with message templates, which can lead to conflicts. mtlog avoids this entirely:
+                </p>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-go">// Built-ins are `${...}`
+mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}")</code></pre>
+                </div>
+
+                <ul class="list-disc space-y-2 mb-8">
+                    <li><code>${Message}</code> — the rendered message</li>
+                    <li><code>{SourceContext}</code> — a property from your event</li>
+                    <li>No risk of accidentally overwriting your own data</li>
+                </ul>
+
+                <h2 class="text-3xl font-bold text-gray-100">Context That Flows</h2>
+
+                <p>
+                    mtlog's LogContext lets you attach scoped properties to a <code>context.Context</code> that automatically flow through log events:
+                </p>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-go">ctx := mtlog.PushProperty(context.Background(), "RequestId", "abc-123")
+logger := baseLogger.WithContext(ctx)
+
+logger.Info("Processing request") // Includes RequestId=abc-123</code></pre>
+                </div>
+
+                <p>
+                    Useful for request tracing, async workflows, and multi-tenant apps.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">ForType — Strongly-Typed SourceContext</h2>
+
+                <p>
+                    Avoid hard-coded strings for source categories:
+                </p>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-go">serviceLogger := mtlog.ForType[UserService](logger)
+serviceLogger.Info("User created")
+// SourceContext = "UserService"</code></pre>
+                </div>
+
+                <p>
+                    Cached for near-zero overhead after the first call.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">Example: From Verbose to Clear</h2>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-2">Before:</h3>
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <pre><code class="language-go">log.Info("user logged in", "user_id", 123, "ip", "192.168.1.5")</code></pre>
+                    </div>
+
+                    <h3 class="text-lg font-semibold mb-2">After (mtlog):</h3>
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <pre><code class="language-go">log.Info("User {UserId} logged in from {IP}", 123, "192.168.1.5")</code></pre>
+                    </div>
+                </div>
+
+                <p>
+                    Same structure in JSON output, but dramatically more readable in plain text.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">Getting Started</h2>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-bash">go get github.com/willibrandon/mtlog</code></pre>
+                </div>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="language-go">log := mtlog.New(mtlog.WithConsole())
+
+log.Info("App started")
+log.Info("User {UserId} purchased {@Order}", 42, order)</code></pre>
+                </div>
+
+                <p>
+                    See the <a href="https://github.com/willibrandon/mtlog#quick-start" class="text-blue-400 hover:underline">Quick Start guide</a> and <a href="https://github.com/willibrandon/mtlog/tree/main/examples" class="text-blue-400 hover:underline">examples directory</a> for more.
+                </p>
+
+                <h2 class="text-3xl font-bold text-gray-100">Try mtlog</h2>
+
+                <p>
+                    mtlog is feature-complete and already being used in real projects.<br>
+                    We're in the final review phase for the public API before the 1.0 release — so now is the perfect time to try it, kick the tires, and help shape the final version.
+                </p>
+
+                <div class="bg-gray-800 rounded-lg p-6 mt-8 mb-8">
+                    <div class="grid md:grid-cols-3 gap-4 text-center">
+                        <div>
+                            <a href="/" class="text-blue-400 hover:text-blue-300 font-semibold">Docs & Examples</a>
+                            <p class="text-sm text-gray-500 mt-1">mtlog.dev</p>
+                        </div>
+                        <div>
+                            <a href="https://github.com/willibrandon/mtlog" class="text-blue-400 hover:text-blue-300 font-semibold">GitHub</a>
+                            <p class="text-sm text-gray-500 mt-1">github.com/willibrandon/mtlog</p>
+                        </div>
+                        <div>
+                            <a href="https://github.com/willibrandon/mtlog/tree/main/cmd/mtlog-analyzer" class="text-blue-400 hover:text-blue-300 font-semibold">Static Analyzer</a>
+                            <p class="text-sm text-gray-500 mt-1">mtlog-analyzer</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-xl font-semibold text-center text-gray-100">
+                    Readable logs. Structured data. Static analysis. All in Go.
+                </p>
+            </div>
+
+            <!-- Author -->
+            <div class="border-t border-gray-800 mt-12 pt-8">
+                <div class="text-sm text-gray-500">Brandon Williams</div>
+            </div>
+        </div>
+    </article>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 px-4">
+        <div class="container mx-auto text-center text-gray-500 text-sm">
+            <p>
+                Built with ❤️ by <a href="https://github.com/willibrandon" class="text-blue-400 hover:underline">willibrandon</a>
+            </p>
+            <p class="mt-2">
+                <a href="/" class="hover:text-gray-400">Home</a> •
+                <a href="/blog" class="hover:text-gray-400 ml-4">Blog</a> •
+                <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">GitHub</a> •
+                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a> •
+                <a href="/quick-reference" class="hover:text-gray-400 ml-4">Quick Reference</a> •
+                <a href="https://github.com/willibrandon/mtlog/blob/main/LICENSE" class="hover:text-gray-400 ml-4">MIT</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+    <!-- Theme Switcher -->
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const darkIcon = themeToggle.querySelector('.dark-icon');
+        const lightIcon = themeToggle.querySelector('.light-icon');
+        const prismDark = document.getElementById('prism-theme-dark');
+        const prismLight = document.getElementById('prism-theme-light');
+
+        // Load saved theme or default to dark
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        function setTheme(theme) {
+            if (theme === 'light') {
+                body.classList.remove('bg-gray-900', 'text-gray-100');
+                body.classList.add('bg-white', 'text-gray-900', 'light');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+                prismDark.disabled = true;
+                prismLight.disabled = false;
+                themeToggle.setAttribute('aria-pressed', 'true');
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-gray-900', 'border-gray-800');
+                header.classList.add('bg-white', 'border-gray-200');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-800').forEach(el => {
+                    el.classList.remove('bg-gray-800');
+                    el.classList.add('bg-gray-100');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-800');
+                footer.classList.add('border-gray-200');
+            } else {
+                body.classList.remove('bg-white', 'text-gray-900', 'light');
+                body.classList.add('bg-gray-900', 'text-gray-100');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                prismDark.disabled = false;
+                prismLight.disabled = true;
+                themeToggle.setAttribute('aria-pressed', 'false');
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-white', 'border-gray-200');
+                header.classList.add('bg-gray-900', 'border-gray-800');
+                
+                // Update code blocks
+                document.querySelectorAll('.bg-gray-100').forEach(el => {
+                    el.classList.remove('bg-gray-100');
+                    el.classList.add('bg-gray-800');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-200');
+                footer.classList.add('border-gray-800');
+            }
+            
+            // Re-highlight code
+            Prism.highlightAll();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.classList.contains('light') ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
+</body>
+</html>

@@ -9,6 +9,22 @@
     <!-- Go import -->
     <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
     
+    <!-- Prevent theme flash -->
+    <script>
+    (() => {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored || (prefersDark ? 'dark' : 'light');
+        if (theme === 'light') {
+          document.documentElement.classList.add('light');
+          document.body?.classList.add('light', 'bg-white', 'text-gray-900');
+          document.body?.classList.remove('bg-gray-900', 'text-gray-100');
+        }
+      } catch {}
+    })();
+    </script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -533,9 +549,14 @@ logrLogger.Error(err, "failed to update resource")</code></pre>
     <footer class="border-t border-gray-800 py-8 px-4 mt-16">
         <div class="container mx-auto text-center text-gray-500 text-sm">
             <p>
+                Built with ❤️ by <a href="https://github.com/willibrandon" class="text-blue-400 hover:underline">willibrandon</a>
+            </p>
+            <p class="mt-2">
                 <a href="/" class="hover:text-gray-400">Home</a> •
+                <a href="/blog" class="hover:text-gray-400 ml-4">Blog</a> •
                 <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">GitHub</a> •
-                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a>
+                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a> •
+                <a href="https://github.com/willibrandon/mtlog/blob/main/LICENSE" class="hover:text-gray-400 ml-4">MIT</a>
             </p>
         </div>
     </footer>
@@ -563,8 +584,8 @@ logrLogger.Error(err, "failed to update resource")</code></pre>
             if (theme === 'light') {
                 body.classList.remove('bg-gray-900', 'text-gray-100');
                 body.classList.add('bg-white', 'text-gray-900', 'light');
-                darkIcon.classList.remove('hidden');
-                lightIcon.classList.add('hidden');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
                 prismDark.disabled = true;
                 prismLight.disabled = false;
                 
@@ -586,8 +607,8 @@ logrLogger.Error(err, "failed to update resource")</code></pre>
             } else {
                 body.classList.remove('bg-white', 'text-gray-900', 'light');
                 body.classList.add('bg-gray-900', 'text-gray-100');
-                darkIcon.classList.add('hidden');
-                lightIcon.classList.remove('hidden');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
                 prismDark.disabled = false;
                 prismLight.disabled = true;
                 

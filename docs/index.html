@@ -15,6 +15,22 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://mtlog.dev">
     
+    <!-- Prevent theme flash -->
+    <script>
+    (() => {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored || (prefersDark ? 'dark' : 'light');
+        if (theme === 'light') {
+          document.documentElement.classList.add('light');
+          document.body?.classList.add('light', 'bg-white', 'text-gray-900');
+          document.body?.classList.remove('bg-gray-900', 'text-gray-100');
+        }
+      } catch {}
+    })();
+    </script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -392,6 +408,7 @@ func main() {
                 <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400">GitHub</a> •
                 <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a> •
                 <a href="/quick-reference" class="hover:text-gray-400 ml-4">Quick Reference</a> •
+                <a href="/blog" class="hover:text-gray-400 ml-4">Blog</a> •
                 <a href="https://github.com/willibrandon/mtlog/blob/main/LICENSE" class="hover:text-gray-400 ml-4">MIT</a>
             </p>
         </div>
@@ -420,8 +437,8 @@ func main() {
             if (theme === 'light') {
                 body.classList.remove('bg-gray-900', 'text-gray-100');
                 body.classList.add('bg-white', 'text-gray-900', 'light');
-                darkIcon.classList.remove('hidden');
-                lightIcon.classList.add('hidden');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
                 prismDark.disabled = true;
                 prismLight.disabled = false;
                 
@@ -443,8 +460,8 @@ func main() {
             } else {
                 body.classList.remove('bg-white', 'text-gray-900', 'light');
                 body.classList.add('bg-gray-900', 'text-gray-100');
-                darkIcon.classList.add('hidden');
-                lightIcon.classList.remove('hidden');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
                 prismDark.disabled = false;
                 prismLight.disabled = true;
                 

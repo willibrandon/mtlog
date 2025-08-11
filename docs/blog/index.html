@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog - mtlog</title>
+    <meta name="description" content="Blog posts about mtlog - Message Template Logging for Go">
+    
+    <!-- Canonical -->
+    <link rel="canonical" href="https://mtlog.dev/blog/">
+    
+    <!-- Go import -->
+    <meta name="go-import" content="mtlog.dev git https://github.com/willibrandon/mtlog">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="mtlog Blog">
+    <meta property="og:description" content="Blog posts about mtlog - Message Template Logging for Go">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mtlog.dev/blog/">
+    
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="mtlog Blog">
+    <meta name="twitter:description" content="Blog posts about mtlog - Message Template Logging for Go">
+    
+    <!-- RSS/JSON Feed -->
+    <link rel="alternate" type="application/rss+xml" title="mtlog Blog RSS" href="/blog/feed.xml">
+    <link rel="alternate" type="application/feed+json" title="mtlog Blog JSON Feed" href="/blog/feed.json">
+    
+    <!-- Prevent theme flash -->
+    <script>
+    (() => {
+      try {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored || (prefersDark ? 'dark' : 'light');
+        if (theme === 'light') {
+          document.documentElement.classList.add('light');
+          document.body?.classList.add('light', 'bg-white', 'text-gray-900');
+          document.body?.classList.remove('bg-gray-900', 'text-gray-100');
+        }
+      } catch {}
+    })();
+    </script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Custom gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Theme transition */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Navigation link colors for light mode */
+        body.light nav a {
+            color: #6b7280;
+        }
+        body.light nav a:hover {
+            color: #111827;
+        }
+        
+        /* Fix text contrast in light mode */
+        body.light .text-gray-300 {
+            color: #374151; /* gray-700 */
+        }
+        body.light .text-gray-400 {
+            color: #4b5563; /* gray-600 */
+        }
+        body.light .text-gray-500 {
+            color: #6b7280; /* gray-500 */
+        }
+        body.light h2 a {
+            color: #111827; /* gray-900 */
+        }
+        body.light h2 a:hover {
+            color: #2563eb; /* blue-600 */
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Skip to content -->
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded z-50">Skip to content</a>
+    <!-- Header -->
+    <header class="border-b border-gray-800">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <a href="/" class="text-2xl font-bold gradient-text">mtlog</a>
+                <span class="text-gray-500">/</span>
+                <span class="text-gray-400">Blog</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <nav class="flex gap-6">
+                    <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">Docs</a>
+                    <a href="https://github.com/willibrandon/mtlog" class="text-gray-400 hover:text-gray-100 transition">GitHub</a>
+                    <a href="/quick-reference" class="text-gray-400 hover:text-gray-100 transition">Reference</a>
+                </nav>
+                <!-- Theme Switcher -->
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" aria-label="Toggle theme">
+                    <svg class="w-5 h-5 hidden dark-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg class="w-5 h-5 light-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main" class="py-16 px-4">
+        <div class="container mx-auto max-w-4xl">
+            <h1 class="text-4xl font-bold text-center mb-12">Blog</h1>
+            
+            <!-- Blog Posts List -->
+            <div class="space-y-8">
+                <!-- Blog Post 1 -->
+                <article class="bg-gray-800 rounded-lg p-8 hover:shadow-xl transition">
+                    <header class="mb-4">
+                        <h2 class="text-2xl font-bold mb-2">
+                            <a href="/blog/introducing-mtlog" class="hover:text-blue-400 transition">
+                                Introducing mtlog
+                            </a>
+                        </h2>
+                        <div class="text-sm text-gray-500"><time datetime="2025-08-10">August 10, 2025</time> • 5 min read</div>
+                    </header>
+                    <p class="text-gray-300 mb-4">
+                        Logs humans can read at 2 AM. Structured data machines can query at 9 AM. In Go.
+                    </p>
+                    <p class="text-gray-400 mb-6">
+                        Go developers often face a trade-off when it comes to logging: readable logs that are great for humans but lack structured data for queries, or structured logs that are great for machines but verbose and awkward to read. With mtlog, you don't have to choose.
+                    </p>
+                    <a href="/blog/introducing-mtlog" class="text-blue-400 hover:text-blue-300 font-semibold inline-flex items-center">
+                        Read more 
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </a>
+                </article>
+
+                <!-- More posts can be added here in the future -->
+            </div>
+
+            <!-- Empty state for future -->
+            <div class="mt-16 text-center text-gray-500">
+                <p>More posts coming soon...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 px-4 mt-16">
+        <div class="container mx-auto text-center text-gray-500 text-sm">
+            <p>
+                Built with ❤️ by <a href="https://github.com/willibrandon" class="text-blue-400 hover:underline">willibrandon</a>
+            </p>
+            <p class="mt-2">
+                <a href="/" class="hover:text-gray-400">Home</a> •
+                <a href="https://github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">GitHub</a> •
+                <a href="https://pkg.go.dev/github.com/willibrandon/mtlog" class="hover:text-gray-400 ml-4">Go Docs</a> •
+                <a href="/quick-reference" class="hover:text-gray-400 ml-4">Quick Reference</a> •
+                <a href="https://github.com/willibrandon/mtlog/blob/main/LICENSE" class="hover:text-gray-400 ml-4">MIT</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Theme Switcher -->
+    <script>
+        // Theme management
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const darkIcon = themeToggle.querySelector('.dark-icon');
+        const lightIcon = themeToggle.querySelector('.light-icon');
+
+        // Load saved theme or default to dark
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        function setTheme(theme) {
+            if (theme === 'light') {
+                body.classList.remove('bg-gray-900', 'text-gray-100');
+                body.classList.add('bg-white', 'text-gray-900', 'light');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-gray-900', 'border-gray-800');
+                header.classList.add('bg-white', 'border-gray-200');
+                
+                // Update article cards and other gray-800 elements
+                document.querySelectorAll('.bg-gray-800').forEach(el => {
+                    el.classList.remove('bg-gray-800');
+                    el.classList.add('bg-gray-100');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-800');
+                footer.classList.add('border-gray-200');
+                
+                // Update theme toggle button
+                themeToggle.classList.remove('bg-gray-800', 'hover:bg-gray-700');
+                themeToggle.classList.add('bg-gray-200', 'hover:bg-gray-300');
+            } else {
+                body.classList.remove('bg-white', 'text-gray-900', 'light');
+                body.classList.add('bg-gray-900', 'text-gray-100');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                
+                // Update header
+                const header = document.querySelector('header');
+                header.classList.remove('bg-white', 'border-gray-200');
+                header.classList.add('bg-gray-900', 'border-gray-800');
+                
+                // Update article cards and other gray-100 elements
+                document.querySelectorAll('.bg-gray-100').forEach(el => {
+                    el.classList.remove('bg-gray-100');
+                    el.classList.add('bg-gray-800');
+                });
+                
+                // Update footer
+                const footer = document.querySelector('footer');
+                footer.classList.remove('border-gray-200');
+                footer.classList.add('border-gray-800');
+                
+                // Update theme toggle button
+                themeToggle.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+                themeToggle.classList.add('bg-gray-800', 'hover:bg-gray-700');
+            }
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.classList.contains('light') ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
+</body>
+</html>
