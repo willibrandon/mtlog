@@ -124,10 +124,12 @@ log.Information("Order {OrderId:000} total: ${Amount:F2}", 42, 99.95)
 Control how log events are formatted for output with customizable templates. Output templates use `${...}` syntax for built-in elements to distinguish them from message template properties:
 
 ```go
-// Console with custom output template
+// Console with custom output template and theme
 log := mtlog.New(
-    mtlog.WithConsoleTemplate("[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}"),
-    mtlog.WithConsoleTheme(sinks.LiterateTheme()),
+    mtlog.WithConsoleTemplateAndTheme(
+        "[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}",
+        sinks.LiterateTheme(),
+    ),
 )
 
 // File with detailed template
