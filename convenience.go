@@ -40,6 +40,21 @@ func WithConsoleTheme(theme *sinks.ConsoleTheme) Option {
 	return WithSink(sinks.NewConsoleSinkWithTheme(theme))
 }
 
+// WithConsoleTemplateAndTheme adds a console sink with both a custom output template and theme.
+func WithConsoleTemplateAndTheme(template string, theme *sinks.ConsoleTheme) Option {
+	return func(c *config) {
+		if c.err != nil {
+			return // Don't process if already errored
+		}
+		sink, err := sinks.NewConsoleSinkWithTemplateAndTheme(template, theme)
+		if err != nil {
+			c.err = err
+			return
+		}
+		c.sinks = append(c.sinks, sink)
+	}
+}
+
 // WithFile adds a file sink.
 func WithFile(path string) Option {
 	return func(c *config) {
