@@ -40,6 +40,9 @@ func main() {
 		PropertyFormat:  "%s → %v",
 	}
 	demoTheme(customTheme)
+
+	fmt.Println("\n=== Literate Theme with Custom Template ===")
+	demoThemeWithTemplate()
 }
 
 func demoTheme(theme *sinks.ConsoleTheme) {
@@ -79,4 +82,29 @@ func demoTheme(theme *sinks.ConsoleTheme) {
 	logger.Warning("Slow query detected: {Query} took {Duration}ms",
 		"SELECT * FROM orders WHERE status = 'pending'",
 		elapsed.Milliseconds())
+}
+
+func demoThemeWithTemplate() {
+	// Demonstrate the new WithConsoleTemplateAndTheme convenience method
+	logger := mtlog.New(
+		mtlog.WithConsoleTemplateAndTheme(
+			"[${Timestamp:HH:mm:ss} ${Level:u3}] {SourceContext}: ${Message}",
+			sinks.LiterateTheme(),
+		),
+		mtlog.WithSourceContext("AppService"),
+	)
+
+	// Show how template and theme work together
+	logger.Debug("Debug message with {Property}", "value1")
+	logger.Information("User {UserId} logged in from {IP}", 123, "192.168.1.1")
+	logger.Warning("Disk usage at {Percentage:P1}", 0.85)
+	logger.Error("Failed to connect to {Service}", "database")
+
+	// With structured data
+	order := map[string]any{
+		"Id":     "ORD-2025-002",
+		"Status": "Shipped",
+		"Total":  149.99,
+	}
+	logger.Information("Order {@Order} shipped to customer {CustomerId}", order, "CUST789")
 }
