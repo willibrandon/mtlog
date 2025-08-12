@@ -117,6 +117,30 @@ log.Information("Error occurred: {$Error}", err)
 log.Information("Processing time: {Duration:F2}ms", 123.456)
 log.Information("Disk usage at {Percentage:P1}", 0.85)  // 85.0%
 log.Information("Order {OrderId:000} total: ${Amount:F2}", 42, 99.95)
+
+// Numeric indexing (like string.Format in .NET)
+log.Information("Processing {0} of {1} items", 5, 10)
+log.Information("The {0} {1} {2} jumped over the {3} {4}", 
+    "quick", "brown", "fox", "lazy", "dog")
+
+// Literal format to remove quotes from strings
+log.Information("Command: {Cmd:l} {Args:l}", "git", "status")  // git status (no quotes)
+```
+
+### Numeric Indexing
+
+mtlog supports numeric indexing similar to .NET's `string.Format` and Serilog:
+
+```go
+// Pure numeric indexing uses index values (like string.Format)
+log.Information("Processing {0} of {1}", 5, 10)  // Processing 5 of 10
+log.Information("Result: {1} before {0}", "first", "second")  // Result: second before first
+
+// Mixed named and numeric uses positional matching (left-to-right)
+log.Information("User {UserId} processed {0} of {1}", 123, 50, 100)
+// UserId=123 (1st arg), 0=50 (2nd arg), 1=100 (3rd arg)
+
+// Note: Avoid mixing named and numeric properties for clarity
 ```
 
 ## Output Templates
@@ -150,8 +174,13 @@ log := mtlog.New(
 
 ### Format Specifiers
 - **Timestamps**: `HH:mm:ss`, `yyyy-MM-dd`, `HH:mm:ss.fff`
-- **Levels**: `u3` (INF), `u` (INFORMATION), `l` (information)
+- **Levels**: 
+  - `u3` or `w3` - Three-letter uppercase (INF, WRN, ERR)
+  - `u` - Full uppercase (INFORMATION, WARNING, ERROR)
+  - `w` - Full lowercase (information, warning, error)
+  - `l` - Lowercase three-letter (inf, wrn, err) [deprecated, use w3]
 - **Numbers**: `000` (zero-pad), `F2` (2 decimals), `P1` (percentage)
+- **Strings**: `:l` removes quotes (literal format)
 
 ### Design Note: Why `${...}` for Built-ins?
 

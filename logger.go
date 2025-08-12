@@ -2,6 +2,7 @@ package mtlog
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -279,20 +280,50 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 		}
 	}
 
-	// Match arguments to properties positionally
-	for i, name := range propNames {
-		if i < len(args) {
-			value := args[i]
+	// Check if all properties are numeric
+	allNumeric := true
+	for _, name := range propNames {
+		if _, err := strconv.Atoi(name); err != nil {
+			allNumeric = false
+			break
+		}
+	}
 
-			// Apply capturing if needed and capturer is available
-			if captureProps[name] && l.pipeline.capturer != nil {
-				factory := &propertyFactory{}
-				if prop, ok := l.pipeline.capturer.TryCapture(value, factory); ok {
-					value = prop.Value
+	// Match arguments to properties
+	if allNumeric && len(propNames) > 0 {
+		// All numeric: use index-based matching (like string.Format)
+		for _, name := range propNames {
+			idx, _ := strconv.Atoi(name) // We know it's numeric from the check above
+			if idx >= 0 && idx < len(args) {
+				value := args[idx]
+
+				// Apply capturing if needed and capturer is available
+				if captureProps[name] && l.pipeline.capturer != nil {
+					factory := &propertyFactory{}
+					if prop, ok := l.pipeline.capturer.TryCapture(value, factory); ok {
+						value = prop.Value
+					}
 				}
-			}
 
-			properties[name] = value
+				properties[name] = value
+			}
+		}
+	} else {
+		// Mixed or all named: use left-to-right positional matching
+		for i, name := range propNames {
+			if i < len(args) {
+				value := args[i]
+
+				// Apply capturing if needed and capturer is available
+				if captureProps[name] && l.pipeline.capturer != nil {
+					factory := &propertyFactory{}
+					if prop, ok := l.pipeline.capturer.TryCapture(value, factory); ok {
+						value = prop.Value
+					}
+				}
+
+				properties[name] = value
+			}
 		}
 	}
 

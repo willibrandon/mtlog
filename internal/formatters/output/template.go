@@ -267,9 +267,26 @@ func formatLevel(level core.LogEventLevel, format string) string {
 		default:
 			return "UNK"
 		}
+	case "w3": // lowercase 3-letter
+		switch level {
+		case core.VerboseLevel:
+			return "vrb"
+		case core.DebugLevel:
+			return "dbg"
+		case core.InformationLevel:
+			return "inf"
+		case core.WarningLevel:
+			return "wrn"
+		case core.ErrorLevel:
+			return "err"
+		case core.FatalLevel:
+			return "ftl"
+		default:
+			return "unk"
+		}
 	case "u": // uppercase full
 		return strings.ToUpper(levelToString(level))
-	case "l": // lowercase full
+	case "w", "l": // lowercase full (w for consistency with Serilog, l for backward compat)
 		return strings.ToLower(levelToString(level))
 	default: // default format
 		return levelToString(level)

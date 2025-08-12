@@ -38,7 +38,7 @@ func TestConsoleSink(t *testing.T) {
 	}
 
 	if !strings.Contains(output, "User 123 logged in") {
-		t.Error("Output should contain rendered message")
+		t.Errorf("Output should contain rendered message, got: %s", output)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestConsoleSinkWithTemplate(t *testing.T) {
 	sink.Emit(event)
 
 	output := strings.TrimSpace(buf.String())
-	expected := "[10:30:45 WRN] MyApp.Config: Configuration value 'MaxRetries' not found, using default: 3"
+	expected := "[10:30:45 WRN] MyApp.Config: Configuration value '\"MaxRetries\"' not found, using default: 3"
 
 	if output != expected {
 		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output)
