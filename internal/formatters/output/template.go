@@ -286,7 +286,7 @@ func formatLevel(level core.LogEventLevel, format string) string {
 		}
 	case "u": // uppercase full
 		return strings.ToUpper(levelToString(level))
-	case "w", "l": // lowercase full (w for consistency with Serilog, l for backward compat)
+	case "w", "l": // lowercase full ("w" for consistency with Serilog, "l" also supported)
 		return strings.ToLower(levelToString(level))
 	default: // default format
 		return levelToString(level)

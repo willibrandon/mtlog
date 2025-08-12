@@ -106,7 +106,7 @@ func (p *PropertyToken) formatValue(value any) string {
 			// Literal format - no quotes
 			return v
 		}
-		// Default: quote strings like Serilog
+		// Default behavior: quote strings like Serilog
 		return fmt.Sprintf("%q", v)
 	default:
 		// For other types, use default formatting

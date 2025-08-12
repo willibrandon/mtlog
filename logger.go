@@ -280,7 +280,9 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 		}
 	}
 
-	// Check if all properties are numeric
+	// Check if all property names are numeric.
+	// This determines whether to use index-based matching (like string.Format)
+	// or left-to-right positional matching for assigning argument values to properties.
 	allNumeric := true
 	for _, name := range propNames {
 		if _, err := strconv.Atoi(name); err != nil {
@@ -289,7 +291,9 @@ func (l *logger) extractPropertiesInto(tmpl *parser.MessageTemplate, args []any,
 		}
 	}
 
-	// Match arguments to properties
+	// Match arguments to properties using two strategies:
+	// 1. If all property names are numeric, use index-based matching (like string.Format).
+	// 2. Otherwise, use left-to-right positional matching for named or mixed properties.
 	if allNumeric && len(propNames) > 0 {
 		// All numeric: use index-based matching (like string.Format)
 		for _, name := range propNames {
