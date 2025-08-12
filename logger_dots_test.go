@@ -38,7 +38,7 @@ func TestLoggerWithDottedPropertyNames(t *testing.T) {
 		t.Fatalf("Failed to parse message template: %v", err)
 	}
 	renderedMsg := mt.Render(event.Properties)
-	expectedMsg := "HTTP request GET to /api/users took 123.45ms"
+	expectedMsg := "HTTP request \"GET\" to \"/api/users\" took 123.45ms"
 	if renderedMsg != expectedMsg {
 		t.Errorf("Expected message '%s', got '%s'", expectedMsg, renderedMsg)
 	}

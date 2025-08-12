@@ -295,6 +295,11 @@ func isValidPropertyName(name string) bool {
 		return false
 	}
 	
+	// Check if it's a numeric index (e.g., "0", "1", "2")
+	if isNumericIndex(name) {
+		return true
+	}
+	
 	for i, r := range name {
 		if i == 0 {
 			if !unicode.IsLetter(r) && r != '_' {
@@ -308,6 +313,19 @@ func isValidPropertyName(name string) bool {
 		}
 	}
 	
+	return true
+}
+
+// isNumericIndex checks if a string is a numeric index like "0", "1", etc.
+func isNumericIndex(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
 	return true
 }
 

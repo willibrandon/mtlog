@@ -78,25 +78,38 @@ func (p *PropertyToken) formatValue(value any) string {
 		return ""
 	}
 
-	// If no format specified, use default formatting
-	if p.Format == "" {
-		return formatValue(value)
-	}
-
 	// Handle different value types with format strings
 	switch v := value.(type) {
 	case int, int8, int16, int32, int64:
-		return p.formatNumber(v)
+		if p.Format != "" {
+			return p.formatNumber(v)
+		}
+		return formatValue(value)
 	case uint, uint8, uint16, uint32, uint64:
-		return p.formatNumber(v)
+		if p.Format != "" {
+			return p.formatNumber(v)
+		}
+		return formatValue(value)
 	case float32, float64:
-		return p.formatFloat(v)
+		if p.Format != "" {
+			return p.formatFloat(v)
+		}
+		return formatValue(value)
 	case time.Time:
-		return p.formatTime(v)
+		if p.Format != "" {
+			return p.formatTime(v)
+		}
+		return formatValue(value)
 	case string:
-		return v // Strings don't use format specifiers
+		// Handle string formatting
+		if p.Format == "l" {
+			// Literal format - no quotes
+			return v
+		}
+		// Default behavior: quote strings like Serilog
+		return fmt.Sprintf("%q", v)
 	default:
-		// For other types, ignore format specifier
+		// For other types, use default formatting
 		return formatValue(value)
 	}
 }

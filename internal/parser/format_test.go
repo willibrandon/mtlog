@@ -230,6 +230,41 @@ func TestRenderWithFormat(t *testing.T) {
 				Alignment:    10,
 			},
 			properties: map[string]any{"Name": "Alice"},
+			expected:   "   \"Alice\"",
+		},
+		{
+			name: "String with literal format",
+			token: &PropertyToken{
+				PropertyName: "Name",
+				Format:       "l",
+			},
+			properties: map[string]any{"Name": "John"},
+			expected:   "John",
+		},
+		{
+			name: "String without format (quoted)",
+			token: &PropertyToken{
+				PropertyName: "Name",
+			},
+			properties: map[string]any{"Name": "John"},
+			expected:   "\"John\"",
+		},
+		{
+			name: "String with special characters (quoted)",
+			token: &PropertyToken{
+				PropertyName: "Message",
+			},
+			properties: map[string]any{"Message": "Hello \"World\""},
+			expected:   "\"Hello \\\"World\\\"\"",
+		},
+		{
+			name: "String with literal format and alignment",
+			token: &PropertyToken{
+				PropertyName: "Name",
+				Format:       "l",
+				Alignment:    10,
+			},
+			properties: map[string]any{"Name": "Alice"},
 			expected:   "     Alice",
 		},
 		{

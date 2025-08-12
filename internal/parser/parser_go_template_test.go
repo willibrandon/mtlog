@@ -84,7 +84,7 @@ func TestGoTemplateEdgeCases(t *testing.T) {
 			name:       "Go template without dot",
 			template:   "Value: {{Property}}",
 			properties: map[string]any{"Property": "test"},
-			expected:   "Value: test", // Treated as regular property without dot
+			expected:   "Value: \"test\"", // Treated as regular property without dot
 		},
 		{
 			name:       "Nested Go templates",
@@ -207,7 +207,7 @@ func TestMixedTemplateSyntax(t *testing.T) {
 	}
 
 	result := mt.Render(properties)
-	expected := "User 123 (alice) performed update on document at 15:04:05"
+	expected := "User 123 (\"alice\") performed \"update\" on \"document\" at \"15:04:05\""
 	if result != expected {
 		t.Errorf("Expected %q, got %q", expected, result)
 	}
@@ -271,7 +271,7 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 				"User":   "Alice",
 				"Action": "login",
 			},
-			expected: "Alice performed login",
+			expected: "\"Alice\" performed \"login\"",
 		},
 		{
 			name:     "Mixed syntax",
@@ -280,7 +280,7 @@ func TestRenderGoTemplateSyntax(t *testing.T) {
 				"UserId":   123,
 				"Username": "alice",
 			},
-			expected: "User 123 (alice) logged in",
+			expected: "User 123 (\"alice\") logged in",
 		},
 		{
 			name:     "Missing property",
