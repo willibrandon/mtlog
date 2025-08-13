@@ -94,6 +94,10 @@ func WithTTL(ttl time.Duration) CacheOption {
 
 // initGlobalCache initializes the global cache with options
 func initGlobalCache() {
+	// Only initialize with default settings if not already configured
+	if globalCacheConfigured.Load() {
+		return
+	}
 	globalCacheOnce.Do(func() {
 		cache := NewTemplateCache()
 		globalCache.Store(cache)
@@ -199,7 +203,7 @@ func (c *TemplateCache) Put(key string, value *MessageTemplate) {
 	if entry, ok := shard.entries[key]; ok {
 		entry.value = value
 		if shard.ttlNanos > 0 {
-			entry.expireAt = time.Now().Add(time.Duration(shard.ttlNanos)).UnixNano()
+			entry.expireAt = time.Now().UnixNano() + shard.ttlNanos
 		}
 		shard.eviction.MoveToFront(entry.element)
 		return
@@ -220,7 +224,7 @@ func (c *TemplateCache) Put(key string, value *MessageTemplate) {
 		value: value,
 	}
 	if shard.ttlNanos > 0 {
-		entry.expireAt = time.Now().Add(time.Duration(shard.ttlNanos)).UnixNano()
+		entry.expireAt = time.Now().UnixNano() + shard.ttlNanos
 	}
 	entry.element = shard.eviction.PushFront(entry)
 	shard.entries[key] = entry
