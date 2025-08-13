@@ -343,37 +343,11 @@ jobs:
 
     - name: Start OTEL Collector
       run: |
-        # Create config inline
-        cat > /tmp/otel-config.yaml << 'EOF'
-        receivers:
-          otlp:
-            protocols:
-              grpc:
-                endpoint: 0.0.0.0:4317
-              http:
-                endpoint: 0.0.0.0:4318
-        processors:
-          batch:
-        exporters:
-          debug:
-            verbosity: detailed
-        extensions:
-          health_check:
-            endpoint: 0.0.0.0:13133
-        service:
-          extensions: [health_check]
-          pipelines:
-            logs:
-              receivers: [otlp]
-              processors: [batch]
-              exporters: [debug]
-        EOF
-        
-        # Run OTEL collector in background
+        # Use the external config file from the repository
         docker run -d \
           --name otel-collector \
           --network host \
-          -v /tmp/otel-config.yaml:/etc/otel-collector-config.yaml \
+          -v ${{ github.workspace }}/.github/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
           otel/opentelemetry-collector:latest \
           --config=/etc/otel-collector-config.yaml
 

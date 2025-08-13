@@ -175,19 +175,6 @@ func (e *StaticOTELEnricher) Enrich(event *core.LogEvent, propertyFactory core.L
 	}
 }
 
-// traceIDPool is a pool for reusing byte slices for trace ID conversion
-var traceIDPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, 32) // 16 bytes hex encoded = 32 chars
-	},
-}
-
-// spanIDPool is a pool for reusing byte slices for span ID conversion
-var spanIDPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, 16) // 8 bytes hex encoded = 16 chars
-	},
-}
 
 // FastOTELEnricher uses optimized extraction with minimal overhead.
 // It checks for span presence with <5ns overhead when no span exists.

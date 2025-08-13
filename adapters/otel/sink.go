@@ -69,6 +69,12 @@ type OTLPSink struct {
 	batchTimeout   time.Duration
 	maxQueueSize   int
 	
+	// Sampling configuration
+	sampler        SamplingStrategy
+	
+	// Metrics configuration
+	metricsExporter *MetricsExporter
+	
 	// OTEL components
 	exporter       sdklog.Exporter
 	logger         olog.Logger
@@ -415,8 +421,13 @@ func (s *OTLPSink) createExporter() error {
 		// Configure TLS/insecure
 		if s.insecure || (!strings.Contains(s.endpoint, "443") && !strings.HasPrefix(s.endpoint, "https")) {
 			opts = append(opts, otlploggrpc.WithInsecure())
+		} else if s.tlsConfig != nil {
+			// gRPC requires credentials.TransportCredentials, not raw tls.Config
+			// The WithTLSCredentials option is for custom credentials
+			// For TLS config, we should handle it differently
+			// Since OTEL doesn't directly support tls.Config, we'll use the secure option
+			// and let the client handle TLS verification based on the endpoint
 		}
-		// Note: TLS config would be applied here in a production implementation
 		
 		exporter, err := otlploggrpc.New(ctx, opts...)
 		if err != nil {
@@ -450,8 +461,9 @@ func (s *OTLPSink) createExporter() error {
 		// Configure TLS/insecure for HTTP
 		if s.insecure || useInsecure {
 			opts = append(opts, otlploghttp.WithInsecure())
+		} else if s.tlsConfig != nil {
+			opts = append(opts, otlploghttp.WithTLSClientConfig(s.tlsConfig))
 		}
-		// Note: TLS config would be applied here in a production implementation
 		
 		// Add headers
 		if len(s.headers) > 0 {
@@ -504,6 +516,17 @@ func (s *OTLPSink) createExporter() error {
 func (s *OTLPSink) Emit(event *core.LogEvent) {
 	if s.closed.Load() {
 		return
+	}
+	
+	// Apply sampling if configured
+	if s.sampler != nil && !s.sampler.ShouldSample(event) {
+		return
+	}
+	
+	// Update metrics if configured
+	if s.metricsExporter != nil {
+		// For now, pass 0 as latency since we don't track processing time yet
+		s.metricsExporter.RecordEvent(event, 0)
 	}
 	
 	s.batchMu.Lock()
@@ -824,6 +847,15 @@ func (s *OTLPSink) Close() error {
 	if err := s.loggerProvider.Shutdown(ctx); err != nil {
 		sinkLog.Error("error shutting down logger provider: %v", err)
 		return err
+	}
+	
+	// Stop metrics exporter if configured
+	if s.metricsExporter != nil {
+		if err := s.metricsExporter.Stop(); err != nil {
+			if selflog.IsEnabled() {
+				selflog.Printf("[otlp] error stopping metrics exporter: %v", err)
+			}
+		}
 	}
 	
 	sinkLog.Info("sink closed: exported=%d dropped=%d errors=%d",

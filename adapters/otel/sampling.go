@@ -231,10 +231,6 @@ func (s *SamplingSink) Close() error {
 // WithOTLPSampling adds sampling to OTLP sink
 func WithOTLPSampling(sampler SamplingStrategy) OTLPOption {
 	return func(s *OTLPSink) {
-		// Store sampler for later use
-		// This would be implemented by wrapping the sink instead of modifying methods
-		_ = sampler
-		// Note: In a real implementation, you'd store this and use it in Emit
-		// For now, this is a placeholder to show the pattern
+		s.sampler = sampler
 	}
 }

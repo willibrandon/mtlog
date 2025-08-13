@@ -277,6 +277,48 @@ func (e *MetricsExporter) RecordDropped(reason string) {
 	e.droppedCounter.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
+// Start starts the metrics HTTP server
+func (e *MetricsExporter) Start() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	
+	if e.closed {
+		return fmt.Errorf("exporter is closed")
+	}
+	
+	// Start HTTP server in background
+	go func() {
+		if err := e.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if selflog.IsEnabled() {
+				selflog.Printf("[metrics] HTTP server error: %v", err)
+			}
+		}
+	}()
+	
+	metricsLog.Info("metrics server started on %s", e.server.Addr)
+	return nil
+}
+
+// Stop stops the metrics HTTP server
+func (e *MetricsExporter) Stop() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	
+	if e.closed {
+		return nil
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := e.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown metrics server: %w", err)
+	}
+	
+	e.closed = true
+	return nil
+}
+
 // levelToString converts log level to string for metrics
 func (e *MetricsExporter) levelToString(level core.LogEventLevel) string {
 	switch level {
@@ -370,10 +412,8 @@ func WithPrometheusMetrics(port int) OTLPOption {
 			return
 		}
 		
-		// Store metrics exporter for later use
-		// This will be handled by wrapping the sink instead of modifying methods
-		_ = exporter
-		// Note: In a real implementation, you'd store this and use it in Emit
-		// For now, this is a placeholder to show the pattern
+		// Store metrics exporter and start the server
+		s.metricsExporter = exporter
+		go exporter.Start()
 	}
 }

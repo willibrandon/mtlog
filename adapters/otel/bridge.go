@@ -175,25 +175,35 @@ func (b *Bridge) mapSeverity(severity olog.Severity) core.LogEventLevel {
 
 // logWithLevel logs a message at the specified level
 func (b *Bridge) logWithLevel(level core.LogEventLevel, messageTemplate string, properties map[string]any) {
-	// Parse template to get property names in order
-	template, err := parser.Parse(messageTemplate)
-	if err != nil {
-		// Fallback to logging without arguments
-		switch level {
-		case core.VerboseLevel:
-			b.logger.Verbose(messageTemplate)
-		case core.DebugLevel:
-			b.logger.Debug(messageTemplate)
-		case core.InformationLevel:
-			b.logger.Information(messageTemplate)
-		case core.WarningLevel:
-			b.logger.Warning(messageTemplate)
-		case core.ErrorLevel:
-			b.logger.Error(messageTemplate)
-		case core.FatalLevel:
-			b.logger.Fatal(messageTemplate)
+	// Try to get cached template first
+	var template *parser.MessageTemplate
+	var err error
+	
+	if cached, ok := b.templateCache.Load(messageTemplate); ok {
+		template = cached.(*parser.MessageTemplate)
+	} else {
+		// Parse template to get property names in order
+		template, err = parser.Parse(messageTemplate)
+		if err != nil {
+			// Fallback to logging without arguments
+			switch level {
+			case core.VerboseLevel:
+				b.logger.Verbose(messageTemplate)
+			case core.DebugLevel:
+				b.logger.Debug(messageTemplate)
+			case core.InformationLevel:
+				b.logger.Information(messageTemplate)
+			case core.WarningLevel:
+				b.logger.Warning(messageTemplate)
+			case core.ErrorLevel:
+				b.logger.Error(messageTemplate)
+			case core.FatalLevel:
+				b.logger.Fatal(messageTemplate)
+			}
+			return
 		}
-		return
+		// Cache the parsed template
+		b.templateCache.Store(messageTemplate, template)
 	}
 	
 	// Extract args in template order
@@ -320,30 +330,11 @@ func (h *Handler) Emit(event *core.LogEvent) {
 	record.SetSeverity(h.mapLevel(event.Level))
 	record.SetSeverityText(h.getLevelString(event.Level))
 	
-	// Parse template to get rendered message
-	template, err := parser.Parse(event.MessageTemplate)
-	if err != nil {
-		// Fallback to raw template
-		record.SetBody(olog.StringValue(event.MessageTemplate))
-		bridgeLog.Warn("failed to parse template: %v", err)
-	} else {
-		// Render the message
-		var args []any
-		for _, token := range template.Tokens {
-			if propToken, ok := token.(*parser.PropertyToken); ok {
-				if val, ok := event.Properties[propToken.PropertyName]; ok {
-					args = append(args, val)
-				}
-			}
-		}
-		rendered := fmt.Sprintf(event.MessageTemplate, args...)
-		record.SetBody(olog.StringValue(rendered))
-	}
+	// Use the message template as the body to preserve structure
+	record.SetBody(olog.StringValue(event.MessageTemplate))
 	
-	// Add message template as attribute if enabled
-	if h.includeMessageTemplate {
-		record.AddAttributes(olog.String("message.template", event.MessageTemplate))
-	}
+	// Always add message template as an attribute for aggregation
+	record.AddAttributes(olog.String("message.template", event.MessageTemplate))
 	
 	// Convert properties to attributes
 	attrs := make([]olog.KeyValue, 0, len(event.Properties))

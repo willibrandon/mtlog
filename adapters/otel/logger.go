@@ -76,4 +76,5 @@ var (
 	enricherLog = newInternalLogger("otel-enricher")
 	sinkLog     = newInternalLogger("otlp")
 	bridgeLog   = newInternalLogger("otel-bridge")
+	metricsLog  = newInternalLogger("otel-metrics")
 )
