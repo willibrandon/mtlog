@@ -757,6 +757,23 @@ logger := mtlog.New(mtlog.WithSeq("http://localhost:5341"))
 logrLogger = logr.New(logger.AsLogrSink())
 ```
 
+### OpenTelemetry (OTEL)
+
+mtlog provides full OTEL integration for logs, traces, and metrics:
+
+```go
+import "github.com/willibrandon/mtlog/adapters/otel"
+
+// OTLP sink with trace correlation
+logger := mtlog.New(
+    otel.WithOTLP("http://localhost:4317"),
+    otel.WithTraceEnrichment(), // Add trace/span IDs
+)
+
+// Prometheus metrics export
+otel.WithPrometheusMetrics(9090)
+```
+
 ## Environment Variables
 
 mtlog respects several environment variables for runtime configuration:
