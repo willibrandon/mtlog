@@ -47,6 +47,15 @@ Message Template Parser → Enrichment → Filtering → Capturing → Sinks (Ou
 - Environment variable support: `MTLOG_SELFLOG=stderr/stdout/file`
 - Reports sink failures, template errors, panic recovery, and configuration issues
 
+### 7. Template Cache (v0.8.1+)
+- **LRU cache** for parsed message templates to avoid repeated allocations
+- **Bounded size** (default: 10,000) to prevent memory exhaustion from dynamic templates
+- **Sharded design** with up to 64 shards for concurrent access
+- **O(1) operations** with proper LRU eviction
+- **Optional TTL** support for time-based expiration
+- **Thread-safe** with atomic statistics tracking
+- **Security fix** for issue #39 - prevents DoS via unbounded template generation
+
 ## Development Commands
 
 ```bash
