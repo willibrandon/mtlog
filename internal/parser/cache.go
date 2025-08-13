@@ -1,26 +1,14 @@
 package parser
 
-import (
-	"sync"
-)
-
-// templateCache is a thread-safe cache for parsed templates.
-var templateCache = &struct {
-	sync.RWMutex
-	templates map[string]*MessageTemplate
-}{
-	templates: make(map[string]*MessageTemplate),
-}
-
 // ParseCached parses a template with caching to avoid repeated allocations.
+// It uses the global LRU cache with bounded size to prevent memory exhaustion.
 func ParseCached(template string) (*MessageTemplate, error) {
+	cache := GetGlobalCache()
+	
 	// Check cache first
-	templateCache.RLock()
-	if cached, ok := templateCache.templates[template]; ok {
-		templateCache.RUnlock()
+	if cached, ok := cache.Get(template); ok {
 		return cached, nil
 	}
-	templateCache.RUnlock()
 	
 	// Parse if not cached
 	parsed, err := Parse(template)
@@ -29,11 +17,15 @@ func ParseCached(template string) (*MessageTemplate, error) {
 	}
 	
 	// Store in cache
-	templateCache.Lock()
-	templateCache.templates[template] = parsed
-	templateCache.Unlock()
+	cache.Put(template, parsed)
 	
 	return parsed, nil
+}
+
+// ConfigureCache is a convenience function to configure the global cache
+// This should be called at application startup before any cache usage
+func ConfigureCache(opts ...CacheOption) {
+	ConfigureGlobalCache(opts...)
 }
 
 // ExtractPropertyNamesFromTemplate extracts property names from an already parsed template.
@@ -55,7 +47,12 @@ func ExtractPropertyNamesFromTemplate(tmpl *MessageTemplate) []string {
 
 // ClearCache clears the template cache (useful for tests).
 func ClearCache() {
-	templateCache.Lock()
-	templateCache.templates = make(map[string]*MessageTemplate)
-	templateCache.Unlock()
+	cache := GetGlobalCache()
+	cache.Clear()
+}
+
+// GetCacheStats returns global cache statistics
+func GetCacheStats() Stats {
+	cache := GetGlobalCache()
+	return cache.Stats()
 }
