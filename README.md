@@ -418,30 +418,7 @@ acmeName := mtlog.ExtractTypeNameWithCacheKey[User](opts, "tenant:acme")
 // Result: "AcmeCorp.User" (cached separately per tenant)
 ```
 
-### Cache Configuration
-
-#### Template Cache
-
-The message template parser uses an LRU cache to avoid repeated parsing of templates. This cache is bounded to prevent memory exhaustion from dynamic template generation:
-
-```go
-import "github.com/willibrandon/mtlog/internal/parser"
-
-// Configure template cache at application startup
-parser.ConfigureCache(
-    parser.WithMaxSize(50_000),        // Maximum number of cached templates (default: 10,000)
-    parser.WithTTL(5 * time.Minute),   // Optional: expire entries after 5 minutes
-)
-
-// Monitor cache performance
-stats := parser.GetCacheStats()
-fmt.Printf("Template cache: hits=%d, misses=%d, evictions=%d, size=%d/%d\n",
-    stats.Hits, stats.Misses, stats.Evictions, stats.Size, stats.MaxSize)
-```
-
-The template cache protects against memory exhaustion from dynamic template generation (e.g., `fmt.Sprintf("User %d: {Action}", id)`) by enforcing strict size limits with LRU eviction.
-
-#### Type Name Cache
+### Type Name Cache Configuration
 
 The type name cache can be configured via environment variables:
 
@@ -735,7 +712,6 @@ See the [examples](./examples) directory for complete examples:
 - [Durable buffering](./examples/durable/main.go)
 - [Dynamic levels](./examples/dynamic-levels/main.go)
 - [Configuration](./examples/configuration/main.go)
-- [Template Cache](./examples/template-cache/main.go)
 - [Generics usage](./examples/generics/main.go)
 
 ## Ecosystem Compatibility
