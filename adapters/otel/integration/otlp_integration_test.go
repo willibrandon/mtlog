@@ -12,11 +12,10 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog"
-	"github.com/willibrandon/mtlog/adapters/otel"
+	otelmtlog "github.com/willibrandon/mtlog/adapters/otel"
 	"github.com/willibrandon/mtlog/core"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
-	otrace "go.opentelemetry.io/otel/trace"
 )
 
 func TestOTLPIntegration(t *testing.T) {
@@ -35,7 +34,7 @@ func TestOTLPIntegration(t *testing.T) {
 
 	// Test both gRPC and HTTP transports
 	t.Run("gRPC", func(t *testing.T) {
-		testOTLPTransport(t, collectorEndpoint, otel.OTLPTransportGRPC, testID)
+		testOTLPTransport(t, collectorEndpoint, otelmtlog.OTLPTransportGRPC, testID)
 	})
 
 	t.Run("HTTP", func(t *testing.T) {
@@ -43,18 +42,18 @@ func TestOTLPIntegration(t *testing.T) {
 		if envEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_HTTP_ENDPOINT"); envEndpoint != "" {
 			httpEndpoint = envEndpoint
 		}
-		testOTLPTransport(t, httpEndpoint, otel.OTLPTransportHTTP, testID)
+		testOTLPTransport(t, httpEndpoint, otelmtlog.OTLPTransportHTTP, testID)
 	})
 }
 
-func testOTLPTransport(t *testing.T, endpoint string, transport otel.OTLPTransport, testID string) {
+func testOTLPTransport(t *testing.T, endpoint string, transport otelmtlog.OTLPTransport, testID string) {
 	// Create OTLP sink
-	sink, err := otel.NewOTLPSink(
-		otel.WithOTLPEndpoint(endpoint),
-		otel.WithOTLPTransport(transport),
-		otel.WithOTLPBatching(10, 1*time.Second),
-		otel.WithOTLPTimeout(30*time.Second),
-		otel.WithOTLPCompression("gzip"),
+	sink, err := otelmtlog.NewOTLPSink(
+		otelmtlog.WithOTLPEndpoint(endpoint),
+		otelmtlog.WithOTLPTransport(transport),
+		otelmtlog.WithOTLPBatching(10, 1*time.Second),
+		otelmtlog.WithOTLPTimeout(30*time.Second),
+		otelmtlog.WithOTLPCompression("gzip"),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create OTLP sink: %v", err)
@@ -62,11 +61,17 @@ func testOTLPTransport(t *testing.T, endpoint string, transport otel.OTLPTranspo
 	defer sink.Close()
 
 	// Create logger with OTLP sink
+	// Convert transport to string
+	transportStr := "gRPC"
+	if transport == otelmtlog.OTLPTransportHTTP {
+		transportStr = "HTTP"
+	}
+	
 	log := mtlog.New(
 		mtlog.WithSink(sink),
 		mtlog.WithMinimumLevel(core.VerboseLevel),
 		mtlog.WithProperty("TestRun", testID),
-		mtlog.WithProperty("Transport", transport.String()),
+		mtlog.WithProperty("Transport", transportStr),
 	)
 
 	// Log various events
@@ -129,9 +134,9 @@ func TestOTELEnricherIntegration(t *testing.T) {
 	testID := fmt.Sprintf("test-%d", time.Now().UnixNano())
 
 	// Create OTLP sink
-	sink, err := otel.NewOTLPSink(
-		otel.WithOTLPEndpoint(collectorEndpoint),
-		otel.WithOTLPBatching(10, 1*time.Second),
+	sink, err := otelmtlog.NewOTLPSink(
+		otelmtlog.WithOTLPEndpoint(collectorEndpoint),
+		otelmtlog.WithOTLPBatching(10, 1*time.Second),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create OTLP sink: %v", err)
@@ -141,7 +146,7 @@ func TestOTELEnricherIntegration(t *testing.T) {
 	// Test different enricher types
 	t.Run("FastOTELEnricher", func(t *testing.T) {
 		log := mtlog.New(
-			otel.WithOTELEnricher(ctx),
+			otelmtlog.WithOTELEnricher(ctx),
 			mtlog.WithSink(sink),
 			mtlog.WithProperty("EnricherType", "Fast"),
 			mtlog.WithProperty("TestRun", testID),
@@ -154,7 +159,7 @@ func TestOTELEnricherIntegration(t *testing.T) {
 	})
 
 	t.Run("StaticOTELEnricher", func(t *testing.T) {
-		enricher := otel.NewStaticOTELEnricher(ctx)
+		enricher := otelmtlog.NewStaticOTELEnricher(ctx)
 		log := mtlog.New(
 			mtlog.WithEnricher(enricher),
 			mtlog.WithSink(sink),
@@ -166,7 +171,7 @@ func TestOTELEnricherIntegration(t *testing.T) {
 	})
 
 	t.Run("CachingOTELEnricher", func(t *testing.T) {
-		enricher := otel.NewOTELEnricher(ctx)
+		enricher := otelmtlog.NewOTELEnricher(ctx)
 		log := mtlog.New(
 			mtlog.WithEnricher(enricher),
 			mtlog.WithSink(sink),
@@ -202,8 +207,8 @@ func TestHealthCheck(t *testing.T) {
 		t.Skip("OTEL Collector is not available, skipping integration test")
 	}
 
-	sink, err := otel.NewOTLPSink(
-		otel.WithOTLPEndpoint(collectorEndpoint),
+	sink, err := otelmtlog.NewOTLPSink(
+		otelmtlog.WithOTLPEndpoint(collectorEndpoint),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create OTLP sink: %v", err)
@@ -235,9 +240,9 @@ func isCollectorAvailable(endpoint string) bool {
 	}
 
 	// For gRPC, we'll try to create a sink and check if it succeeds
-	sink, err := otel.NewOTLPSink(
-		otel.WithOTLPEndpoint(endpoint),
-		otel.WithOTLPTimeout(5*time.Second),
+	sink, err := otelmtlog.NewOTLPSink(
+		otelmtlog.WithOTLPEndpoint(endpoint),
+		otelmtlog.WithOTLPTimeout(5*time.Second),
 	)
 	if err != nil {
 		return false
@@ -251,14 +256,3 @@ func isCollectorAvailable(endpoint string) bool {
 	return sink.HealthCheck(ctx) == nil
 }
 
-// Add String method for OTLPTransport for logging
-func (t otel.OTLPTransport) String() string {
-	switch t {
-	case otel.OTLPTransportGRPC:
-		return "gRPC"
-	case otel.OTLPTransportHTTP:
-		return "HTTP"
-	default:
-		return "Unknown"
-	}
-}

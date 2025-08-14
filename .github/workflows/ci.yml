@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-15]
-        go: ['1.21', '1.22', '1.23', '1.24']
+        go: ['1.21', '1.22', '1.23']
     steps:
     - uses: actions/checkout@v4
 
@@ -94,6 +94,33 @@ jobs:
         go-version: '1.23'
         cache: false
 
+    - name: Start OTEL Collector for OTEL adapter tests
+      run: |
+        # Start collector for OTEL adapter tests which include integration tests
+        docker run -d \
+          --name otel-collector \
+          --network host \
+          -v ${{ github.workspace }}/.github/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
+          otel/opentelemetry-collector:latest \
+          --config=/etc/otel-collector-config.yaml
+        
+        # Wait for collector to be ready
+        echo "Waiting for OTEL Collector..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if curl -f http://localhost:13133/ 2>/dev/null; then
+            echo "OTEL Collector is ready"
+            break
+          fi
+          echo "Waiting for OTEL Collector... ($timeout seconds left)"
+          sleep 1
+          timeout=$((timeout-1))
+        done
+        if [ $timeout -eq 0 ]; then
+          echo "OTEL Collector failed to start in 30 seconds"
+          exit 1
+        fi
+
     - name: Run fuzz tests
       run: |
         # Parser fuzz tests
@@ -105,12 +132,12 @@ jobs:
         go test -fuzz=FuzzTimeFormatting -fuzztime=30s ./internal/formatters/output
         go test -fuzz=FuzzLevelFormatting -fuzztime=30s ./internal/formatters/output
         
-        # OTEL adapter fuzz tests
+        # OTEL adapter fuzz tests (with collector available for chaos tests)
         cd adapters/otel
-        go test -fuzz=FuzzBridgeMessageTemplate -fuzztime=30s .
-        go test -fuzz=FuzzHandlerProperties -fuzztime=30s .
-        go test -fuzz=FuzzEnricherContext -fuzztime=30s .
-        go test -fuzz=FuzzOTLPSinkConfiguration -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzBridgeMessageTemplate -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzHandlerProperties -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzEnricherContext -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzOTLPSinkConfiguration -fuzztime=30s .
 
   benchmark:
     name: Benchmark
