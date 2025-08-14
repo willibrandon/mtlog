@@ -449,7 +449,7 @@ func TestLRUCacheMemoryBounded(t *testing.T) {
 	defer cache.Close()
 
 	// Try to add way more entries than the max size
-	for i := range numEntries {
+	for i := 0; i < numEntries; i++ {
 		key := fmt.Sprintf("dynamic-key-%d", i)
 		cache.Put(key, &MessageTemplate{Raw: fmt.Sprintf("template-%d", i)})
 	}

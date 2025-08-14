@@ -29,6 +29,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Seq integration** with CLEF format and dynamic level control
 - **Elasticsearch sink** for centralized log storage and search
 - **Splunk sink** with HEC (HTTP Event Collector) support
+- **OpenTelemetry (OTLP) sink** with gRPC/HTTP transport, batching, and trace correlation
 - **Async sink wrapper** for high-throughput scenarios
 - **Durable buffering** with persistent storage for reliability
 
@@ -691,7 +692,7 @@ Benchmark results on AMD Ryzen 9 9950X:
 
 ## Examples
 
-See the [examples](./examples) directory for complete examples:
+See the [examples](./examples) directory and [OTEL examples](./adapters/otel/examples) for complete examples:
 
 - [Basic logging](./examples/basic/main.go)
 - [Using enrichers](./examples/enrichers/main.go)
@@ -708,6 +709,10 @@ See the [examples](./examples) directory for complete examples:
 - [Seq integration](./examples/seq/main.go)
 - [Elasticsearch](./examples/elasticsearch/main.go)
 - [Splunk integration](./examples/splunk/main.go)
+- [OpenTelemetry basics](./adapters/otel/examples/simple/main.go)
+- [OTEL with metrics](./adapters/otel/examples/metrics/main.go)
+- [OTEL with sampling](./adapters/otel/examples/sampling/main.go)
+- [OTEL with TLS](./adapters/otel/examples/tls/main.go)
 - [Async logging](./examples/async/main.go)
 - [Durable buffering](./examples/durable/main.go)
 - [Dynamic levels](./examples/dynamic-levels/main.go)
@@ -756,6 +761,70 @@ logrLogger.Error(err, "failed to update resource")
 logger := mtlog.New(mtlog.WithSeq("http://localhost:5341"))
 logrLogger = logr.New(logger.AsLogrSink())
 ```
+
+### OpenTelemetry (OTEL)
+
+mtlog provides comprehensive OpenTelemetry integration with bidirectional support - use mtlog as an OTEL logger or send mtlog events to OTEL collectors:
+
+```go
+import "github.com/willibrandon/mtlog/adapters/otel"
+
+// Basic OTLP sink with automatic trace correlation
+logger := otel.NewOTELLogger(
+    otel.WithOTLPEndpoint("localhost:4317"),
+    otel.WithOTLPInsecure(), // For non-TLS connections
+)
+
+// Advanced configuration with batching and TLS
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("otel-collector:4317"),
+        otel.WithOTLPTransport(otel.OTLPTransportGRPC), // or OTLPTransportHTTP
+        otel.WithOTLPBatching(100, 5*time.Second),
+        otel.WithOTLPCompression("gzip"),
+        otel.WithOTLPClientCert("client.crt", "client.key"),
+    ),
+)
+
+// Automatic trace context enrichment in HTTP handlers
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
+    logger := otel.NewRequestLogger(ctx,
+        otel.WithOTLPEndpoint("localhost:4317"),
+        otel.WithOTLPInsecure(),
+    )
+    
+    // Logs automatically include trace.id, span.id, trace.flags
+    logger.Information("Processing request for {Path}", r.URL.Path)
+}
+
+// Sampling strategies for high-volume scenarios
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("localhost:4317"),
+        otel.WithOTLPSampling(otel.NewRateSampler(0.1)), // Sample 10% of events
+        // or: otel.NewLevelSampler(core.WarningLevel)    // Only warnings and above
+        // or: otel.NewAdaptiveSampler(1000)              // Target 1000 events/sec
+    ),
+)
+
+// Prometheus metrics export for monitoring
+exporter, _ := otel.NewMetricsExporter(
+    otel.WithMetricsPort(9090),
+    otel.WithMetricsPath("/metrics"),
+)
+defer exporter.Close()
+
+// Use mtlog as an OTEL Bridge (mtlog -> OTEL)
+otelLogger := otel.NewBridge(logger)
+otelLogger.Emit(ctx, record) // Use OTEL log.Logger interface
+
+// Use OTEL as an mtlog sink (OTEL -> mtlog)
+handler := otel.NewHandler(otelLogger)
+logger := mtlog.New(mtlog.WithSink(handler))
+```
+
+For complete OpenTelemetry integration documentation, see the [OTEL adapter README](./adapters/otel/README.md).
 
 ## Environment Variables
 

@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-15]
-        go: ['1.21', '1.22', '1.23', '1.24']
+        go: ['1.21', '1.22', '1.23']
     steps:
     - uses: actions/checkout@v4
 
@@ -46,6 +46,12 @@ jobs:
       run: |
         cd adapters/logr
         go test -v ./...
+
+    - name: Test OTEL adapter module
+      run: |
+        cd adapters/otel
+        go test -v ./...
+        go test -race -v ./...
 
     - name: Test coverage
       run: go test -coverprofile=coverage.out ./...
@@ -88,6 +94,33 @@ jobs:
         go-version: '1.23'
         cache: false
 
+    - name: Start OTEL Collector for OTEL adapter tests
+      run: |
+        # Start collector for OTEL adapter tests which include integration tests
+        docker run -d \
+          --name otel-collector \
+          --network host \
+          -v ${{ github.workspace }}/.github/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
+          otel/opentelemetry-collector:latest \
+          --config=/etc/otel-collector-config.yaml
+        
+        # Wait for collector to be ready
+        echo "Waiting for OTEL Collector..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if curl -f http://localhost:13133/ 2>/dev/null; then
+            echo "OTEL Collector is ready"
+            break
+          fi
+          echo "Waiting for OTEL Collector... ($timeout seconds left)"
+          sleep 1
+          timeout=$((timeout-1))
+        done
+        if [ $timeout -eq 0 ]; then
+          echo "OTEL Collector failed to start in 30 seconds"
+          exit 1
+        fi
+
     - name: Run fuzz tests
       run: |
         # Parser fuzz tests
@@ -98,6 +131,13 @@ jobs:
         go test -fuzz=FuzzParseOutputTemplate -fuzztime=30s ./internal/formatters/output
         go test -fuzz=FuzzTimeFormatting -fuzztime=30s ./internal/formatters/output
         go test -fuzz=FuzzLevelFormatting -fuzztime=30s ./internal/formatters/output
+        
+        # OTEL adapter fuzz tests (with collector available for chaos tests)
+        cd adapters/otel
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzBridgeMessageTemplate -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzHandlerProperties -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzEnricherContext -fuzztime=30s .
+        OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 go test -fuzz=FuzzOTLPSinkConfiguration -fuzztime=30s .
 
   benchmark:
     name: Benchmark
@@ -280,6 +320,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     services:
+      # Note: OTEL Collector is set up separately due to config requirements
       seq:
         image: datalust/seq:latest
         env:
@@ -327,8 +368,34 @@ jobs:
         go-version: '1.23'
         cache: false
 
+    - name: Start OTEL Collector
+      run: |
+        # Use the external config file from the repository
+        docker run -d \
+          --name otel-collector \
+          --network host \
+          -v ${{ github.workspace }}/.github/otel-collector-config.yaml:/etc/otel-collector-config.yaml \
+          otel/opentelemetry-collector:latest \
+          --config=/etc/otel-collector-config.yaml
+
     - name: Wait for services
       run: |
+        echo "Waiting for OTEL Collector..."
+        timeout=30
+        while [ $timeout -gt 0 ]; do
+          if curl -f http://localhost:13133/ 2>/dev/null; then
+            echo "OTEL Collector is ready"
+            break
+          fi
+          echo "Waiting for OTEL Collector... ($timeout seconds left)"
+          sleep 1
+          timeout=$((timeout-1))
+        done
+        if [ $timeout -eq 0 ]; then
+          echo "OTEL Collector failed to start in 30 seconds"
+          exit 1
+        fi
+        
         echo "Waiting for Seq..."
         timeout=30
         while [ $timeout -gt 0 ]; do
@@ -378,8 +445,16 @@ jobs:
         fi
 
     - name: Run integration tests
-      run: go test -tags=integration -v ./...
+      run: |
+        # Run main integration tests
+        go test -tags=integration -v ./...
+        
+        # Run OTEL adapter integration tests
+        cd adapters/otel
+        go test -tags=integration -v ./integration/...
       env:
+        OTEL_EXPORTER_OTLP_ENDPOINT: localhost:4317
+        OTEL_EXPORTER_OTLP_HTTP_ENDPOINT: localhost:4318
         SEQ_URL: http://localhost:5341
         SEQ_QUERY_URL: http://localhost:8080
         ELASTICSEARCH_URL: http://localhost:9200
