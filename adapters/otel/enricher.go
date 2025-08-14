@@ -89,11 +89,13 @@ func (e *OTELEnricher) extractSpanContext() {
 	// Use SpanFromContext which returns a no-op span if none exists
 	span := trace.SpanFromContext(e.ctx)
 	if span == nil {
+		enricherLog.Debug("no span in context")
 		return
 	}
 
 	spanCtx := span.SpanContext()
 	if !spanCtx.IsValid() {
+		enricherLog.Debug("span context not valid")
 		return
 	}
 
@@ -103,11 +105,13 @@ func (e *OTELEnricher) extractSpanContext() {
 	// Convert trace ID to hex string (W3C format)
 	if spanCtx.HasTraceID() {
 		e.traceID = spanCtx.TraceID().String()
+		enricherLog.Debug("extracted trace.id: %s", e.traceID)
 	}
 
 	// Convert span ID to hex string
 	if spanCtx.HasSpanID() {
 		e.spanID = spanCtx.SpanID().String()
+		enricherLog.Debug("extracted span.id: %s", e.spanID)
 	}
 
 	// Store trace flags as hex

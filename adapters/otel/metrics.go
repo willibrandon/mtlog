@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/selflog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
@@ -137,6 +136,7 @@ func NewMetricsExporter(opts ...MetricsOption) (*MetricsExporter, error) {
 	
 	// Create metrics
 	if err := e.createMetrics(); err != nil {
+		metricsLog.Error("failed to create metrics: %v", err)
 		return nil, err
 	}
 	
@@ -145,9 +145,7 @@ func NewMetricsExporter(opts ...MetricsOption) (*MetricsExporter, error) {
 	// Start HTTP server
 	go func() {
 		if err := e.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			if selflog.IsEnabled() {
-				selflog.Printf("[metrics] HTTP server error: %v", err)
-			}
+			metricsLog.Error("HTTP server error: %v", err)
 		}
 	}()
 	
@@ -289,9 +287,7 @@ func (e *MetricsExporter) Start() error {
 	// Start HTTP server in background
 	go func() {
 		if err := e.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			if selflog.IsEnabled() {
-				selflog.Printf("[metrics] HTTP server error: %v", err)
-			}
+			metricsLog.Error("HTTP server error: %v", err)
 		}
 	}()
 	
@@ -406,9 +402,7 @@ func WithPrometheusMetrics(port int) OTLPOption {
 			WithMetricsPath("/metrics"),
 		)
 		if err != nil {
-			if selflog.IsEnabled() {
-				selflog.Printf("[otlp] failed to create metrics exporter: %v", err)
-			}
+			metricsLog.Error("failed to create metrics exporter for OTLP sink: %v", err)
 			return
 		}
 		

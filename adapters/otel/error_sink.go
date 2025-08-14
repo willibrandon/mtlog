@@ -4,7 +4,6 @@ import (
 	"sync"
 	
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/selflog"
 )
 
 // errorSink is a sink that reports initialization errors once via selflog
@@ -16,9 +15,7 @@ type errorSink struct {
 
 func (s *errorSink) Emit(event *core.LogEvent) {
 	s.once.Do(func() {
-		if selflog.IsEnabled() {
-			selflog.Printf("[otel] OTLP sink initialization failed: %v", s.err)
-		}
+		sinkLog.Error("OTLP sink initialization failed: %v", s.err)
 		s.reported = true
 	})
 }

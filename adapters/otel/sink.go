@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog/core"
-	"github.com/willibrandon/mtlog/selflog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
@@ -254,11 +253,13 @@ func NewOTLPSink(opts ...OTLPOption) (*OTLPSink, error) {
 	
 	// Configure TLS if needed
 	if err := s.configureTLS(); err != nil {
+		sinkLog.Error("failed to configure TLS: %v", err)
 		return nil, err
 	}
 	
 	// Create exporter
 	if err := s.createExporter(); err != nil {
+		sinkLog.Error("failed to create exporter: %v", err)
 		return nil, err
 	}
 	
@@ -773,35 +774,6 @@ func (s *OTLPSink) createLogAttribute(key string, value any) olog.KeyValue {
 	}
 }
 
-// createAttribute creates an OTEL attribute from a property
-func (s *OTLPSink) createAttribute(key string, value any) attribute.KeyValue {
-	switch v := value.(type) {
-	case string:
-		return attribute.String(key, v)
-	case int:
-		return attribute.Int(key, v)
-	case int64:
-		return attribute.Int64(key, v)
-	case float64:
-		return attribute.Float64(key, v)
-	case bool:
-		return attribute.Bool(key, v)
-	case []string:
-		return attribute.StringSlice(key, v)
-	case []int:
-		return attribute.IntSlice(key, v)
-	case []int64:
-		return attribute.Int64Slice(key, v)
-	case []float64:
-		return attribute.Float64Slice(key, v)
-	case []bool:
-		return attribute.BoolSlice(key, v)
-	default:
-		// Convert to string for unknown types
-		return attribute.String(key, fmt.Sprintf("%v", v))
-	}
-}
-
 // Flush flushes any pending events
 func (s *OTLPSink) Flush() error {
 	s.flushBatch()
@@ -813,6 +785,7 @@ func (s *OTLPSink) Flush() error {
 	// Force flush the logger provider instead of shutting down
 	if s.loggerProvider != nil {
 		if err := s.loggerProvider.ForceFlush(ctx); err != nil {
+			sinkLog.Error("failed to flush logger provider: %v", err)
 			return fmt.Errorf("failed to flush logger provider: %w", err)
 		}
 	}
@@ -837,9 +810,7 @@ func (s *OTLPSink) Close() error {
 	defer cancel()
 	
 	if err := s.exporter.Shutdown(ctx); err != nil {
-		if selflog.IsEnabled() {
-			selflog.Printf("[otlp] error shutting down exporter: %v", err)
-		}
+		sinkLog.Error("error shutting down exporter: %v", err)
 		return err
 	}
 	
@@ -852,9 +823,7 @@ func (s *OTLPSink) Close() error {
 	// Stop metrics exporter if configured
 	if s.metricsExporter != nil {
 		if err := s.metricsExporter.Stop(); err != nil {
-			if selflog.IsEnabled() {
-				selflog.Printf("[otlp] error stopping metrics exporter: %v", err)
-			}
+			sinkLog.Error("error stopping metrics exporter: %v", err)
 		}
 	}
 	

@@ -186,6 +186,7 @@ func (b *Bridge) logWithLevel(level core.LogEventLevel, messageTemplate string, 
 		template, err = parser.Parse(messageTemplate)
 		if err != nil {
 			// Fallback to logging without arguments
+			bridgeLog.Warn("failed to parse message template %q: %v", messageTemplate, err)
 			switch level {
 			case core.VerboseLevel:
 				b.logger.Verbose(messageTemplate)
@@ -323,6 +324,9 @@ func defaultLevelMapping() map[core.LogEventLevel]olog.Severity {
 // Emit implements the mtlog sink interface
 func (h *Handler) Emit(event *core.LogEvent) {
 	ctx := context.Background()
+	
+	bridgeLog.Debug("handler emitting event: level=%v template=%q properties=%d", 
+		event.Level, event.MessageTemplate, len(event.Properties))
 	
 	// Create OTEL record
 	var record olog.Record
