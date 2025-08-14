@@ -115,6 +115,8 @@ func TestConcurrentSinkOperations(t *testing.T) {
 		mtlogotel.WithOTLPInsecure(), // Use insecure connection for testing
 		mtlogotel.WithOTLPBatching(50, 100*time.Millisecond),
 		mtlogotel.WithOTLPMaxQueueSize(10000),
+		mtlogotel.WithOTLPTimeout(1*time.Second), // Short timeout for tests
+		mtlogotel.WithOTLPRetry(100*time.Millisecond, 1*time.Second), // Minimal retry
 	)
 	if err != nil {
 		t.Fatalf("Failed to create sink: %v", err)
@@ -253,6 +255,8 @@ func TestRaceConditionRegression(t *testing.T) {
 				mtlogotel.WithOTLPEndpoint("localhost:4317"),
 				mtlogotel.WithOTLPInsecure(), // Use insecure connection for testing
 				mtlogotel.WithOTLPBatching(10, 1*time.Millisecond),
+				mtlogotel.WithOTLPTimeout(500*time.Millisecond), // Short timeout for tests
+				mtlogotel.WithOTLPRetry(100*time.Millisecond, 500*time.Millisecond), // Minimal retry
 			)
 			if err != nil {
 				t.Fatalf("Failed to create sink: %v", err)

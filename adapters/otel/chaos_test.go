@@ -89,6 +89,8 @@ func TestBatchChaos(t *testing.T) {
 				mtlogotel.WithOTLPInsecure(),
 				mtlogotel.WithOTLPBatching(tt.batchSize, tt.batchTimeout),
 				mtlogotel.WithOTLPMaxQueueSize(maxQueue),
+				mtlogotel.WithOTLPTimeout(500*time.Millisecond), // Short timeout for tests
+				mtlogotel.WithOTLPRetry(100*time.Millisecond, 500*time.Millisecond), // Minimal retry
 			)
 			if err != nil {
 				t.Fatalf("Failed to create sink: %v", err)
@@ -209,6 +211,8 @@ func TestTimerRaceCondition(t *testing.T) {
 		mtlogotel.WithOTLPEndpoint("localhost:4317"),
 		mtlogotel.WithOTLPInsecure(),
 		mtlogotel.WithOTLPBatching(100, 10*time.Millisecond), // Small timeout
+		mtlogotel.WithOTLPTimeout(500*time.Millisecond), // Short timeout for tests
+		mtlogotel.WithOTLPRetry(100*time.Millisecond, 500*time.Millisecond), // Minimal retry
 	)
 	if err != nil {
 		t.Fatalf("Failed to create sink: %v", err)
@@ -253,6 +257,8 @@ func TestCloseWhileProcessing(t *testing.T) {
 		mtlogotel.WithOTLPEndpoint("localhost:4317"),
 		mtlogotel.WithOTLPInsecure(),
 		mtlogotel.WithOTLPBatching(100, 100*time.Millisecond),
+		mtlogotel.WithOTLPTimeout(500*time.Millisecond), // Short timeout for tests
+		mtlogotel.WithOTLPRetry(100*time.Millisecond, 500*time.Millisecond), // Minimal retry
 	)
 	if err != nil {
 		t.Fatalf("Failed to create sink: %v", err)
