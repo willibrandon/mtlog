@@ -358,6 +358,68 @@ levelOption, levelSwitch, controller := mtlog.WithSeqLevelControl(
 )</code></pre>
                         </div>
 
+                        <h3 class="text-xl font-semibold mb-2">Elasticsearch</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Basic
+mtlog.WithElasticsearch("http://localhost:9200", "logs")
+
+// With multiple nodes and API key
+mtlog.WithElasticsearchAdvanced(
+    []string{"http://node1:9200", "http://node2:9200"},
+    sinks.WithElasticsearchIndex("logs-%{+yyyy.MM.dd}"),
+    sinks.WithElasticsearchAPIKey("your-api-key"),
+    sinks.WithElasticsearchBatchSize(100),
+)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">Splunk</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Basic HEC integration
+mtlog.WithSplunk("http://localhost:8088", "hec-token")
+
+// Advanced configuration
+mtlog.WithSplunkAdvanced("http://localhost:8088",
+    sinks.WithSplunkToken("your-hec-token"),
+    sinks.WithSplunkIndex("main"),
+    sinks.WithSplunkSource("mtlog"),
+    sinks.WithSplunkSourceType("_json"),
+)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-2">OpenTelemetry (OTLP)</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">import "github.com/willibrandon/mtlog/adapters/otel"
+
+// Basic OTLP sink
+logger := otel.NewOTELLogger(
+    otel.WithOTLPEndpoint("localhost:4317"),
+    otel.WithOTLPInsecure(),
+)
+
+// With batching and compression
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("otel-collector:4317"),
+        otel.WithOTLPBatching(100, 5*time.Second),
+        otel.WithOTLPCompression("gzip"),
+    ),
+)
+
+// With trace context enrichment
+logger := otel.NewRequestLogger(ctx,
+    otel.WithOTLPEndpoint("localhost:4317"),
+    otel.WithOTLPInsecure(),
+)
+
+// With sampling strategies
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("localhost:4317"),
+        otel.WithOTLPSampling(otel.NewRateSampler(0.1)), // 10% sampling
+    ),
+)</code></pre>
+                        </div>
+
                         <h3 class="text-xl font-semibold mb-2">Async & Durable</h3>
                         <div class="bg-gray-800 rounded-lg p-4 mb-4">
                             <pre><code class="language-go">// Async wrapper

@@ -140,6 +140,41 @@ mtlog.WithSplunkAdvanced("http://localhost:8088",
 )
 ```
 
+### OpenTelemetry (OTEL)
+```go
+import "github.com/willibrandon/mtlog/adapters/otel"
+
+// Basic OTLP sink
+logger := otel.NewOTELLogger(
+    otel.WithOTLPEndpoint("localhost:4317"),
+    otel.WithOTLPInsecure(),
+)
+
+// Advanced with batching and compression
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("otel-collector:4317"),
+        otel.WithOTLPTransport(otel.OTLPTransportGRPC),
+        otel.WithOTLPBatching(100, 5*time.Second),
+        otel.WithOTLPCompression("gzip"),
+    ),
+)
+
+// With trace context enrichment
+logger := otel.NewRequestLogger(ctx,
+    otel.WithOTLPEndpoint("localhost:4317"),
+    otel.WithOTLPInsecure(),
+)
+
+// With sampling
+logger := mtlog.New(
+    otel.WithOTLPSink(
+        otel.WithOTLPEndpoint("localhost:4317"),
+        otel.WithOTLPSampling(otel.NewRateSampler(0.1)), // 10% sampling
+    ),
+)
+```
+
 ### Async & Durable
 ```go
 mtlog.WithAsync(mtlog.WithFileSink("app.log"))         // Async wrapper
