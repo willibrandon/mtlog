@@ -95,24 +95,27 @@ type AdaptiveSampler struct {
 
 // NewAdaptiveSampler creates a sampler that adapts to maintain a target rate
 func NewAdaptiveSampler(targetEventsPerSecond uint64) *AdaptiveSampler {
-	return &AdaptiveSampler{
+	s := &AdaptiveSampler{
 		targetRate:     targetEventsPerSecond,
 		windowSize:     time.Second,
 		lastWindowTime: time.Now(),
 		currentRate:    atomic.Uint64{},
 		rng:            rand.New(rand.NewSource(cryptoSeed())),
 	}
+	// Start with 100% sampling rate until we have data
+	s.currentRate.Store(100)
+	return s
 }
 
 // ShouldSample adapts sampling rate to maintain target throughput
 func (s *AdaptiveSampler) ShouldSample(event *core.LogEvent) bool {
-	// Increment window count
-	count := s.windowCount.Add(1)
-	
-	// Check if we need to adjust the rate
+	// Check if we need to adjust the rate based on previous window
 	now := time.Now()
 	if now.Sub(s.lastWindowTime) >= s.windowSize {
-		// Calculate actual rate
+		// Get count from previous window before resetting
+		count := s.windowCount.Load()
+		
+		// Calculate actual rate from previous window
 		actualRate := float64(count) / s.windowSize.Seconds()
 		
 		// Adjust sampling rate
@@ -129,6 +132,9 @@ func (s *AdaptiveSampler) ShouldSample(event *core.LogEvent) bool {
 		s.windowCount.Store(0)
 		s.lastWindowTime = now
 	}
+	
+	// Increment window count for this event
+	s.windowCount.Add(1)
 	
 	// Apply current sampling rate
 	rate := s.currentRate.Load()
