@@ -1,6 +1,8 @@
 package otel
 
 import (
+	crypto_rand "crypto/rand"
+	"encoding/binary"
 	"math/rand"
 	"sync/atomic"
 	"time"
@@ -31,7 +33,7 @@ func NewRateSampler(rate float64) *RateSampler {
 	}
 	return &RateSampler{
 		rate: rate,
-		rng:  rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:  rand.New(rand.NewSource(cryptoSeed())),
 	}
 }
 
@@ -98,7 +100,7 @@ func NewAdaptiveSampler(targetEventsPerSecond uint64) *AdaptiveSampler {
 		windowSize:     time.Second,
 		lastWindowTime: time.Now(),
 		currentRate:    atomic.Uint64{},
-		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:            rand.New(rand.NewSource(cryptoSeed())),
 	}
 }
 
@@ -233,4 +235,18 @@ func WithOTLPSampling(sampler SamplingStrategy) OTLPOption {
 	return func(s *OTLPSink) {
 		s.sampler = sampler
 	}
+}
+
+// cryptoSeed generates a cryptographically secure random seed
+func cryptoSeed() int64 {
+	var seed int64
+	// Try to use crypto/rand for better randomness
+	var buf [8]byte
+	if _, err := crypto_rand.Read(buf[:]); err == nil {
+		seed = int64(binary.LittleEndian.Uint64(buf[:]))
+	} else {
+		// Fall back to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	return seed
 }

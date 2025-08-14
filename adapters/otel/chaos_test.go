@@ -86,6 +86,7 @@ func TestBatchChaos(t *testing.T) {
 
 			sink, err := mtlogotel.NewOTLPSink(
 				mtlogotel.WithOTLPEndpoint("localhost:4317"),
+				mtlogotel.WithOTLPInsecure(),
 				mtlogotel.WithOTLPBatching(tt.batchSize, tt.batchTimeout),
 				mtlogotel.WithOTLPMaxQueueSize(maxQueue),
 			)
@@ -141,6 +142,7 @@ func TestConcurrentBatchModification(t *testing.T) {
 	// We're testing the concurrent behavior of the sink, not the connection
 	sink, err := mtlogotel.NewOTLPSink(
 		mtlogotel.WithOTLPEndpoint("invalid:99999"),
+		mtlogotel.WithOTLPInsecure(),
 		mtlogotel.WithOTLPBatching(10, 50*time.Millisecond),
 		mtlogotel.WithOTLPTimeout(100*time.Millisecond), // Very short timeout
 	)
@@ -205,6 +207,7 @@ func TestConcurrentBatchModification(t *testing.T) {
 func TestTimerRaceCondition(t *testing.T) {
 	sink, err := mtlogotel.NewOTLPSink(
 		mtlogotel.WithOTLPEndpoint("localhost:4317"),
+		mtlogotel.WithOTLPInsecure(),
 		mtlogotel.WithOTLPBatching(100, 10*time.Millisecond), // Small timeout
 	)
 	if err != nil {
@@ -248,6 +251,7 @@ func TestTimerRaceCondition(t *testing.T) {
 func TestCloseWhileProcessing(t *testing.T) {
 	sink, err := mtlogotel.NewOTLPSink(
 		mtlogotel.WithOTLPEndpoint("localhost:4317"),
+		mtlogotel.WithOTLPInsecure(),
 		mtlogotel.WithOTLPBatching(100, 100*time.Millisecond),
 	)
 	if err != nil {

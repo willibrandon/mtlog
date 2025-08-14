@@ -2,6 +2,7 @@ package otel_test
 
 import (
 	"crypto/tls"
+	"strings"
 	"testing"
 
 	mtlogotel "github.com/willibrandon/mtlog/adapters/otel"
@@ -107,7 +108,7 @@ func TestTLSConfigurationErrors(t *testing.T) {
 			t.Fatal("Expected error for invalid client certificate")
 		}
 		
-		if !containsString(err.Error(), "failed to load client certificate") {
+		if !strings.Contains(err.Error(), "failed to load client certificate") {
 			t.Errorf("Expected certificate error, got: %v", err)
 		}
 	})
@@ -121,24 +122,8 @@ func TestTLSConfigurationErrors(t *testing.T) {
 			t.Fatal("Expected error for invalid CA certificate")
 		}
 		
-		if !containsString(err.Error(), "failed to read CA certificate") {
+		if !strings.Contains(err.Error(), "failed to read CA certificate") {
 			t.Errorf("Expected CA certificate error, got: %v", err)
 		}
 	})
-}
-
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || 
-		(len(s) > len(substr) && (s[:len(substr)] == substr || 
-		s[len(s)-len(substr):] == substr || 
-		containsStringHelper(s, substr))))
-}
-
-func containsStringHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

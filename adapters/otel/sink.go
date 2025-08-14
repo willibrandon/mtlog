@@ -18,7 +18,9 @@ import (
 	olog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
-	// Removed semconv import to avoid schema conflicts
+	// Note: semconv is not imported to avoid schema URL conflicts between
+	// different OTEL components when using auto/sdk instrumentation.
+	// Resource attributes are created manually with empty schema URL instead.
 )
 
 // OTLPTransport represents the transport protocol for OTLP
@@ -420,7 +422,8 @@ func (s *OTLPSink) createExporter() error {
 		}
 		
 		// Configure TLS/insecure
-		if s.insecure || (!strings.Contains(s.endpoint, "443") && !strings.HasPrefix(s.endpoint, "https")) {
+		// Use explicit insecure flag rather than guessing from endpoint
+		if s.insecure {
 			opts = append(opts, otlploggrpc.WithInsecure())
 		} else if s.tlsConfig != nil {
 			// gRPC requires credentials.TransportCredentials, not raw tls.Config

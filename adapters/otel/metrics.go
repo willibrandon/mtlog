@@ -82,7 +82,10 @@ func WithMetricsPath(path string) MetricsOption {
 	}
 }
 
-// NewMetricsExporter creates a new Prometheus metrics exporter
+// NewMetricsExporter creates a new Prometheus metrics exporter.
+// Note: This function does not set the global meter provider to avoid
+// conflicts with user applications. If you need global metrics, call
+// otel.SetMeterProvider(exporter.provider) after creation.
 func NewMetricsExporter(opts ...MetricsOption) (*MetricsExporter, error) {
 	// Create a custom Prometheus registry
 	registry := prometheus.NewRegistry()
@@ -106,9 +109,6 @@ func NewMetricsExporter(opts ...MetricsOption) (*MetricsExporter, error) {
 		sdkmetric.WithReader(exporter),
 		sdkmetric.WithResource(res),
 	)
-	
-	// Set as global provider
-	otel.SetMeterProvider(provider)
 	
 	// Create meter
 	meter := provider.Meter("mtlog")
@@ -150,6 +150,13 @@ func NewMetricsExporter(opts ...MetricsOption) (*MetricsExporter, error) {
 	}()
 	
 	return e, nil
+}
+
+// SetAsGlobal sets this exporter's meter provider as the global OTEL meter provider.
+// This should only be called if your application doesn't already have a global
+// meter provider configured.
+func (e *MetricsExporter) SetAsGlobal() {
+	otel.SetMeterProvider(e.provider)
 }
 
 // createMetrics initializes all metrics

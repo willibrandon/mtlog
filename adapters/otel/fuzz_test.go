@@ -200,6 +200,10 @@ func FuzzOTLPSinkConfiguration(f *testing.F) {
 			opts := []OTLPOption{}
 			if endpoint != "" {
 				opts = append(opts, WithOTLPEndpoint(endpoint))
+				// Use insecure for localhost testing
+				if endpoint == "localhost:4317" || endpoint == "localhost:4318" {
+					opts = append(opts, WithOTLPInsecure())
+				}
 			}
 			if batchSize > 0 && batchTimeout > 0 {
 				opts = append(opts, WithOTLPBatching(batchSize, time.Duration(batchTimeout)*time.Millisecond))

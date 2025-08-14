@@ -112,6 +112,7 @@ func TestHighConcurrencyEnricher(t *testing.T) {
 func TestConcurrentSinkOperations(t *testing.T) {
 	sink, err := mtlogotel.NewOTLPSink(
 		mtlogotel.WithOTLPEndpoint("localhost:4317"),
+		mtlogotel.WithOTLPInsecure(), // Use insecure connection for testing
 		mtlogotel.WithOTLPBatching(50, 100*time.Millisecond),
 		mtlogotel.WithOTLPMaxQueueSize(10000),
 	)
@@ -250,6 +251,7 @@ func TestRaceConditionRegression(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			sink, err := mtlogotel.NewOTLPSink(
 				mtlogotel.WithOTLPEndpoint("localhost:4317"),
+				mtlogotel.WithOTLPInsecure(), // Use insecure connection for testing
 				mtlogotel.WithOTLPBatching(10, 1*time.Millisecond),
 			)
 			if err != nil {
