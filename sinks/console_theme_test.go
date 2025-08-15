@@ -34,7 +34,7 @@ func TestConsoleThemes(t *testing.T) {
 			expectedParts: []string{
 				"[2025-01-22 15:30:45.000]",
 				"[INF]",
-				"User 123 logged in from \"192.168.1.1\"",
+				"User 123 logged in from 192.168.1.1",
 			},
 			checkNoColor: true,
 		},
@@ -44,7 +44,7 @@ func TestConsoleThemes(t *testing.T) {
 			expectedParts: []string{
 				"[15:30:45]",
 				"INF",
-				"User 123 logged in from \"192.168.1.1\"",
+				"User 123 logged in from 192.168.1.1",
 			},
 			checkNoColor: true,
 		},
@@ -54,7 +54,7 @@ func TestConsoleThemes(t *testing.T) {
 			expectedParts: []string{
 				"[2025-01-22 15:30:45.000]",
 				"[INF  ]", // Fixed width
-				"User 123 logged in from \"192.168.1.1\"",
+				"User 123 logged in from 192.168.1.1",
 			},
 			checkNoColor: true,
 		},
@@ -64,7 +64,7 @@ func TestConsoleThemes(t *testing.T) {
 			expectedParts: []string{
 				"[2025-01-22 15:30:45.000]",
 				"[INF]",
-				"User 123 logged in from \"192.168.1.1\"",
+				"User 123 logged in from 192.168.1.1",
 			},
 			notExpected: []string{
 				"\033[", // No ANSI escape codes
@@ -139,7 +139,7 @@ func TestConsoleThemeWithProperties(t *testing.T) {
 	output := buf.String()
 
 	// Should show the rendered message
-	if !strings.Contains(output, "Processing order \"ORD-123\"") {
+	if !strings.Contains(output, "Processing order ORD-123") {
 		t.Errorf("Expected rendered message, got: %s", output)
 	}
 

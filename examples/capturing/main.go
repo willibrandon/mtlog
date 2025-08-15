@@ -96,7 +96,7 @@ func main() {
 		// No capturing - complex objects will use default Go formatting
 	)
 
-	log3.Information("User without capturing: {@User}", user)
+	log3.Information("User without capturing: {User}", user)
 
 	// Example 4: Capturing with errors and special types
 	log4 := mtlog.New(

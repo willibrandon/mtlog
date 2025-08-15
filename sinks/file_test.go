@@ -81,7 +81,7 @@ func TestFileSink(t *testing.T) {
 	}{
 		{"[INF]", "Application started"},
 		{"[WRN]", "User 123 has 3 failed attempts"},
-		{"[ERR]", "Failed to process order \"ORD-789\""},
+		{"[ERR]", "Failed to process order ORD-789"},
 	}
 
 	for i, line := range lines {
@@ -242,7 +242,7 @@ func TestFileSinkWithTemplate(t *testing.T) {
 	}
 
 	output := strings.TrimSpace(string(content))
-	expected := "[2024-01-15 10:30:45 INF] OrderService: Processing order \"ORD-12345\" for customer \"CUST-789\""
+	expected := "[2024-01-15 10:30:45 INF] OrderService: Processing order ORD-12345 for customer CUST-789"
 
 	if output != expected {
 		t.Errorf("Expected:\n%s\nGot:\n%s", expected, output)
