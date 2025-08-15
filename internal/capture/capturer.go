@@ -362,27 +362,6 @@ func (d *DefaultCapturer) captureSlice(v reflect.Value, depth int) any {
 	return result
 }
 
-// isPrintableUTF8 checks if bytes are valid and printable UTF-8 text
-func isPrintableUTF8(b []byte) bool {
-	if !utf8.Valid(b) {
-		return false
-	}
-	// Check if it contains mostly printable characters
-	nonPrintable := 0
-	for _, r := range string(b) {
-		// Count non-printable characters (control chars except whitespace)
-		if r < 32 && r != '\n' && r != '\r' && r != '\t' {
-			nonPrintable++
-		}
-		// Also reject if we see null bytes or other binary indicators
-		if r == 0 {
-			return false
-		}
-	}
-	// Consider it text if we have very few non-printable chars
-	return len(b) > 0 && nonPrintable < len(b)/10  // Allow up to 10% non-printable
-}
-
 // captureMap captures a map.
 func (d *DefaultCapturer) captureMap(v reflect.Value, depth int) any {
 	// Check if map is nil
