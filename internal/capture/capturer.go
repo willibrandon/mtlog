@@ -299,7 +299,6 @@ func (d *DefaultCapturer) captureSlice(v reflect.Value, depth int) any {
 			bytes[i] = byte(v.Index(i).Uint())
 		}
 		
-		
 		// Use shared function to convert bytes to string if printable
 		result := convertBytesToStringIfPrintable(bytes, d.maxStringLength)
 		if str, ok := result.(string); ok {
@@ -418,7 +417,6 @@ func (d *DefaultCapturer) captureStruct(v reflect.Value, depth int) any {
 		}
 
 		capturedValue := d.capture(fieldValue.Interface(), depth+1)
-		
 		
 		// Special handling for byte slices in struct fields
 		if bytes, ok := capturedValue.([]byte); ok {

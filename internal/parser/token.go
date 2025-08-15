@@ -99,10 +99,6 @@ func (p *PropertyToken) formatValue(value any) string {
 		return v.String()
 	case *capture.CapturedStruct:
 		// Handle captured structs - render as struct notation
-		if p.Format == "j" {
-			// Already handled above
-			return ""
-		}
 		return formatStruct(v)
 	case int, int8, int16, int32, int64:
 		if p.Format != "" {
