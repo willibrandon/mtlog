@@ -60,7 +60,7 @@ func TestFormatSpecifiersIntegration(t *testing.T) {
 		logger.Information("Name: {Name,10} | Status: {Status,-8} | ID: {Id,5:000}", "Alice", "Active", 42)
 
 		output := buf.String()
-		if !strings.Contains(output, "Name:    \"Alice\" | Status: \"Active\" | ID:   042") {
+		if !strings.Contains(output, "Name:      Alice | Status: Active   | ID:   042") {
 			t.Errorf("Expected aligned output, got: %s", output)
 		}
 	})
@@ -87,7 +87,7 @@ func TestFormatSpecifiersIntegration(t *testing.T) {
 		)
 
 		output := buf.String()
-		if !strings.Contains(output, "Transaction 00123 for $   1234.57 at 15:30:45 (\"COMPLETED\")") {
+		if !strings.Contains(output, "Transaction 00123 for $   1234.57 at 15:30:45 (COMPLETED )") {
 			t.Errorf("Expected complex formatted output, got: %s", output)
 		}
 	})

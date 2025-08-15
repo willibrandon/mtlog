@@ -26,7 +26,7 @@ func TestCaptureBasicTypes(t *testing.T) {
 		input    any
 		expected any
 	}{
-		{"nil", nil, nil},
+		{"nil", nil, Null{}},
 		{"bool", true, true},
 		{"int", 42, 42},
 		{"float", 3.14, 3.14},
@@ -144,49 +144,61 @@ func TestCaptureStruct(t *testing.T) {
 	}
 
 	prop, _ := d.TryCapture(person, factory)
-	result, ok := prop.Value.(map[string]any)
+	result, ok := prop.Value.(*CapturedStruct)
 	if !ok {
-		t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)
+		t.Fatalf("Expected *CapturedStruct, got %T", prop.Value)
 	}
 
 	// Check fields
-	if result["Name"] != "Alice" {
-		t.Errorf("Expected Name=Alice, got %v", result["Name"])
+	findField := func(name string) any {
+		for _, f := range result.Fields {
+			if f.Name == name {
+				return f.Value
+			}
+		}
+		return nil
+	}
+	
+	if findField("Name") != "Alice" {
+		t.Errorf("Expected Name=Alice, got %v", findField("Name"))
 	}
 
-	if result["Age"] != 30 {
-		t.Errorf("Expected Age=30, got %v", result["Age"])
+	if findField("Age") != 30 {
+		t.Errorf("Expected Age=30, got %v", findField("Age"))
 	}
 
 	// Check tag rename
-	if result["email"] != "alice@example.com" {
-		t.Errorf("Expected email field, got %v", result["email"])
+	if findField("email") != "alice@example.com" {
+		t.Errorf("Expected email field, got %v", findField("email"))
 	}
 
 	// Password should be excluded
-	if _, exists := result["Password"]; exists {
+	if findField("Password") != nil {
 		t.Error("Password field should be excluded")
 	}
 
 	// Unexported field should be excluded
-	if _, exists := result["unexported"]; exists {
+	if findField("unexported") != nil {
 		t.Error("Unexported field should be excluded")
 	}
 
 	// Check nested struct
-	address, ok := result["Address"].(map[string]any)
+	address, ok := findField("Address").(*CapturedStruct)
 	if !ok {
-		t.Fatalf("Expected Address to be map[string]interface{}, got %T", result["Address"])
+		t.Fatalf("Expected Address to be *CapturedStruct, got %T", findField("Address"))
 	}
 
-	if address["Street"] != "123 Main St" {
-		t.Errorf("Expected Street='123 Main St', got %v", address["Street"])
+	// Check nested field
+	for _, f := range address.Fields {
+		if f.Name == "Street" && f.Value != "123 Main St" {
+			t.Errorf("Expected Street='123 Main St', got %v", f.Value)
+		}
 	}
 
 	// Check slice field
-	tags, ok := result["Tags"].([]any)
+	tags, ok := findField("Tags").([]any)
 	if !ok {
-		t.Fatalf("Expected Tags to be []interface{}, got %T", result["Tags"])
+		t.Fatalf("Expected Tags to be []interface{}, got %T", findField("Tags"))
 	}
 
 	if len(tags) != 2 {
@@ -218,33 +230,45 @@ func TestCaptureDepthLimit(t *testing.T) {
 	}
 
 	prop, _ := d.TryCapture(nested, factory)
-	result := prop.Value.(map[string]any)
+	result, ok := prop.Value.(*CapturedStruct)
+	if !ok {
+		t.Fatalf("Expected *CapturedStruct, got %T", prop.Value)
+	}
+	
+	// Helper to find field
+	findField := func(cs *CapturedStruct, name string) any {
+		for _, f := range cs.Fields {
+			if f.Name == name {
+				return f.Value
+			}
+		}
+		return nil
+	}
 
 	// Check first level
-	if result["Level"] != 1 {
-		t.Errorf("Expected Level=1, got %v", result["Level"])
+	if findField(result, "Level") != 1 {
+		t.Errorf("Expected Level=1, got %v", findField(result, "Level"))
 	}
 
 	// Check second level
-	level2, ok := result["Next"].(map[string]any)
+	level2, ok := findField(result, "Next").(*CapturedStruct)
 	if !ok {
-		t.Fatalf("Expected Next to be map[string]interface{}, got %T", result["Next"])
+		t.Fatalf("Expected Next to be *CapturedStruct, got %T", findField(result, "Next"))
 	}
-	level2Val, ok := level2["Level"].(int)
-	if !ok || level2Val != 2 {
-		t.Errorf("Expected Level=2 (int), got %T: %v", level2["Level"], level2["Level"])
+	if findField(level2, "Level") != 2 {
+		t.Errorf("Expected Level=2, got %v", findField(level2, "Level"))
 	}
 
-	// Third level should still be a map
-	level3, ok := level2["Next"].(map[string]any)
+	// Third level should still be captured
+	level3, ok := findField(level2, "Next").(*CapturedStruct)
 	if !ok {
-		t.Fatalf("Expected level 3 to be map[string]interface{}, got %T", level2["Next"])
+		t.Fatalf("Expected level3 to be *CapturedStruct, got %T", findField(level2, "Next"))
 	}
 
-	// Fourth level should be type string due to depth limit
-	level4 := level3["Next"]
-	if _, ok := level4.(string); !ok {
-		t.Errorf("Expected depth limit to return type string, got %T: %v", level4, level4)
+	// Fourth level should be truncated due to depth limit
+	level4 := findField(level3, "Next")
+	if level4Str, ok := level4.(string); !ok || level4Str != "<max depth reached>" {
+		t.Errorf("Expected depth limit to return '<max depth reached>', got %T: %v", level4, level4)
 	}
 }
 
@@ -277,8 +301,8 @@ func TestCapturePointers(t *testing.T) {
 	// Test nil pointer
 	var nilPtr *int
 	prop, _ := d.TryCapture(nilPtr, factory)
-	if prop.Value != nil {
-		t.Errorf("Expected nil, got %v", prop.Value)
+	if _, ok := prop.Value.(Null); !ok {
+		t.Errorf("Expected Null{}, got %T(%v)", prop.Value, prop.Value)
 	}
 
 	// Test non-nil pointer

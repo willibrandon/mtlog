@@ -1,10 +1,14 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
+	
+	"github.com/willibrandon/mtlog/internal/capture"
 )
 
 // MessageTemplateToken represents a single token in a message template.
@@ -74,12 +78,28 @@ const (
 
 // formatValue formats a value according to the property's format string.
 func (p *PropertyToken) formatValue(value any) string {
+	// Handle JSON format for any type (including nil)
+	if p.Format == "j" {
+		jsonBytes, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Sprintf("<json error: %v>", err)
+		}
+		return string(jsonBytes)
+	}
+
+	// Check for nil after JSON handling
 	if value == nil {
 		return ""
 	}
 
 	// Handle different value types with format strings
 	switch v := value.(type) {
+	case capture.Null:
+		// Null sentinel type renders as "nil" for strings
+		return v.String()
+	case *capture.CapturedStruct:
+		// Handle captured structs - render as struct notation
+		return formatStruct(v)
 	case int, int8, int16, int32, int64:
 		if p.Format != "" {
 			return p.formatNumber(v)
@@ -103,11 +123,15 @@ func (p *PropertyToken) formatValue(value any) string {
 	case string:
 		// Handle string formatting
 		if p.Format == "l" {
-			// Literal format - no quotes
+			// Literal format - same as default (no quotes)
 			return v
 		}
-		// Default behavior: quote strings like Serilog
-		return fmt.Sprintf("%q", v)
+		if p.Format == "q" {
+			// Explicit quotes format
+			return fmt.Sprintf("%q", v)
+		}
+		// Default behavior: no quotes (following modern Serilog)
+		return v
 	default:
 		// For other types, use default formatting
 		return formatValue(value)
@@ -286,9 +310,39 @@ func (p *PropertyToken) applyAlignment(s string) string {
 	}
 }
 
+// formatStruct formats a CapturedStruct as Go struct notation.
+func formatStruct(cs *capture.CapturedStruct) string {
+	// Simply delegate to the CapturedStruct's String() method
+	return cs.String()
+}
+
 func formatValue(value any) string {
 	if value == nil {
-		return ""
+		return "nil"  // Go convention: nil without brackets
 	}
-	return fmt.Sprintf("%v", value)
+	
+	switch v := value.(type) {
+	case []byte:
+		// Special handling for byte slices - render as string if valid UTF-8
+		if utf8.Valid(v) && len(v) > 0 {
+			// Check if it's mostly printable
+			printable := true
+			for _, b := range v {
+				if b < 32 && b != '\n' && b != '\r' && b != '\t' {
+					printable = false
+					break
+				}
+			}
+			if printable {
+				return string(v)
+			}
+		}
+		// Fall back to byte array format
+		return fmt.Sprintf("%v", v)
+	case time.Time:
+		// Standardize time format to RFC3339
+		return v.Format(time.RFC3339)
+	default:
+		return fmt.Sprintf("%v", value)
+	}
 }

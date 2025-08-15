@@ -1,13 +1,98 @@
 package capture
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/selflog"
 )
+
+// Null is a sentinel type for nil values that renders as "nil" in strings but null in JSON
+type Null struct{}
+
+// String returns "nil" for Go-idiomatic string representation
+func (Null) String() string {
+	return "nil"
+}
+
+// MarshalJSON returns JSON null
+func (Null) MarshalJSON() ([]byte, error) {
+	return []byte("null"), nil
+}
+
+// convertBytesToStringIfPrintable converts byte slices to strings if they contain printable UTF-8 text.
+func convertBytesToStringIfPrintable(bytes []byte, maxLength int) interface{} {
+	if utf8.Valid(bytes) && len(bytes) > 0 {
+		// Check for null bytes (binary indicator)
+		for _, b := range bytes {
+			if b == 0 {
+				return bytes // Binary data
+			}
+		}
+		s := string(bytes)
+		if len(s) > maxLength {
+			return s[:maxLength] + "..."
+		}
+		return s
+	}
+	return bytes
+}
+
+// CapturedField represents a single field in a captured struct.
+type CapturedField struct {
+	Name  string
+	Value any
+}
+
+// CapturedStruct represents a captured struct that preserves type information and field order.
+type CapturedStruct struct {
+	TypeName string
+	Fields   []CapturedField // Preserves field order
+}
+
+// String implements fmt.Stringer to properly format the struct
+func (cs *CapturedStruct) String() string {
+	if cs == nil {
+		return "nil"  // Go convention: nil without brackets
+	}
+	
+	var parts []string
+	for _, field := range cs.Fields {
+		// Format each field as Key:Value
+		var valueStr string
+		switch v := field.Value.(type) {
+		case *CapturedStruct:
+			valueStr = v.String()
+		case string:
+			valueStr = v  // Don't use fmt.Sprintf which might re-encode
+		default:
+			valueStr = fmt.Sprintf("%v", v)
+		}
+		parts = append(parts, fmt.Sprintf("%s:%s", field.Name, valueStr))
+	}
+	
+	// Return in struct notation: {Field1:Value1 Field2:Value2}
+	return "{" + strings.Join(parts, " ") + "}"
+}
+
+// MarshalJSON implements json.Marshaler to output the struct as a JSON object
+func (cs *CapturedStruct) MarshalJSON() ([]byte, error) {
+	if cs == nil {
+		return []byte("null"), nil
+	}
+	
+	// Convert to a map for proper JSON object output
+	m := make(map[string]any, len(cs.Fields))
+	for _, field := range cs.Fields {
+		m[field.Name] = field.Value
+	}
+	return json.Marshal(m)
+}
 
 // DefaultCapturer is the default implementation of core.Capturer.
 type DefaultCapturer struct {
@@ -20,7 +105,7 @@ type DefaultCapturer struct {
 // NewDefaultCapturer creates a new capturer with default settings.
 func NewDefaultCapturer() *DefaultCapturer {
 	d := &DefaultCapturer{
-		maxDepth:           3,
+		maxDepth:           5,  // Increased from 3 to handle deeper nesting
 		maxStringLength:    1000,
 		maxCollectionCount: 100,
 		scalarTypes:        make(map[reflect.Type]bool),
@@ -69,7 +154,7 @@ func (d *DefaultCapturer) TryCapture(value any, propertyFactory core.LogEventPro
 	}()
 
 	if value == nil {
-		return propertyFactory.CreateProperty("", nil), true
+		return propertyFactory.CreateProperty("", Null{}), true
 	}
 
 	// Check if the value implements LogValue interface
@@ -111,12 +196,25 @@ func (d *DefaultCapturer) capture(value any, depth int) (result any) {
 	}()
 
 	if value == nil {
-		return nil
+		return Null{}  // Return Null{} sentinel type
 	}
 
 	// Check depth limit
 	if depth >= d.maxDepth {
-		return fmt.Sprintf("%T", value)
+		// For simple types, return the value even at max depth
+		switch value.(type) {
+		case bool, int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64,
+			float32, float64, complex64, complex128,
+			string:
+			return value
+		case map[string]any:
+			// For maps, show it's truncated
+			return "<max depth reached>"
+		default:
+			// For complex types, show truncation indicator
+			return "<max depth reached>"
+		}
 	}
 
 	v := reflect.ValueOf(value)
@@ -138,13 +236,19 @@ func (d *DefaultCapturer) capture(value any, depth int) (result any) {
 
 	case reflect.Ptr:
 		if v.IsNil() {
-			return nil
+			return Null{}  // Return Null{} sentinel type
 		}
-		return d.capture(v.Elem().Interface(), depth)
+		// Dereference the pointer and capture the underlying value
+		elem := v.Elem()
+		// If it's a struct, capture it as a struct
+		if elem.Kind() == reflect.Struct {
+			return d.captureStruct(elem, depth)
+		}
+		return d.capture(elem.Interface(), depth)
 
 	case reflect.Interface:
 		if v.IsNil() {
-			return nil
+			return Null{}  // Return Null{} sentinel type
 		}
 		return d.capture(v.Elem().Interface(), depth)
 
@@ -171,12 +275,42 @@ func (d *DefaultCapturer) capture(value any, depth int) (result any) {
 		return fmt.Sprintf("%T", value)
 
 	default:
+		// Simplified default case
+		if v.Kind() == reflect.Struct {
+			return d.captureStruct(v, depth)
+		}
 		return fmt.Sprintf("%v", value)
 	}
 }
 
 // captureSlice captures a slice or array.
 func (d *DefaultCapturer) captureSlice(v reflect.Value, depth int) any {
+	// Check if slice is nil
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		return Null{}
+	}
+	
+	// Special handling for byte slices - render as string if valid UTF-8
+	if v.Type().Elem().Kind() == reflect.Uint8 {
+		// Can't use v.Bytes() if it's not addressable, get the bytes differently
+		length := v.Len()
+		bytes := make([]byte, length)
+		for i := 0; i < length; i++ {
+			bytes[i] = byte(v.Index(i).Uint())
+		}
+		
+		// Use shared function to convert bytes to string if printable
+		result := convertBytesToStringIfPrintable(bytes, d.maxStringLength)
+		if str, ok := result.(string); ok {
+			return str
+		}
+		// For binary data, show first few bytes and length
+		if len(bytes) > 20 {
+			return fmt.Sprintf("[%d bytes: %v...]", len(bytes), bytes[:20])
+		}
+		return bytes
+	}
+
 	length := v.Len()
 	if length == 0 {
 		return []any{}
@@ -189,13 +323,33 @@ func (d *DefaultCapturer) captureSlice(v reflect.Value, depth int) any {
 
 	result := make([]any, length)
 	for i := 0; i < length; i++ {
-		elem := v.Index(i).Interface()
+		elemValue := v.Index(i)
+		
+		// If it's an interface, check if it contains a pointer to a struct
+		if elemValue.Kind() == reflect.Interface && !elemValue.IsNil() {
+			actualElem := elemValue.Elem()
+			// If it's a pointer to a struct, dereference it
+			if actualElem.Kind() == reflect.Ptr && !actualElem.IsNil() && actualElem.Elem().Kind() == reflect.Struct {
+				// Capture the dereferenced struct
+				result[i] = d.capture(actualElem.Elem().Interface(), depth+1)
+				continue
+			}
+		}
+		
+		elem := elemValue.Interface()
 
 		// Check if element implements LogValue
 		if lv, ok := elem.(core.LogValue); ok {
 			result[i] = d.capture(lv.LogValue(), depth+1)
 		} else {
-			result[i] = d.capture(elem, depth+1)
+			// Check if it's a struct BEFORE capturing
+			ev := reflect.ValueOf(elem)
+			if ev.Kind() == reflect.Struct {
+				// Capture it directly as a struct to avoid the default case
+				result[i] = d.captureStruct(ev, depth+1)
+			} else {
+				result[i] = d.capture(elem, depth+1)
+			}
 		}
 	}
 
@@ -209,6 +363,11 @@ func (d *DefaultCapturer) captureSlice(v reflect.Value, depth int) any {
 
 // captureMap captures a map.
 func (d *DefaultCapturer) captureMap(v reflect.Value, depth int) any {
+	// Check if map is nil
+	if v.IsNil() {
+		return Null{}
+	}
+	
 	if v.Len() == 0 {
 		return map[string]any{}
 	}
@@ -233,7 +392,7 @@ func (d *DefaultCapturer) captureMap(v reflect.Value, depth int) any {
 // captureStruct captures a struct.
 func (d *DefaultCapturer) captureStruct(v reflect.Value, depth int) any {
 	t := v.Type()
-	result := make(map[string]any)
+	var fields []CapturedField
 
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
@@ -257,8 +416,25 @@ func (d *DefaultCapturer) captureStruct(v reflect.Value, depth int) any {
 			fieldName = tag
 		}
 
-		result[fieldName] = d.capture(fieldValue.Interface(), depth+1)
+		capturedValue := d.capture(fieldValue.Interface(), depth+1)
+		
+		// Special handling for byte slices in struct fields
+		if bytes, ok := capturedValue.([]byte); ok {
+			result := convertBytesToStringIfPrintable(bytes, d.maxStringLength)
+			if str, ok := result.(string); ok {
+				capturedValue = str
+			}
+		}
+		
+		fields = append(fields, CapturedField{
+			Name:  fieldName,
+			Value: capturedValue,
+		})
 	}
 
-	return result
+	// Return CapturedStruct to preserve type information and field order
+	return &CapturedStruct{
+		TypeName: t.String(),
+		Fields:   fields,
+	}
 }

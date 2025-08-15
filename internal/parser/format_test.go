@@ -230,7 +230,7 @@ func TestRenderWithFormat(t *testing.T) {
 				Alignment:    10,
 			},
 			properties: map[string]any{"Name": "Alice"},
-			expected:   "   \"Alice\"",
+			expected:   "     Alice",
 		},
 		{
 			name: "String with literal format",
@@ -247,7 +247,7 @@ func TestRenderWithFormat(t *testing.T) {
 				PropertyName: "Name",
 			},
 			properties: map[string]any{"Name": "John"},
-			expected:   "\"John\"",
+			expected:   "John",
 		},
 		{
 			name: "String with special characters (quoted)",
@@ -255,7 +255,7 @@ func TestRenderWithFormat(t *testing.T) {
 				PropertyName: "Message",
 			},
 			properties: map[string]any{"Message": "Hello \"World\""},
-			expected:   "\"Hello \\\"World\\\"\"",
+			expected:   "Hello \"World\"",
 		},
 		{
 			name: "String with literal format and alignment",

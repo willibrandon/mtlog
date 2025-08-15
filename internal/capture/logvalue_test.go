@@ -141,19 +141,29 @@ func TestLogValue(t *testing.T) {
 
 		prop, _ := d.TryCapture(card, factory)
 
-		// The result should be a struct (map after capturing)
-		result, ok := prop.Value.(map[string]any)
+		// The result should be a CapturedStruct
+		result, ok := prop.Value.(*CapturedStruct)
 		if !ok {
-			t.Fatalf("Expected map[string]interface{}, got %T", prop.Value)
+			t.Fatalf("Expected *CapturedStruct, got %T", prop.Value)
+		}
+
+		// Helper to find field
+		findField := func(name string) any {
+			for _, f := range result.Fields {
+				if f.Name == name {
+					return f.Value
+				}
+			}
+			return nil
 		}
 
 		// Check masked number
-		if number, ok := result["Number"].(string); !ok || number != "**** **** **** 5678" {
-			t.Errorf("Expected masked number '**** **** **** 5678', got %v", result["Number"])
+		if number := findField("Number"); number != "**** **** **** 5678" {
+			t.Errorf("Expected masked number '**** **** **** 5678', got %v", number)
 		}
 
 		// CVV should not be present
-		if _, exists := result["CVV"]; exists {
+		if findField("CVV") != nil {
 			t.Error("CVV should not be in log output")
 		}
 	})

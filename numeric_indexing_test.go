@@ -35,7 +35,7 @@ func TestNumericIndexing(t *testing.T) {
 			name:     "String values with numeric indexing",
 			template: "File {0} moved to {1}",
 			args:     []any{"test.txt", "archive/"},
-			expected: "File \"test.txt\" moved to \"archive/\"",
+			expected: "File test.txt moved to archive/",
 		},
 		{
 			name:     "Numeric indexing with format specifiers",
@@ -47,7 +47,7 @@ func TestNumericIndexing(t *testing.T) {
 			name:     "Out of order numeric indices",
 			template: "Result: {1} - {0}",
 			args:     []any{"first", "second"},
-			expected: "Result: \"second\" - \"first\"", // Should use actual index values
+			expected: "Result: second - first", // Should use actual index values
 		},
 		{
 			name:     "Numeric index with literal format",
@@ -104,7 +104,7 @@ func TestNumericIndexingCompatibility(t *testing.T) {
 		"quick", "brown", "fox", "lazy", "dog")
 
 	output := buf.String()
-	expected := "The \"quick\" \"brown\" \"fox\" jumped over the \"lazy\" \"dog\""
+	expected := "The quick brown fox jumped over the lazy dog"
 	if !strings.Contains(output, expected) {
 		t.Errorf("Expected Serilog-compatible output: %q, got: %s", expected, output)
 	}

@@ -39,7 +39,6 @@ exporters:
   file:
     path: /tmp/otel-logs.json
     rotation:
-      enabled: true
       max_megabytes: 10
       max_days: 3
       max_backups: 3

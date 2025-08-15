@@ -15,7 +15,7 @@ func TestStringFormatting(t *testing.T) {
 			name:       "String without format - should be quoted",
 			template:   "User {Name} logged in",
 			properties: map[string]any{"Name": "John"},
-			expected:   "User \"John\" logged in",
+			expected:   "User John logged in",
 		},
 		{
 			name:       "String with :l format - no quotes",
@@ -27,13 +27,13 @@ func TestStringFormatting(t *testing.T) {
 			name:       "Mixed string formats",
 			template:   "User {Name:l} said {Message}",
 			properties: map[string]any{"Name": "Alice", "Message": "Hello"},
-			expected:   "User Alice said \"Hello\"",
+			expected:   "User Alice said Hello",
 		},
 		{
 			name:       "String with special chars - quoted",
 			template:   "Error: {Error}",
 			properties: map[string]any{"Error": "File \"test.txt\" not found"},
-			expected:   "Error: \"File \\\"test.txt\\\" not found\"",
+			expected:   "Error: File \"test.txt\" not found",
 		},
 		{
 			name:       "String with special chars - literal",
@@ -51,7 +51,7 @@ func TestStringFormatting(t *testing.T) {
 			name:       "Empty string - quoted",
 			template:   "Value: {Value}",
 			properties: map[string]any{"Value": ""},
-			expected:   "Value: \"\"",
+			expected:   "Value: ",
 		},
 		{
 			name:       "Empty string - literal",
@@ -88,7 +88,7 @@ func TestStringFormattingCompatibility(t *testing.T) {
 			name:       "Serilog example - quoted",
 			template:   "Could not find documents matching {Term}",
 			properties: map[string]any{"Term": "search query"},
-			expected:   "Could not find documents matching \"search query\"",
+			expected:   "Could not find documents matching search query",
 		},
 		{
 			name:       "Serilog example - literal",
@@ -100,7 +100,7 @@ func TestStringFormattingCompatibility(t *testing.T) {
 			name:       "File path - quoted",
 			template:   "Processing file {FilePath}",
 			properties: map[string]any{"FilePath": "/usr/local/bin/app"},
-			expected:   "Processing file \"/usr/local/bin/app\"",
+			expected:   "Processing file /usr/local/bin/app",
 		},
 		{
 			name:       "File path - literal",
