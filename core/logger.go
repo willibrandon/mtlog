@@ -32,6 +32,12 @@ type Logger interface {
 	// WithContext creates a logger that enriches events with context values.
 	WithContext(ctx context.Context) Logger
 
+	// With creates a logger that enriches events with the specified key-value pairs.
+	// Keys must be strings. Values can be any type.
+	// The key-value pairs should be provided in the order: key1, value1, key2, value2, ...
+	// If an odd number of arguments is provided, the last argument is ignored.
+	With(args ...any) Logger
+
 	// IsEnabled returns true if events at the specified level would be processed.
 	IsEnabled(level LogEventLevel) bool
 

@@ -12,13 +12,37 @@ import (
 	"github.com/willibrandon/mtlog/selflog"
 )
 
+// propertyPair represents a key-value pair for properties
+type propertyPair struct {
+	key   string
+	value any
+}
+
 // logger is the default implementation of core.Logger.
 type logger struct {
 	minimumLevel core.LogEventLevel
 	levelSwitch  *LoggingLevelSwitch
 	pipeline     *pipeline
-	properties   map[string]any
-	mu           sync.RWMutex
+	
+	// Single allocation strategy: use slice instead of map for properties
+	// This matches zap's approach of accepting one allocation for the field array
+	fields []propertyPair
+	
+	// Fallback to map only for very large numbers of properties (>64)
+	// This is rare in practice
+	properties map[string]any
+	
+	mu sync.RWMutex
+}
+
+// isReservedProperty checks if a property name conflicts with built-in properties
+func isReservedProperty(key string) bool {
+	switch key {
+	case "Timestamp", "Level", "Message", "MessageTemplate", "Exception", "SourceContext":
+		return true
+	default:
+		return false
+	}
 }
 
 // New creates a new logger with the specified options.
@@ -120,7 +144,7 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 	}
 
 	// Fast path for simple messages (no args, no properties, no enrichers, no filters)
-	if len(args) == 0 && len(l.properties) == 0 && !hasPropertyTokens(messageTemplate) &&
+	if len(args) == 0 && len(l.properties) == 0 && len(l.fields) == 0 && !hasPropertyTokens(messageTemplate) &&
 		len(l.pipeline.enrichers) == 0 && len(l.pipeline.filters) == 0 {
 		l.pipeline.processSimple(time.Now(), level, messageTemplate)
 		return
@@ -156,6 +180,13 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 
 	// Add context properties
 	l.mu.RLock()
+	// Add from fields slice
+	for _, field := range l.fields {
+		if _, exists := event.Properties[field.key]; !exists {
+			event.Properties[field.key] = field.value
+		}
+	}
+	// Add from map (if used for large field counts)
 	for k, v := range l.properties {
 		if _, exists := event.Properties[k]; !exists {
 			event.Properties[k] = v
@@ -170,24 +201,9 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 
 // ForContext creates a logger that enriches events with the specified property.
 func (l *logger) ForContext(propertyName string, value any) core.Logger {
-	newLogger := &logger{
-		minimumLevel: l.minimumLevel,
-		levelSwitch:  l.levelSwitch,
-		pipeline:     l.pipeline, // Share the same immutable pipeline
-		properties:   make(map[string]any),
-	}
-
-	// Copy existing properties
-	l.mu.RLock()
-	for k, v := range l.properties {
-		newLogger.properties[k] = v
-	}
-	l.mu.RUnlock()
-
-	// Add new property
-	newLogger.properties[propertyName] = value
-
-	return newLogger
+	// This is essentially With() with a single key-value pair
+	// Reuse the optimized With implementation
+	return l.With(propertyName, value)
 }
 
 // ForSourceContext creates a logger with the specified source context.
@@ -249,6 +265,11 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 
 	// Copy existing properties
 	l.mu.RLock()
+	// Copy from fields slice
+	for _, field := range l.fields {
+		newConfig.properties[field.key] = field.value
+	}
+	// Copy from map
 	for k, v := range l.properties {
 		newConfig.properties[k] = v
 	}
@@ -257,12 +278,170 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	// Create new pipeline
 	p := newPipeline(newConfig.enrichers, newConfig.filters, newConfig.capturer, newConfig.sinks)
 
+	// Convert properties to fields slice for efficiency
+	var fields []propertyPair
+	if len(newConfig.properties) <= 64 {
+		fields = make([]propertyPair, 0, len(newConfig.properties))
+		for k, v := range newConfig.properties {
+			fields = append(fields, propertyPair{key: k, value: v})
+		}
+		newConfig.properties = nil // Clear map to use fields instead
+	}
+
 	return &logger{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
 		pipeline:     p,
+		fields:       fields,
 		properties:   newConfig.properties,
 	}
+}
+
+// With creates a logger that enriches events with the specified key-value pairs.
+// This method follows the slog convention of accepting variadic key-value pairs.
+// 
+// Keys must be strings (either string literals or string-typed variables).
+// Values can be any type.
+//
+// The key-value pairs should be provided in alternating order:
+//   logger.With("user_id", 123, "request_id", "abc-123")
+//
+// If an odd number of arguments is provided, the last argument is ignored.
+// Non-string keys are skipped with their corresponding values.
+//
+// Performance:
+// - 0 allocations when no fields (returns same logger)
+// - 2 allocations for common cases (≤64 fields): logger struct + fields array
+// - 3+ allocations for very large field counts or complex scenarios
+// 
+// Note: Unlike zap which pre-serializes fields into JSON for 1 allocation,
+// mtlog maintains structured properties for Serilog compatibility. This enables:
+// - Property-based filtering in the pipeline
+// - Dynamic enrichment based on property values  
+// - Multiple output formats from the same properties
+// - Property inspection and manipulation by sinks
+//
+// The trade-off of 1 extra allocation maintains the flexibility expected
+// by both Serilog users and Go developers familiar with slog.
+//
+// Example:
+//   logger.With("service", "auth", "version", "1.0").Info("Service started")
+//   logger.With("user_id", 123).With("request_id", "abc").Info("Request processed")
+func (l *logger) With(args ...any) core.Logger {
+	// Fast path: no arguments
+	if len(args) == 0 {
+		return l
+	}
+
+	// Calculate the number of valid pairs
+	numPairs := len(args) / 2
+	if numPairs == 0 {
+		return l
+	}
+
+	// Count valid string keys
+	validPairs := 0
+	for i := 0; i < numPairs*2; i += 2 {
+		if key, ok := args[i].(string); ok && key != "" {
+			validPairs++
+		} else if selflog.IsEnabled() {
+			if !ok {
+				selflog.Printf("With: skipping non-string key at position %d: %T", i, args[i])
+			} else {
+				selflog.Printf("With: skipping empty key at position %d", i)
+			}
+		}
+	}
+
+	if validPairs == 0 {
+		return l
+	}
+
+	// Calculate total fields needed
+	l.mu.RLock()
+	existingFieldCount := len(l.fields)
+	existingMapCount := len(l.properties)
+	l.mu.RUnlock()
+
+	totalFields := existingFieldCount + validPairs
+
+	// Use slice for reasonable field counts (<= 64)
+	// This is the common case and results in 1 allocation
+	if totalFields <= 64 && existingMapCount == 0 {
+		// Single allocation: new slice with all fields
+		// Allocate with maximum possible size (assumes no overrides)
+		newFields := make([]propertyPair, 0, totalFields)
+		
+		// Copy existing fields that aren't being overridden
+		// O(n*m) complexity is fine since n and m are small in practice
+		l.mu.RLock()
+		outer:
+		for _, existing := range l.fields {
+			// Check if this key is overridden by new args
+			for i := 0; i < numPairs*2; i += 2 {
+				if key, ok := args[i].(string); ok && key == existing.key {
+					continue outer // Skip this field, it's overridden
+				}
+			}
+			newFields = append(newFields, existing)
+		}
+		l.mu.RUnlock()
+		
+		// Add all new fields (they naturally override due to order)
+		for i := 0; i < numPairs*2; i += 2 {
+			if key, ok := args[i].(string); ok && key != "" {
+				if isReservedProperty(key) && selflog.IsEnabled() {
+					selflog.Printf("With: property '%s' shadows built-in property", key)
+				}
+				newFields = append(newFields, propertyPair{
+					key:   key,
+					value: args[i+1],
+				})
+			}
+		}
+		
+		// Create new logger with the single allocation for fields
+		return &logger{
+			minimumLevel: l.minimumLevel,
+			levelSwitch:  l.levelSwitch,
+			pipeline:     l.pipeline,
+			fields:       newFields,
+		}
+	}
+
+	// Fallback for very large field counts or when already using map
+	// This is rare in practice
+	return l.withMap(args, numPairs, totalFields + existingMapCount)
+}
+
+// withMap creates a logger using map for large numbers of properties
+func (l *logger) withMap(args []any, numPairs, capacity int) core.Logger {
+	newLogger := &logger{
+		minimumLevel: l.minimumLevel,
+		levelSwitch:  l.levelSwitch,
+		pipeline:     l.pipeline,
+		properties:   make(map[string]any, capacity),
+	}
+
+	// Copy from fields array to map
+	l.mu.RLock()
+	for _, field := range l.fields {
+		newLogger.properties[field.key] = field.value
+	}
+	// Copy from existing map
+	for k, v := range l.properties {
+		newLogger.properties[k] = v
+	}
+	l.mu.RUnlock()
+
+	// Add new properties
+	for i := 0; i < numPairs*2; i += 2 {
+		if key, ok := args[i].(string); ok && key != "" {
+			newLogger.properties[key] = args[i+1]
+		}
+	}
+
+	return newLogger
 }
 
 // extractPropertiesInto extracts properties from the template and arguments into an existing map.
