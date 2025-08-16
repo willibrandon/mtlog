@@ -284,5 +284,6 @@ func (m *mockFuzzLogger) Fatal(template string, args ...any) {}
 func (m *mockFuzzLogger) Write(level core.LogEventLevel, template string, args ...any) {}
 func (m *mockFuzzLogger) ForContext(propertyName string, value any) core.Logger { return m }
 func (m *mockFuzzLogger) WithContext(ctx context.Context) core.Logger { return m }
+func (m *mockFuzzLogger) With(args ...any) core.Logger { return m }
 func (m *mockFuzzLogger) Info(template string, args ...any) {}
 func (m *mockFuzzLogger) Warn(template string, args ...any) {}
