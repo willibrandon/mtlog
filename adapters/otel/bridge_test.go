@@ -74,6 +74,11 @@ func (m *mockLogger) WithContext(ctx context.Context) core.Logger {
 	return m
 }
 
+func (m *mockLogger) With(args ...any) core.Logger {
+	// For testing, just return self
+	return m
+}
+
 func (m *mockLogger) Info(template string, args ...any) {
 	m.Information(template, args...)
 }
