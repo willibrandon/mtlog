@@ -24,8 +24,8 @@ type logger struct {
 	levelSwitch  *LoggingLevelSwitch
 	pipeline     *pipeline
 	
-	// Single allocation strategy: use slice instead of map for properties
-	// This matches zap's approach of accepting one allocation for the field array
+	// Use slice instead of map for properties to minimize allocations
+	// Achieves 2 allocations (logger struct + fields array) for common cases
 	fields []propertyPair
 	
 	// Fallback to map only for very large numbers of properties (>64)
@@ -366,14 +366,18 @@ func (l *logger) With(args ...any) core.Logger {
 	totalFields := existingFieldCount + validPairs
 
 	// Use slice for reasonable field counts (<= 64)
-	// This is the common case and results in 1 allocation
+	// This is the common case and results in 2 allocations (logger struct + fields slice)
 	if totalFields <= 64 && existingMapCount == 0 {
-		// Single allocation: new slice with all fields
-		// Allocate with maximum possible size (assumes no overrides)
+		// Allocate slice with capacity for worst-case (no overrides)
+		// This may over-allocate when fields are overridden, but that's acceptable
+		// because it avoids an extra allocation for calculating exact capacity
 		newFields := make([]propertyPair, 0, totalFields)
 		
 		// Copy existing fields that aren't being overridden
-		// O(n*m) complexity is fine since n and m are small in practice
+		// O(n*m) complexity is acceptable here because:
+		// - n and m are small (≤64 fields total)
+		// - Avoiding a map saves an allocation
+		// - For 64 fields, this is still very fast (~4096 comparisons worst case)
 		l.mu.RLock()
 		outer:
 		for _, existing := range l.fields {
