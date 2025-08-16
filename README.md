@@ -12,6 +12,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Message templates** with positional property extraction and format specifiers
 - **Go template syntax** support (`{{.Property}}`) alongside traditional syntax
 - **OpenTelemetry compatibility** with support for dotted property names (`{http.method}`, `{service.name}`)
+- **Structured fields** via `With()` method for slog-style key-value pairs
 - **Output templates** for customizable log formatting
 - **ForType logging** with automatic SourceContext from Go types and intelligent caching
 - **LogContext scoped properties** that flow through operation contexts
@@ -255,6 +256,10 @@ log := mtlog.New(
     mtlog.WithSourceContext(), // Auto-detect logger context
 )
 
+// Structured fields with With() - slog-style
+log.With("service", "auth", "version", "1.0").Info("Service started")
+log.With("user_id", 123, "request_id", "abc-123").Info("Processing request")
+
 // Context-based enrichment
 ctx := context.WithValue(context.Background(), "RequestId", "abc-123")
 log.ForContext("UserId", userId).Information("Processing request")
@@ -270,6 +275,54 @@ userLogger.Information("User operation") // SourceContext: "User"
 orderLogger := mtlog.ForType[OrderService](log)
 orderLogger.Information("Processing order") // SourceContext: "OrderService"
 ```
+
+## Structured Fields with With()
+
+The `With()` method provides a convenient way to add structured fields to log events, following the slog convention of accepting variadic key-value pairs:
+
+```go
+// Basic usage with key-value pairs
+logger.With("service", "api", "version", "1.0").Info("Service started")
+
+// Chaining With() calls
+logger.
+    With("environment", "production").
+    With("region", "us-west-2").
+    Info("Deployment complete")
+
+// Create a base logger with common fields
+apiLogger := logger.With(
+    "component", "api",
+    "host", "api-server-01",
+)
+
+// Reuse the base logger for multiple operations
+apiLogger.Info("Handling request")
+apiLogger.With("endpoint", "/users").Info("GET /users")
+apiLogger.With("endpoint", "/products", "method", "POST").Info("POST /products")
+
+// Request-scoped logging
+requestLogger := apiLogger.With(
+    "request_id", "abc-123",
+    "user_id", 456,
+)
+requestLogger.Info("Request started")
+requestLogger.With("duration_ms", 42).Info("Request completed")
+
+// Combine With() and ForContext()
+logger.
+    With("service", "payment").
+    ForContext("transaction_id", "tx-789").
+    With("amount", 99.99, "currency", "USD").
+    Info("Payment processed")
+```
+
+### With() vs ForContext()
+
+- **With()**: Accepts variadic key-value pairs (slog-style), convenient for multiple fields
+- **ForContext()**: Takes a single property name and value, returns a new logger
+- Both methods create a new logger instance with the combined properties
+- Both are safe for concurrent use
 
 ## LogContext - Scoped Properties
 
