@@ -2,6 +2,18 @@
 
 All notable changes to the "mtlog-analyzer" extension will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Support for With() method diagnostics (MTLOG009-MTLOG013)
+  - MTLOG009: Detects odd argument count in With() calls
+  - MTLOG010: Warns about non-string keys in With()
+  - MTLOG011: Identifies duplicate keys across multiple With() calls
+  - MTLOG012: Warns about reserved property names
+  - MTLOG013: Detects empty string keys
+- Updated suppression manager to include new diagnostic codes
+- Quick fixes for With() method issues provided by analyzer
+
 ## [0.8.1] - 2025-08-10
 
 ### Changed
