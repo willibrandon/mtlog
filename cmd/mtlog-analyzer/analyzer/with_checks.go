@@ -366,27 +366,23 @@ func toSnakeCase(s string) string {
 				// Insert underscore when moving from lowercase to uppercase
 				if unicode.IsLower(prev) {
 					result.WriteByte('_')
-				} 
-				// Case 2: Number to uppercase transition (e.g., "123User" → "123_user")
-				// Insert underscore when moving from digit to uppercase letter
-				else if unicode.IsDigit(prev) {
+				} else if unicode.IsDigit(prev) {
+					// Case 2: Number to uppercase transition (e.g., "123User" → "123_user")
+					// Insert underscore when moving from digit to uppercase letter
 					result.WriteByte('_')
-				} 
-				// Case 3: Acronym boundary detection (e.g., "HTTPServer" → "http_server")
-				// When we have consecutive uppercase letters followed by lowercase,
-				// we're at the start of a new word after an acronym
-				else if i+1 < len(runes) && unicode.IsLower(runes[i+1]) && unicode.IsUpper(prev) {
+				} else if i+1 < len(runes) && unicode.IsLower(runes[i+1]) && unicode.IsUpper(prev) {
+					// Case 3: Acronym boundary detection (e.g., "HTTPServer" → "http_server")
+					// When we have consecutive uppercase letters followed by lowercase,
+					// we're at the start of a new word after an acronym
 					result.WriteByte('_')
 				}
-			} 
-			// Case 4: Letter to number transition (e.g., "user123" → "user_123")
-			// Insert underscore when moving from non-digit to digit
-			else if unicode.IsDigit(r) && !unicode.IsDigit(prev) {
+			} else if unicode.IsDigit(r) && !unicode.IsDigit(prev) {
+				// Case 4: Letter to number transition (e.g., "user123" → "user_123")
+				// Insert underscore when moving from non-digit to digit
 				result.WriteByte('_')
-			} 
-			// Case 5: Number to lowercase transition (e.g., "123user" → "123_user")
-			// Insert underscore when moving from digit to lowercase letter
-			else if unicode.IsLower(r) && unicode.IsDigit(prev) {
+			} else if unicode.IsLower(r) && unicode.IsDigit(prev) {
+				// Case 5: Number to lowercase transition (e.g., "123user" → "123_user")
+				// Insert underscore when moving from digit to lowercase letter
 				result.WriteByte('_')
 			}
 		}
