@@ -545,4 +545,25 @@ function M.reset()
   check_in_progress = false
 end
 
+-- Re-analyze all Go buffers
+function M.reanalyze_all()
+  local cache = require('mtlog.cache')
+  local utils = require('mtlog.utils')
+  cache.clear()  -- Clear cache to force re-analysis
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local name = vim.api.nvim_buf_get_name(bufnr)
+      if name:match('%.go$') and not utils.is_vendor_path(name) then
+        -- We need to call the main analyze_buffer function
+        -- but we can't require mtlog here (circular dependency)
+        -- So we'll use vim.schedule to defer and break the cycle
+        vim.schedule(function()
+          local mtlog = require('mtlog')
+          mtlog.analyze_buffer(bufnr)
+        end)
+      end
+    end
+  end
+end
+
 return M

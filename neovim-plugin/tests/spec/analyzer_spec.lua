@@ -63,6 +63,7 @@ func main() {
 ]])
       file:close()
       
+      local done_callback = done  -- Capture done in local scope
       analyzer.analyze_file(test_file, function(results, err)
         vim.schedule(function()
           os.remove(test_file)
@@ -72,7 +73,7 @@ func main() {
           -- The test file should have no errors
           assert.is_true(#results >= 0)
           
-          done()
+          done_callback()
         end)
       end)
     end, 2000)

@@ -47,7 +47,7 @@ describe('mtlog workspace', function()
       file:close()
       
       local found = workspace.find_config_file()
-      assert.equals(config_path, found)
+      assert.equals(vim.fn.resolve(config_path), vim.fn.resolve(found))
     end)
     
     it('should find .mtlog.json in parent directory', function()
@@ -65,7 +65,7 @@ describe('mtlog workspace', function()
       vim.fn.chdir(subdir)
       
       local found = workspace.find_config_file()
-      assert.equals(config_path, found)
+      assert.equals(vim.fn.resolve(config_path), vim.fn.resolve(found))
     end)
     
     it('should stop at git root if no .mtlog.json found', function()
@@ -92,7 +92,7 @@ describe('mtlog workspace', function()
   describe('get_config_path', function()
     it('should return path in current directory', function()
       local path = workspace.get_config_path()
-      assert.equals(temp_dir .. '/.mtlog.json', path)
+      assert.equals(vim.fn.resolve(temp_dir .. '/.mtlog.json'), vim.fn.resolve(path))
     end)
   end)
   
@@ -170,7 +170,7 @@ describe('mtlog workspace', function()
       local success = workspace.save(test_data)
       assert.is_true(success)
       assert.is_not_nil(saved_content)
-      assert.equals(temp_dir .. '/.mtlog.json', saved_path)
+      assert.equals(vim.fn.resolve(temp_dir .. '/.mtlog.json'), vim.fn.resolve(saved_path))
       
       -- Verify JSON is valid
       local ok, decoded = pcall(vim.json.decode, saved_content)
@@ -327,9 +327,9 @@ describe('mtlog workspace', function()
       end
       
       -- Mock reanalyze_all to prevent it from running
-      local mtlog = require('mtlog')
-      local original_reanalyze = mtlog.reanalyze_all
-      mtlog.reanalyze_all = function() end
+      local analyzer = require('mtlog.analyzer')
+      local original_reanalyze = analyzer.reanalyze_all
+      analyzer.reanalyze_all = function() end
       
       -- Load suppressions
       workspace.load_suppressions()
@@ -342,7 +342,7 @@ describe('mtlog workspace', function()
       
       -- Restore
       workspace.load = original_load
-      mtlog.reanalyze_all = original_reanalyze
+      analyzer.reanalyze_all = original_reanalyze
     end)
     
     it('should trigger reanalysis after loading', function()
@@ -355,9 +355,9 @@ describe('mtlog workspace', function()
       end
       
       -- Mock reanalyze_all
-      local mtlog = require('mtlog')
-      local original_reanalyze = mtlog.reanalyze_all
-      mtlog.reanalyze_all = function()
+      local analyzer = require('mtlog.analyzer')
+      local original_reanalyze = analyzer.reanalyze_all
+      analyzer.reanalyze_all = function()
         reanalyze_called = true
       end
       
@@ -369,7 +369,7 @@ describe('mtlog workspace', function()
       
       -- Restore
       workspace.load = original_load
-      mtlog.reanalyze_all = original_reanalyze
+      analyzer.reanalyze_all = original_reanalyze
     end)
   end)
 end)

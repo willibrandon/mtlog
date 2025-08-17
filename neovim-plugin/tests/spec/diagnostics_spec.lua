@@ -623,8 +623,8 @@ describe('mtlog.diagnostics', function()
       
       vim.api.nvim_set_current_buf(test_bufnr)
       local success = diagnostics.apply_suggested_fix(diagnostic)
-      -- The function returns true if it has edits, even if they're invalid
-      assert.is_true(success)
+      -- The function should return false when the range is invalid
+      assert.is_false(success)
       
       -- Buffer should remain unchanged because the range was invalid
       local lines = vim.api.nvim_buf_get_lines(test_bufnr, 0, -1, false)

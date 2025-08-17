@@ -327,6 +327,7 @@ function M.apply_suggested_fix(diagnostic, fix_index)
       vim.notify(string.format('Applying %d edits...', #sorted_edits), vim.log.levels.INFO)
     end
     
+    local any_edit_failed = false
     for _, edit in ipairs(sorted_edits) do
       local bufname = vim.api.nvim_buf_get_name(bufnr)
       
@@ -341,6 +342,15 @@ function M.apply_suggested_fix(diagnostic, fix_index)
         local start_col = edit.range.start.column - 1  -- Convert to 0-indexed
         local end_line = edit.range['end'].line - 1
         local end_col = edit.range['end'].column - 1
+        
+        -- Validate line numbers are within buffer bounds
+        local line_count = vim.api.nvim_buf_line_count(bufnr)
+        if start_line < 0 or start_line >= line_count or end_line < 0 or end_line >= line_count then
+          vim.notify(string.format('Line out of range: start=%d, end=%d, buffer lines=%d', 
+            start_line + 1, end_line + 1, line_count), vim.log.levels.WARN)
+          any_edit_failed = true
+          goto continue
+        end
         
         -- Use nvim_buf_set_text which handles positions better
         -- Note: nvim_buf_set_text expects 0-based positions for everything
@@ -360,32 +370,40 @@ function M.apply_suggested_fix(diagnostic, fix_index)
         
         if not ok then
           vim.notify(string.format('Failed to apply fix: %s', tostring(err)), vim.log.levels.WARN)
+          any_edit_failed = true
           -- Fall back to the old method if set_text fails
-          local lines = vim.api.nvim_buf_get_lines(bufnr, start_line, end_line + 1, false)
-          if #lines > 0 then
-            if start_line == end_line then
-              -- Single line edit
-              local line = lines[1] or ""
-              -- For insertion, don't skip any characters
-              if start_col == end_col then
-                local new_line = line:sub(1, start_col) .. edit.newText .. line:sub(start_col + 1)
-                lines[1] = new_line
+          local fallback_ok = pcall(function()
+            local lines = vim.api.nvim_buf_get_lines(bufnr, start_line, end_line + 1, false)
+            if #lines > 0 then
+              if start_line == end_line then
+                -- Single line edit
+                local line = lines[1] or ""
+                -- For insertion, don't skip any characters
+                if start_col == end_col then
+                  local new_line = line:sub(1, start_col) .. edit.newText .. line:sub(start_col + 1)
+                  lines[1] = new_line
+                else
+                  local new_line = line:sub(1, start_col) .. edit.newText .. line:sub(end_col + 1)
+                  lines[1] = new_line
+                end
               else
-                local new_line = line:sub(1, start_col) .. edit.newText .. line:sub(end_col + 1)
-                lines[1] = new_line
+                -- Multi-line edit
+                local first_line = (lines[1] or ""):sub(1, start_col) .. edit.newText
+                local last_line = (lines[#lines] or ""):sub(end_col + 1)
+                lines = {first_line .. last_line}
               end
-            else
-              -- Multi-line edit
-              local first_line = (lines[1] or ""):sub(1, start_col) .. edit.newText
-              local last_line = (lines[#lines] or ""):sub(end_col + 1)
-              lines = {first_line .. last_line}
-            end
-            
-            -- Only set lines if newText doesn't contain newlines
-            if not edit.newText:match('\n') then
-              vim.api.nvim_buf_set_lines(bufnr, start_line, end_line + 1, false, lines)
-            end
+              
+              -- Only set lines if newText doesn't contain newlines
+              if not edit.newText:match('\n') then
+                local set_ok = pcall(vim.api.nvim_buf_set_lines, bufnr, start_line, end_line + 1, false, lines)
+          if not set_ok then
+            any_edit_failed = true
           end
+              end
+            end
+          end)
+          -- Don't clear the error flag even if fallback succeeds
+          -- The fact that we needed a fallback means something is wrong
         end
       -- Handle analyzer stdin mode format (pos/end/newText)
       -- Format: "filename:line:column" where line and column are 1-indexed
@@ -445,7 +463,10 @@ function M.apply_suggested_fix(diagnostic, fix_index)
             lines = {first_line .. last_line}
           end
           
-          vim.api.nvim_buf_set_lines(bufnr, start_line, end_line + 1, false, lines)
+          local set_ok = pcall(vim.api.nvim_buf_set_lines, bufnr, start_line, end_line + 1, false, lines)
+          if not set_ok then
+            any_edit_failed = true
+          end
         end
       -- Handle byte offset format (legacy)
       elseif edit.start and edit['end'] and edit.new then
@@ -475,10 +496,18 @@ function M.apply_suggested_fix(diagnostic, fix_index)
         
         -- Set the new content
         local new_lines = vim.split(new_content, '\n', { plain = true })
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
+        local set_ok = pcall(vim.api.nvim_buf_set_lines, bufnr, 0, -1, false, new_lines)
+        if not set_ok then
+          any_edit_failed = true
+        end
       end
       
       ::continue::
+    end
+    
+    -- Return false if any edit failed
+    if any_edit_failed then
+      return false
     end
     
     return true
