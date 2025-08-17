@@ -237,6 +237,11 @@ The plugin detects these diagnostic codes:
 • MTLOG006: Type should implement LogValue
 • MTLOG007: String should be constant
 • MTLOG008: Dynamic template warning
+• MTLOG009: With() odd argument count (key-value pairs)
+• MTLOG010: With() non-string key
+• MTLOG011: With() cross-call duplicate property
+• MTLOG012: With() reserved property name
+• MTLOG013: With() empty key string
 
 Diagnostics appear as:
 • Virtual text (configurable)
@@ -255,6 +260,10 @@ Many diagnostics come with automatic fixes:
 • MTLOG004: Convert to PascalCase
 • MTLOG005: Remove duplicate properties
 • MTLOG007: Extract string to constant
+• MTLOG009: Add missing value or remove dangling key
+• MTLOG010: Convert non-string key to string
+• MTLOG012: Suggest alternative property name
+• MTLOG013: Remove empty key-value pair
 
 Apply fixes:
 • `:MtlogQuickFix` at cursor position

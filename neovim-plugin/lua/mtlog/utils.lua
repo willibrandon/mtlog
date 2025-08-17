@@ -368,6 +368,11 @@ function M.get_diagnostic_description(code)
     MTLOG006 = "Duplicate property in template",
     MTLOG007 = "String context key should be constant",
     MTLOG008 = "General information",
+    MTLOG009 = "With() odd argument count",
+    MTLOG010 = "With() non-string key",
+    MTLOG011 = "With() cross-call duplicate",
+    MTLOG012 = "With() reserved property",
+    MTLOG013 = "With() empty key",
   }
   
   return descriptions[code] or "Unknown diagnostic"
