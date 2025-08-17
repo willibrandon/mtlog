@@ -58,7 +58,9 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
         File(vendorDir, "mtlog.go").writeText("""
             package mtlog
             
-            type Logger struct{}
+            type Logger struct {
+                fields []interface{}
+            }
             
             func New() *Logger { return &Logger{} }
             
@@ -68,6 +70,13 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
             func (l *Logger) Debug(template string, args ...interface{}) {}
             func (l *Logger) Fatal(template string, args ...interface{}) {}
             func (l *Logger) Verbose(template string, args ...interface{}) {}
+            func (l *Logger) With(args ...interface{}) *Logger { 
+                newLogger := &Logger{fields: append(l.fields, args...)}
+                return newLogger
+            }
+            func (l *Logger) ForContext(key string, value interface{}) *Logger { 
+                return l.With(key, value)
+            }
         """.trimIndent())
     }
     
@@ -90,7 +99,9 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
         myFixture.addFileToProject("vendor/github.com/willibrandon/mtlog/mtlog.go", """
             package mtlog
             
-            type Logger struct{}
+            type Logger struct {
+                fields []interface{}
+            }
             
             func New() *Logger { return &Logger{} }
             
@@ -100,6 +111,13 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
             func (l *Logger) Debug(template string, args ...interface{}) {}
             func (l *Logger) Fatal(template string, args ...interface{}) {}
             func (l *Logger) Verbose(template string, args ...interface{}) {}
+            func (l *Logger) With(args ...interface{}) *Logger { 
+                newLogger := &Logger{fields: append(l.fields, args...)}
+                return newLogger
+            }
+            func (l *Logger) ForContext(key string, value interface{}) *Logger { 
+                return l.With(key, value)
+            }
         """.trimIndent())
     }
     
@@ -131,6 +149,26 @@ abstract class MtlogIntegrationTestBase : BasePlatformTestCase() {
         val allDiagnostics = mutableListOf<Any>()
         for (file in goFiles) {
             val diagnostics = service.runAnalyzer(file.absolutePath, realProjectDir.absolutePath)
+            if (diagnostics != null) {
+                allDiagnostics.addAll(diagnostics)
+            }
+        }
+        
+        return allDiagnostics
+    }
+    
+    protected fun runRealAnalyzerWithQuickFixes(): List<Any> {
+        // Use stdin mode for quick fixes
+        val service = project.service<MtlogProjectService>()
+        
+        // Get list of go files in our temp directory
+        val goFiles = realProjectDir.listFiles { _, name -> name.endsWith(".go") } ?: emptyArray()
+        
+        // Run analyzer on each file and collect diagnostics
+        val allDiagnostics = mutableListOf<Any>()
+        for (file in goFiles) {
+            val content = file.readText()
+            val diagnostics = service.runAnalyzer(file.absolutePath, realProjectDir.absolutePath, content)
             if (diagnostics != null) {
                 allDiagnostics.addAll(diagnostics)
             }

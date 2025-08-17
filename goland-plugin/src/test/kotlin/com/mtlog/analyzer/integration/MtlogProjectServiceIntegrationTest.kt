@@ -232,7 +232,9 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
         File(mtlogDir, "mtlog.go").writeText("""
             package mtlog
             
-            type Logger struct{}
+            type Logger struct {
+                fields []interface{}
+            }
             
             func New() *Logger { return &Logger{} }
             
@@ -240,6 +242,13 @@ class MtlogProjectServiceIntegrationTest : MtlogIntegrationTestBase() {
             func (l *Logger) Warning(template string, args ...interface{}) {}
             func (l *Logger) Error(template string, args ...interface{}) {}
             func (l *Logger) Debug(template string, args ...interface{}) {}
+            func (l *Logger) With(args ...interface{}) *Logger { 
+                newLogger := &Logger{fields: append(l.fields, args...)}
+                return newLogger
+            }
+            func (l *Logger) ForContext(key string, value interface{}) *Logger { 
+                return l.With(key, value)
+            }
         """.trimIndent())
         
         // Write test files from the fixture to disk

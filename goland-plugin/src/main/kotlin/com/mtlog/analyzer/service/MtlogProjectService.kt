@@ -755,23 +755,27 @@ class MtlogProjectService(
                     message.substringAfter("property '").substringBefore("'")
                 } else null
                 
-                // Parse suggested fixes
+                // Parse suggested fixes - handle both camelCase and snake_case
                 val suggestedFixes = mutableListOf<AnalyzerSuggestedFix>()
-                val fixesArray = diag.get("suggestedFixes")?.asJsonArray
+                // Try camelCase first, then fall back to snake_case for compatibility
+                val fixesArray = diag.get("suggestedFixes")?.asJsonArray ?: diag.get("suggested_fixes")?.asJsonArray
                 if (fixesArray != null) {
                     fixesArray.forEach { fixElement ->
                         val fixObj = fixElement.asJsonObject
                         val fixMessage = fixObj.get("message").asString
                         val textEdits = mutableListOf<AnalyzerTextEdit>()
                         
-                        val editsArray = fixObj.get("textEdits")?.asJsonArray
+                        // Try camelCase first, then fall back to snake_case
+                        val editsArray = fixObj.get("textEdits")?.asJsonArray ?: fixObj.get("text_edits")?.asJsonArray
                         if (editsArray != null) {
                             editsArray.forEach { editElement ->
                                 val editObj = editElement.asJsonObject
+                                // Handle both newText (camelCase) and new_text (snake_case)
+                                val newTextValue = editObj.get("newText")?.asString ?: editObj.get("new_text")?.asString ?: ""
                                 textEdits.add(AnalyzerTextEdit(
                                     pos = editObj.get("pos").asString,
                                     end = editObj.get("end").asString,
-                                    newText = editObj.get("newText").asString
+                                    newText = newTextValue
                                 ))
                             }
                         }

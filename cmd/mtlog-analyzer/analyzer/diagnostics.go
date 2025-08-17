@@ -11,12 +11,17 @@ import (
 const (
 	DiagIDTemplateMismatch  = "MTLOG001" // Template/argument count mismatch
 	DiagIDFormatSpecifier   = "MTLOG002" // Invalid format specifier
-	DiagIDDuplicateProperty = "MTLOG003" // Duplicate property names
+	DiagIDDuplicateProperty = "MTLOG003" // Duplicate property names (also used for With() duplicates)
 	DiagIDPropertyNaming    = "MTLOG004" // Property naming (PascalCase)
 	DiagIDCapturingHints    = "MTLOG005" // Missing capturing hints
 	DiagIDErrorLogging      = "MTLOG006" // Error logging without error value
 	DiagIDContextKey        = "MTLOG007" // Context key constant suggestion
 	DiagIDDynamicTemplate   = "MTLOG008" // Dynamic template warning
+	DiagIDWithOddArgs       = "MTLOG009" // With() odd argument count
+	DiagIDWithNonStringKey  = "MTLOG010" // With() non-string key
+	DiagIDWithCrossCall     = "MTLOG011" // With() cross-call duplicate detection
+	DiagIDWithReservedProp  = "MTLOG012" // With() reserved property name
+	DiagIDWithEmptyKey      = "MTLOG013" // With() empty key
 )
 
 // Severity levels for diagnostics
