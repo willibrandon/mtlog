@@ -344,9 +344,9 @@ func isReservedProperty(name string, config *Config) bool {
 // - Already snake_case input (already_snake_case → already_snake_case)
 // - All caps (HTML → html, API → api)
 func toSnakeCase(s string) string {
-	// If already snake_case, return as-is
+	// Early return: If already snake_case, just normalize to lowercase
+	// This handles cases like "User_Id" → "user_id" or "user_id" → "user_id"
 	if strings.Contains(s, "_") {
-		// But still lowercase it in case it has mixed case
 		return strings.ToLower(s)
 	}
 	
@@ -356,30 +356,37 @@ func toSnakeCase(s string) string {
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]
 		
-		// Handle transitions
+		// Determine where to insert underscores based on character transitions
 		if i > 0 {
 			prev := runes[i-1]
 			
-			// Add underscore before uppercase letter if:
-			// 1. Previous was lowercase
-			// 2. Previous was digit (handles "123userId" → "123_user_id")
-			// 3. Or this is the start of a new word in consecutive caps (e.g., "HTTPServer" → "HTTP" + "Server")
+			// Check for uppercase letter transitions
 			if unicode.IsUpper(r) {
+				// Case 1: camelCase transition (e.g., "userId" → "user_id")
+				// Insert underscore when moving from lowercase to uppercase
 				if unicode.IsLower(prev) {
-					// Transition from lowercase to upper
 					result.WriteByte('_')
-				} else if unicode.IsDigit(prev) {
-					// Transition from digit to upper (e.g., "123User" → "123_user")
+				} 
+				// Case 2: Number to uppercase transition (e.g., "123User" → "123_user")
+				// Insert underscore when moving from digit to uppercase letter
+				else if unicode.IsDigit(prev) {
 					result.WriteByte('_')
-				} else if i+1 < len(runes) && unicode.IsLower(runes[i+1]) && unicode.IsUpper(prev) {
-					// Transition from consecutive caps to new word (e.g., "HTTPServer" at 'S')
+				} 
+				// Case 3: Acronym boundary detection (e.g., "HTTPServer" → "http_server")
+				// When we have consecutive uppercase letters followed by lowercase,
+				// we're at the start of a new word after an acronym
+				else if i+1 < len(runes) && unicode.IsLower(runes[i+1]) && unicode.IsUpper(prev) {
 					result.WriteByte('_')
 				}
-			} else if unicode.IsDigit(r) && !unicode.IsDigit(prev) {
-				// Transition from non-digit to digit
+			} 
+			// Case 4: Letter to number transition (e.g., "user123" → "user_123")
+			// Insert underscore when moving from non-digit to digit
+			else if unicode.IsDigit(r) && !unicode.IsDigit(prev) {
 				result.WriteByte('_')
-			} else if unicode.IsLower(r) && unicode.IsDigit(prev) {
-				// Transition from digit to lowercase letter (e.g., "123user" → "123_user")
+			} 
+			// Case 5: Number to lowercase transition (e.g., "123user" → "123_user")
+			// Insert underscore when moving from digit to lowercase letter
+			else if unicode.IsLower(r) && unicode.IsDigit(prev) {
 				result.WriteByte('_')
 			}
 		}

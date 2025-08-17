@@ -115,6 +115,9 @@ log.With("id", 1, "name", "test", "id", 2)  // MTLOG003: duplicate key 'id'
 logger := log.With("service", "api")
 logger.With("service", "auth")  // MTLOG011: overrides property 'service'
 
+// Method chaining
+log.With("id", 1).With("id", 2)  // MTLOG011: overrides in chain
+
 // ❌ Empty keys
 log.With("", "value")  // MTLOG013: empty key will be ignored
 
