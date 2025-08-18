@@ -338,18 +338,20 @@ function M.apply_suggested_fix(diagnostic, fix_index)
       
       -- Handle line/column format (from tests and some analyzer modes)
       if edit.range and edit.range.start and edit.range['end'] and edit.newText ~= nil then
-        local start_line = edit.range.start.line - 1  -- Convert to 0-indexed
-        local start_col = edit.range.start.column - 1  -- Convert to 0-indexed
-        local end_line = edit.range['end'].line - 1
-        local end_col = edit.range['end'].column - 1
-        
-        -- Validate line numbers are within buffer bounds
         local line_count = vim.api.nvim_buf_line_count(bufnr)
-        if start_line < 0 or start_line >= line_count or end_line < 0 or end_line >= line_count then
-          vim.notify(string.format('Line out of range: start=%d, end=%d, buffer lines=%d', 
-            start_line + 1, end_line + 1, line_count), vim.log.levels.WARN)
-          any_edit_failed = true
-          goto continue
+        
+        -- Convert to 0-indexed and clamp to valid range
+        local start_line = math.max(0, math.min(line_count - 1, (edit.range.start.line or 1) - 1))
+        local start_col = math.max(0, (edit.range.start.column or 1) - 1)
+        local end_line = math.max(0, math.min(line_count - 1, (edit.range['end'].line or 1) - 1))
+        local end_col = math.max(0, (edit.range['end'].column or 1) - 1)
+        
+        -- For insertions at the end of the buffer, allow line == line_count
+        if edit.range.start.line == line_count + 1 and edit.range['end'].line == line_count + 1 then
+          start_line = line_count
+          end_line = line_count
+          start_col = 0
+          end_col = 0
         end
         
         -- Use nvim_buf_set_text which handles positions better

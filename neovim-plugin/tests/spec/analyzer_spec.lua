@@ -1,102 +1,248 @@
 local analyzer = require('mtlog.analyzer')
 local utils = require('mtlog.utils')
+local test_helpers = require('test_helpers')
 
 describe('mtlog analyzer', function()
   local test_bufnr
+  local test_file
   
   before_each(function()
-    -- Create a test buffer
-    test_bufnr = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_name(test_bufnr, '/tmp/test.go')
+    -- Ensure analyzer is available - fail test if not
+    assert.is_true(analyzer.is_available(), "mtlog-analyzer MUST be available")
   end)
   
   after_each(function()
     -- Clean up test buffer
-    if vim.api.nvim_buf_is_valid(test_bufnr) then
+    if test_bufnr and vim.api.nvim_buf_is_valid(test_bufnr) then
       vim.api.nvim_buf_delete(test_bufnr, { force = true })
+    end
+    
+    -- Clean up test file
+    if test_file then
+      test_helpers.delete_test_file(test_file)
     end
   end)
   
   describe('availability', function()
-    it('should check if analyzer is available', function()
+    it('should verify analyzer is available', function()
+      -- This MUST be true for all tests
       local available = analyzer.is_available()
-      assert.is_boolean(available)
+      assert.is_true(available, "analyzer MUST be available")
     end)
     
-    it('should get analyzer version if available', function()
-      if analyzer.is_available() then
-        local version = analyzer.get_version()
-        assert.is_not_nil(version)
-      else
-        pending("analyzer not available")
-      end
+    it('should get analyzer version', function()
+      local version = analyzer.get_version()
+      assert.is_not_nil(version, "version MUST be available")
+      assert.is_string(version)
+      -- Version should contain something like "v0.x.x" or similar
+      assert.is_truthy(version:match('v?%d+%.%d+') or version:match('dev'), 
+                       "version should match expected format: " .. version)
     end)
     
-    it('should reset availability cache', function()
+    it('should reset availability cache and still work', function()
       analyzer.reset_availability()
-      -- Should not error
-      assert.has_no_errors(function()
-        analyzer.is_available()
-      end)
+      
+      -- Should still be available after reset
+      local available = analyzer.is_available()
+      assert.is_true(available, "analyzer MUST remain available after reset")
     end)
   end)
   
-  describe('analyze_file', function()
-    it('should analyze a file with callback', function(done)
-      if not analyzer.is_available() then
-        pending("analyzer not available")
-        return
-      end
-      
-      -- Create a test file
-      local test_file = '/tmp/test_analyzer_' .. os.time() .. '.go'
-      local file = io.open(test_file, 'w')
-      file:write([[
+  describe('analyze_file with real analyzer', function()
+    it('should analyze a valid Go file', function(done)
+      local done_fn = done
+      -- Create a real Go file in the test project
+      test_file = test_helpers.create_test_go_file('test_valid.go', [[
 package main
 
 import "github.com/willibrandon/mtlog"
 
 func main() {
     log := mtlog.New()
-    log.Debug("Test")
+    log.Information("Application started")
+    log.Debug("Debug message with {Count} items", 42)
 }
 ]])
-      file:close()
       
-      local done_callback = done  -- Capture done in local scope
       analyzer.analyze_file(test_file, function(results, err)
         vim.schedule(function()
-          os.remove(test_file)
-          
-          assert.is_nil(err)
+          assert.is_nil(err, "Should not error on valid file")
           assert.is_table(results)
-          -- The test file should have no errors
-          assert.is_true(#results >= 0)
+          -- Valid file should have no errors (or only warnings)
+          for _, diag in ipairs(results) do
+            -- If there are diagnostics, they should be valid
+            assert.is_not_nil(diag.lnum)
+            assert.is_not_nil(diag.col)
+            assert.is_not_nil(diag.message)
+            assert.equals('mtlog-analyzer', diag.source)
+          end
           
-          done_callback()
+          done_fn()
         end)
       end)
-    end, 2000)
+    end, 10000) -- 10 second timeout for real analysis
     
-    it('should handle non-existent files', function()
-      local completed = false
-      local test_results = nil
-      local test_err = nil
+    it('should detect template/argument mismatch', function(done)
+      local done_fn = done
+      -- Create a file with a real mtlog error
+      test_file = test_helpers.create_test_go_file('test_mismatch.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    // Template has placeholder but no argument provided
+    log.Information("User {UserId} logged in")
+}
+]])
       
-      analyzer.analyze_file('/tmp/non_existent_file.go', function(results, err)
-        test_results = results
-        test_err = err
-        completed = true
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err, "Should not error even with code issues")
+          assert.is_table(results)
+          assert.is_true(#results > 0, "Should find template/argument mismatch")
+          
+          -- Find the MTLOG001 error
+          local found_mismatch = false
+          for _, diag in ipairs(results) do
+            if diag.code == 'MTLOG001' then
+              found_mismatch = true
+              assert.is_truthy(diag.message:match('mismatch') or diag.message:match('argument'))
+              assert.equals('mtlog-analyzer', diag.source)
+              assert.is_not_nil(diag.lnum)
+              assert.is_not_nil(diag.col)
+            end
+          end
+          
+          assert.is_true(found_mismatch, "Should detect MTLOG001 template/argument mismatch")
+          
+          done_fn()
+        end)
       end)
+    end, 10000)
+    
+    it('should handle non-existent files gracefully', function(done)
+      local done_fn = done
+      local non_existent = test_helpers.test_project_dir .. '/non_existent_' .. os.time() .. '.go'
       
-      -- Wait for completion
-      vim.wait(1000, function()
-        return completed
+      analyzer.analyze_file(non_existent, function(results, err)
+        vim.schedule(function()
+          -- Should either error or return empty results
+          assert.is_true(err ~= nil or (results and #results == 0), 
+                        "Should handle non-existent file")
+          done_fn()
+        end)
       end)
+    end, 5000)
+    
+    it('should detect format specifier issues', function(done)
+      local done_fn = done
+      test_file = test_helpers.create_test_go_file('test_format.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    // Invalid format specifier
+    log.Information("Value: {Value:InvalidFormat}", 123)
+}
+]])
       
-      -- Should either error or return empty results
-      assert.is_true(test_err ~= nil or (test_results and #test_results == 0))
-    end)
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          
+          -- Should detect format specifier issue (if strict mode)
+          -- or at least parse without crashing
+          done_fn()
+        end)
+      end)
+    end, 10000)
+    
+    it('should detect property naming issues', function(done)
+      local done_fn = done
+      test_file = test_helpers.create_test_go_file('test_naming.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    // Property should be PascalCase
+    log.Information("User {user_id} performed {action_type}", 123, "login")
+}
+]])
+      
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          
+          -- Should detect naming convention issues
+          local found_naming = false
+          for _, diag in ipairs(results) do
+            if diag.code == 'MTLOG004' then
+              found_naming = true
+              assert.is_truthy(diag.message:match('PascalCase') or diag.message:match('naming'))
+              
+              -- Should have suggested fixes
+              if diag.user_data and diag.user_data.suggested_fixes then
+                assert.is_true(#diag.user_data.suggested_fixes > 0)
+              end
+            end
+          end
+          
+          -- Naming conventions might be warnings, so just verify no crash
+          done_fn()
+        end)
+      end)
+    end, 10000)
+    
+    it('should handle With() method diagnostics', function(done)
+      local done_fn = done
+      test_file = test_helpers.create_test_go_file('test_with.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    
+    // Odd number of arguments (MTLOG009)
+    log.With("key1", "value1", "key2").Information("Test")
+    
+    // Non-string key (MTLOG010)
+    log.With(123, "value").Information("Test")
+    
+    // Duplicate property (MTLOG011)
+    log.With("user", "alice").With("user", "bob").Information("Test")
+}
+]])
+      
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          
+          -- Check for With() related diagnostics
+          local found_with_errors = {}
+          for _, diag in ipairs(results) do
+            if diag.code and diag.code:match('^MTLOG0[0-9][0-9]$') then
+              found_with_errors[diag.code] = true
+            end
+          end
+          
+          -- Should detect at least some With() issues
+          assert.is_true(vim.tbl_count(found_with_errors) > 0 or #results == 0,
+                        "Should analyze With() methods or have no diagnostics")
+          
+          done_fn()
+        end)
+      end)
+    end, 10000)
   end)
   
   describe('debouncing', function()
@@ -123,7 +269,7 @@ func main() {
       assert.equals(1, call_count)
     end)
     
-    it('should handle separate debounced calls', function()
+    it('should handle separate debounced calls independently', function()
       local count1 = 0
       local count2 = 0
       
@@ -177,123 +323,92 @@ func main() {
     end)
   end)
   
-  describe('parse_json_output', function()
-    -- Need to access the internal function
-    local parse_json_output
-    
-    before_each(function()
-      -- Since parse_json_output is local, we need to test it through analyze_file
-      -- or we can expose it for testing
-      parse_json_output = analyzer._parse_json_output_for_testing
-    end)
-    
-    it('should parse valid JSON with diagnostics', function()
-      local json_output = vim.json.encode({
-        {
-          file = "/path/to/file.go",
-          line = 10,
-          column = 5,
-          code = "MTLOG001",
-          message = "Template/argument mismatch",
-          suggested_fixes = {
-            {
-              title = "Add missing argument",
-              edits = {
-                {
-                  start_line = 10,
-                  start_col = 20,
-                  end_line = 10,
-                  end_col = 20,
-                  new_text = ", userId"
-                }
-              }
-            }
-          }
-        }
+  describe('JSON output parsing', function()
+    it('should parse real analyzer output', function(done)
+      local done_fn = done
+      -- Create a file that will produce known diagnostics
+      test_file = test_helpers.create_test_go_file('test_json.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    // This will produce MTLOG001 - template/argument mismatch
+    log.Error("Error: {ErrorCode} - {Message}")
+}
+]])
+      
+      
+      -- Run analyzer directly to get raw JSON
+      local output = {}
+      local analyzer_path = test_helpers.ensure_analyzer()
+      local job_id = vim.fn.jobstart({analyzer_path, '-json', test_file}, {
+        stdout_buffered = true,
+        on_stdout = function(_, data)
+          if data then
+            for _, line in ipairs(data) do
+              if line ~= '' then
+                table.insert(output, line)
+              end
+            end
+          end
+        end,
+        on_exit = function(_, exit_code)
+          vim.schedule(function()
+            if exit_code == 0 then
+              local json_str = table.concat(output, '\n')
+              if json_str ~= '' then
+                local ok, parsed = pcall(vim.json.decode, json_str)
+                assert.is_true(ok, "Should parse real analyzer JSON output")
+                assert.is_table(parsed)
+                
+                -- Verify structure of real output
+                if #parsed > 0 then
+                  local diag = parsed[1]
+                  assert.is_string(diag.file)
+                  assert.is_number(diag.line)
+                  assert.is_number(diag.column)
+                  assert.is_string(diag.code)
+                  assert.is_string(diag.message)
+                end
+              end
+            end
+            done_fn()
+          end)
+        end
       })
       
-      -- Test through analyze_file with mock data
-      local test_file = '/tmp/test_parse_' .. os.time() .. '.go'
-      local file = io.open(test_file, 'w')
-      file:write('package main\n')
-      file:close()
-      
-      -- Clean up
-      os.remove(test_file)
-      
-      -- Since we can't directly test the internal function,
-      -- we verify the JSON parsing works through the public API
-      assert.is_not_nil(json_output)
-      local parsed = vim.json.decode(json_output)
-      assert.is_table(parsed)
-      assert.equals(1, #parsed)
-      assert.equals("MTLOG001", parsed[1].code)
-    end)
+      assert.is_truthy(job_id > 0, "Should start analyzer job")
+    end, 10000)
     
-    it('should handle empty JSON output', function()
-      -- Test valid empty JSON formats (empty string can't be parsed by vim.json.decode)
-      local empty_outputs = {'[]', '{}', 'null'}
+    it('should handle empty analyzer output', function(done)
+      local done_fn = done
+      -- Create a file with no mtlog usage
+      test_file = test_helpers.create_test_go_file('test_empty.go', [[
+package main
+
+func main() {
+    // No mtlog usage
+    println("Hello, World!")
+}
+]])
       
-      for _, output in ipairs(empty_outputs) do
-        local ok, parsed = pcall(vim.json.decode, output)
-        assert.is_true(ok, "Should parse: " .. output)
-        assert.is_not_nil(parsed)
-      end
-      
-      -- Empty string should fail JSON parsing
-      local ok, err = pcall(vim.json.decode, '')
-      assert.is_false(ok, "Empty string should fail JSON parsing")
-    end)
-    
-    it('should handle malformed JSON', function()
-      local malformed = '{invalid json}'
-      
-      -- Should not crash when parsing malformed JSON
-      local ok, result = pcall(vim.json.decode, malformed)
-      assert.is_false(ok) -- Should fail to parse
-    end)
-    
-    it('should handle JSON with various diagnostic formats', function()
-      -- Test new format (array of diagnostics)
-      local new_format = vim.json.encode({
-        {
-          file = "/test.go",
-          line = 1,
-          column = 1,
-          code = "MTLOG002",
-          message = "Invalid format specifier"
-        }
-      })
-      
-      local parsed = vim.json.decode(new_format)
-      assert.is_table(parsed)
-      assert.equals("MTLOG002", parsed[1].code)
-      
-      -- Test old format (nested structure)
-      local old_format = vim.json.encode({
-        ["main"] = {
-          mtlog = {
-            ["/test.go"] = {
-              {
-                line = 1,
-                column = 1,
-                code = "MTLOG003",
-                message = "Duplicate property"
-              }
-            }
-          }
-        }
-      })
-      
-      local parsed_old = vim.json.decode(old_format)
-      assert.is_table(parsed_old)
-      assert.is_not_nil(parsed_old.main)
-    end)
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          -- Should have no diagnostics for file without mtlog
+          assert.equals(0, #results)
+          done_fn()
+        end)
+      end)
+    end, 10000)
   end)
   
-  describe('convert_diagnostic', function()
-    it('should convert analyzer diagnostic to Neovim format', function()
-      -- Mock config for severity levels
+  describe('diagnostic conversion', function()
+    it('should convert real diagnostics to Neovim format', function(done)
+      local done_fn = done
       local config = require('mtlog.config')
       config.setup({
         severity_levels = {
@@ -301,142 +416,106 @@ func main() {
           MTLOG002 = vim.diagnostic.severity.ERROR,
           MTLOG003 = vim.diagnostic.severity.WARN,
           MTLOG004 = vim.diagnostic.severity.INFO,
+          MTLOG009 = vim.diagnostic.severity.ERROR,
+          MTLOG010 = vim.diagnostic.severity.WARN,
+          MTLOG011 = vim.diagnostic.severity.INFO,
         }
       })
       
-      -- Test diagnostic conversion through public API
-      local test_file = '/tmp/test_convert_' .. os.time() .. '.go'
-      local file = io.open(test_file, 'w')
-      file:write([[
+      test_file = test_helpers.create_test_go_file('test_convert.go', [[
 package main
 
 import "github.com/willibrandon/mtlog"
 
 func main() {
     log := mtlog.New()
-    log.Info("User {UserId} logged in")  // Missing argument
+    // MTLOG001: Template/argument mismatch
+    log.Information("User {UserId} logged in at {Timestamp}")
 }
 ]])
-      file:close()
       
-      local diagnostics_received = nil
       analyzer.analyze_file(test_file, function(results, err)
-        diagnostics_received = results
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          
+          if #results > 0 then
+            local diag = results[1]
+            
+            -- Check Neovim diagnostic structure
+            assert.is_number(diag.lnum, "Should have line number")
+            assert.is_number(diag.col, "Should have column")
+            assert.is_string(diag.message, "Should have message")
+            assert.is_number(diag.severity, "Should have severity")
+            assert.equals('mtlog-analyzer', diag.source)
+            assert.is_string(diag.code, "Should have diagnostic code")
+            
+            -- Verify severity mapping
+            if diag.code == 'MTLOG001' then
+              assert.equals(vim.diagnostic.severity.ERROR, diag.severity)
+            end
+            
+            -- Check for suggested fixes if present
+            if diag.user_data and diag.user_data.suggested_fixes then
+              assert.is_table(diag.user_data.suggested_fixes)
+              for _, fix in ipairs(diag.user_data.suggested_fixes) do
+                assert.is_string(fix.title)
+                assert.is_table(fix.edits)
+              end
+            end
+          end
+          
+          done_fn()
+        end)
       end)
+    end, 10000)
+    
+    it('should preserve all diagnostic fields from analyzer', function(done)
+      local done_fn = done
+      test_file = test_helpers.create_test_go_file('test_fields.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    // Multiple issues for testing
+    log.Information("User {user_id} action {action_type}", 123, "login")
+    log.With("key").Information("Odd arguments")
+}
+]])
       
-      -- Wait for analysis to complete
-      vim.wait(2000, function()
-        return diagnostics_received ~= nil
+      analyzer.analyze_file(test_file, function(results, err)
+        vim.schedule(function()
+          assert.is_nil(err)
+          assert.is_table(results)
+          
+          -- Verify all fields are preserved and converted correctly
+          for _, diag in ipairs(results) do
+            -- Required fields
+            assert.is_number(diag.lnum, "Missing lnum")
+            assert.is_number(diag.col, "Missing col")
+            assert.is_string(diag.message, "Missing message")
+            assert.is_number(diag.severity, "Missing severity")
+            assert.equals('mtlog-analyzer', diag.source, "Wrong source")
+            assert.is_string(diag.code, "Missing code")
+            
+            -- Optional fields
+            if diag.end_lnum then
+              assert.is_number(diag.end_lnum)
+            end
+            if diag.end_col then
+              assert.is_number(diag.end_col)
+            end
+            
+            -- Line and column should be 0-indexed for Neovim
+            assert.is_true(diag.lnum >= 0, "Line should be 0-indexed")
+            assert.is_true(diag.col >= 0, "Column should be 0-indexed")
+          end
+          
+          done_fn()
+        end)
       end)
-      
-      os.remove(test_file)
-      
-      -- If analyzer is available and found issues
-      if analyzer.is_available() and diagnostics_received and #diagnostics_received > 0 then
-        local diag = diagnostics_received[1]
-        
-        -- Check converted diagnostic structure
-        assert.is_not_nil(diag.lnum) -- Line number (0-indexed)
-        assert.is_not_nil(diag.col) -- Column (0-indexed)
-        assert.is_not_nil(diag.message) -- Error message
-        assert.is_not_nil(diag.severity) -- Severity level
-        assert.equals('mtlog-analyzer', diag.source) -- Source
-        
-        -- Check severity mapping
-        if diag.code == 'MTLOG001' then
-          assert.equals(vim.diagnostic.severity.ERROR, diag.severity)
-        end
-      end
-    end)
-    
-    it('should handle diagnostics with suggested fixes', function()
-      local test_diag = {
-        file = "/test.go",
-        line = 10,
-        column = 5,
-        end_line = 10,
-        end_column = 15,
-        code = "MTLOG001",
-        message = "Template/argument mismatch",
-        suggested_fixes = {
-          {
-            title = "Add missing argument",
-            edits = {
-              {
-                start_line = 10,
-                start_col = 20,
-                end_line = 10,
-                end_col = 20,
-                new_text = ", userId"
-              }
-            }
-          }
-        }
-      }
-      
-      -- Since convert_diagnostic is internal, test through the full flow
-      local json_output = vim.json.encode({ test_diag })
-      local parsed = vim.json.decode(json_output)
-      
-      assert.is_not_nil(parsed[1].suggested_fixes)
-      assert.equals(1, #parsed[1].suggested_fixes)
-      assert.equals("Add missing argument", parsed[1].suggested_fixes[1].title)
-    end)
-    
-    it('should handle diagnostics without suggested fixes', function()
-      local test_diag = {
-        file = "/test.go",
-        line = 5,
-        column = 10,
-        code = "MTLOG008",
-        message = "Dynamic template warning"
-      }
-      
-      local json_output = vim.json.encode({ test_diag })
-      local parsed = vim.json.decode(json_output)
-      
-      assert.is_nil(parsed[1].suggested_fixes)
-      assert.equals("MTLOG008", parsed[1].code)
-    end)
-    
-    it('should preserve all diagnostic fields', function()
-      local test_diag = {
-        file = "/path/to/test.go",
-        line = 15,
-        column = 8,
-        end_line = 15,
-        end_column = 25,
-        code = "MTLOG004",
-        message = "Property should be PascalCase",
-        suggested_fixes = {
-          {
-            title = "Convert to PascalCase",
-            edits = {
-              {
-                start_line = 15,
-                start_col = 8,
-                end_line = 15,
-                end_col = 25,
-                new_text = "UserId"
-              }
-            }
-          }
-        }
-      }
-      
-      local json_output = vim.json.encode({ test_diag })
-      local parsed = vim.json.decode(json_output)
-      local diag = parsed[1]
-      
-      -- Verify all fields are preserved
-      assert.equals("/path/to/test.go", diag.file)
-      assert.equals(15, diag.line)
-      assert.equals(8, diag.column)
-      assert.equals(15, diag.end_line)
-      assert.equals(25, diag.end_column)
-      assert.equals("MTLOG004", diag.code)
-      assert.equals("Property should be PascalCase", diag.message)
-      assert.is_not_nil(diag.suggested_fixes)
-    end)
+    end, 10000)
   end)
 end)

@@ -9,7 +9,6 @@ local cache = require('mtlog.cache')
 -- Analyzer state
 local analyzer_version = nil
 local analyzer_available = nil
-local check_in_progress = false
 local last_checked_path = nil
 
 -- Force recheck availability (clears cache)
@@ -29,11 +28,7 @@ function M.is_available()
     return analyzer_available
   end
   
-  if check_in_progress then
-    return false
-  end
-  
-  check_in_progress = true
+  -- Remove concurrent check guard - just do the check synchronously
   last_checked_path = current_path
   
   -- mtlog-analyzer uses -V=full for version
@@ -54,7 +49,6 @@ function M.is_available()
     end
   end
   
-  check_in_progress = false
   return analyzer_available
 end
 
@@ -113,7 +107,7 @@ end
 ---@param filepath string File path
 ---@return table Neovim diagnostic
 local function convert_diagnostic(diag, filepath)
-  local severity_levels = config.get('severity_levels')
+  local severity_levels = config.get('severity_levels') or {}
   
   -- Determine severity based on code
   local severity = vim.diagnostic.severity.HINT
