@@ -67,7 +67,7 @@ describe('mtlog workspace', function()
       
       -- Change to real subdirectory
       vim.fn.chdir(subdir)
-      assert.equals(subdir, vim.fn.getcwd())
+      assert.equals(vim.fn.resolve(subdir), vim.fn.resolve(vim.fn.getcwd()))
       
       local found = workspace.find_config_file()
       assert.is_not_nil(found)
