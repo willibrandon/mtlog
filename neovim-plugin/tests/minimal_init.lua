@@ -79,6 +79,14 @@ if not ok then
   error("FATAL: Failed to set up test environment: " .. tostring(err))
 end
 
+-- Initialize mtlog plugin for health checks
+pcall(function()
+  require('mtlog').setup({
+    auto_enable = false,
+    auto_analyze = false,
+  })
+end)
+
 -- Only print in verbose mode or when debugging
 if vim.env.MTLOG_TEST_DEBUG then
   print("Test environment ready. Analyzer: " .. analyzer_path)

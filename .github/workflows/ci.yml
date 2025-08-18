@@ -305,8 +305,8 @@ jobs:
     - name: Validate Health Check
       working-directory: neovim-plugin
       run: |
-        # Run checkhealth with minimal init that loads the plugin
-        nvim --headless -u tests/minimal_init.lua -c "checkhealth mtlog" -c "qa!" > health.txt 2>&1
+        # Run checkhealth - on macOS it outputs to buffer not stdout, so we write to file
+        nvim --headless -u tests/minimal_init.lua -c "enew" -c "checkhealth mtlog" -c "w! health.txt" -c "qa" 2>&1
         # Check if analyzer is detected and no errors occurred
         if grep -q "mtlog-analyzer is installed\|mtlog-analyzer version" health.txt && ! grep -q "Error\|E121" health.txt; then
           echo "✅ Health check passed: mtlog-analyzer detected"
