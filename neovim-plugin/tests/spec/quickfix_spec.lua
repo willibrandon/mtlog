@@ -304,10 +304,9 @@ describe('mtlog quick fix', function()
         return
       end
       
-      -- Write the file directly to disk for analyzer
-      local filepath = '/tmp/test_quickfix.go'
-      local file = io.open(filepath, 'w')
-      file:write([[
+      local test_helpers = require('test_helpers')
+      -- Create file in Go module context so analyzer can resolve imports
+      local filepath = test_helpers.create_test_go_file('test_quickfix.go', [[
 package main
 
 import "github.com/willibrandon/mtlog"
@@ -317,7 +316,6 @@ func main() {
     log.Information("User {userid} logged in", 123)
 }
 ]])
-      file:close()
       
       -- Since analyze_file is async, we simulate synchronous behavior for testing
       local results_received = nil
@@ -332,7 +330,7 @@ func main() {
       vim.wait(100, function() return results_received ~= nil or error_received ~= nil end)
       
       -- Clean up the file
-      os.remove(filepath)
+      test_helpers.delete_test_file(filepath)
       
       if error_received then
         -- Analyzer not working properly, skip test
