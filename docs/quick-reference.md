@@ -240,18 +240,57 @@ defer controller.Close()
 
 ## Context Logging
 
+### With() Method (Structured Fields)
+
 ```go
-// Add context properties
+// Basic usage with key-value pairs
+logger.With("service", "api", "version", "1.0").Info("Service started")
+
+// Chaining With() calls
+logger.
+    With("environment", "production").
+    With("region", "us-west-2").
+    Info("Deployment complete")
+
+// Create a base logger with common fields
+apiLogger := logger.With(
+    "component", "api",
+    "host", "api-server-01",
+)
+
+// Reuse the base logger
+apiLogger.Info("Handling request")
+apiLogger.With("endpoint", "/users").Info("GET /users")
+
+// Request-scoped logging
+requestLogger := apiLogger.With(
+    "request_id", "abc-123",
+    "user_id", 456,
+)
+requestLogger.Info("Request started")
+requestLogger.With("duration_ms", 42).Info("Request completed")
+```
+
+### ForContext() Method
+
+```go
+// Add single context property
 contextLogger := logger.ForContext("RequestId", "abc-123")
 contextLogger.Information("Processing request")
 
-// Multiple properties
+// Multiple properties (variadic)
 contextLogger := logger.ForContext("UserId", 123, "SessionId", "xyz")
 
 // Source context for sub-loggers
 serviceLogger := logger.ForSourceContext("MyApp.Services.UserService")
 serviceLogger.Information("User service initialized")
 ```
+
+### With() vs ForContext()
+
+- **With()**: Accepts variadic key-value pairs (slog-style), convenient for multiple fields
+- **ForContext()**: Takes property name and value(s), returns a new logger
+- Both methods create a new logger instance with the combined properties
 
 ## Configuration from JSON
 
@@ -415,3 +454,47 @@ func TestLogging(t *testing.T) {
     }
 }
 ```
+
+## Static Analysis
+
+### mtlog-analyzer
+
+Static analysis tool that catches common mistakes at compile time:
+
+```bash
+# Install
+go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+
+# Run with go vet
+go vet -vettool=$(which mtlog-analyzer) ./...
+```
+
+### Common Diagnostics
+
+```go
+// MTLOG001: Template/argument mismatch
+log.Info("User {Id} from {IP}", userId)  // ❌ Missing IP argument
+
+// MTLOG003: Duplicate properties
+log.Info("{Id} and {Id}", 1, 2)  // ❌ Duplicate 'Id'
+log.With("id", 1, "id", 2)       // ❌ Duplicate key in With()
+
+// MTLOG009: With() odd arguments
+log.With("key1", "val1", "key2")  // ❌ Missing value
+
+// MTLOG010: With() non-string key
+log.With(123, "value")  // ❌ Key must be string
+
+// MTLOG011: Cross-call duplicate
+logger := log.With("service", "api")
+logger.With("service", "auth")  // ⚠️ Overrides 'service'
+
+// MTLOG013: Empty key
+log.With("", "value")  // ❌ Empty key ignored
+```
+
+### IDE Integration
+
+- **VS Code**: Install [mtlog-analyzer extension](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer)
+- **GoLand**: Install [mtlog-analyzer plugin](https://plugins.jetbrains.com/plugin/24877-mtlog-analyzer)
+- **Neovim**: Use [mtlog.nvim plugin](https://github.com/willibrandon/mtlog/tree/main/neovim-plugin)

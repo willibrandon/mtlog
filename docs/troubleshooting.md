@@ -132,6 +132,34 @@ Example output:
    log.Information("User {Name} with ID {Id}", "Alice", 123)
    ```
 
+### Preventing Issues with Static Analysis
+
+Use mtlog-analyzer to catch common mistakes at compile time:
+
+```bash
+# Install the analyzer
+go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+
+# Run before deployment
+go vet -vettool=$(which mtlog-analyzer) ./...
+```
+
+Common issues caught by the analyzer:
+- Template/argument mismatches (MTLOG001)
+- Duplicate properties (MTLOG003)
+- With() method issues (MTLOG009-013)
+- Missing error values in Error() calls (MTLOG006)
+- Invalid property names (MTLOG004)
+
+Example CI integration:
+```yaml
+# .github/workflows/ci.yml
+- name: Run mtlog-analyzer
+  run: |
+    go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+    go vet -vettool=$(which mtlog-analyzer) ./...
+```
+
 ### Network Sink Issues
 
 #### Seq Connection Problems
