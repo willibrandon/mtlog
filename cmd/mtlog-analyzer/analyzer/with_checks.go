@@ -23,6 +23,14 @@ var defaultReservedProperties = []string{
 	"SourceContext",
 }
 
+// isDiagnosticSuppressed checks if a diagnostic is suppressed in the config
+func (c *Config) isDiagnosticSuppressed(diagID string) bool {
+	if c == nil || diagID == "" || c.SuppressedDiagnostics == nil {
+		return false
+	}
+	return c.SuppressedDiagnostics[diagID]
+}
+
 // checkWithArguments checks the With() method for common issues
 func checkWithArguments(pass *analysis.Pass, call *ast.CallExpr, config *Config) {
 	// Get method name
@@ -70,6 +78,11 @@ func checkWithArguments(pass *analysis.Pass, call *ast.CallExpr, config *Config)
 				})
 			}
 
+			// Check if this diagnostic is suppressed
+			if config.isDiagnosticSuppressed(DiagIDWithOddArgs) {
+				return
+			}
+			
 			diag := analysis.Diagnostic{
 				Pos:            call.Pos(),
 				Message:        fmt.Sprintf("[%s] With() requires an even number of arguments (key-value pairs), got %d", DiagIDWithOddArgs, len(call.Args)),
@@ -129,6 +142,11 @@ func checkWithArguments(pass *analysis.Pass, call *ast.CallExpr, config *Config)
 					})
 				}
 
+				// Check if this diagnostic is suppressed
+				if config.isDiagnosticSuppressed(DiagIDWithNonStringKey) {
+					continue
+				}
+				
 				diag := analysis.Diagnostic{
 					Pos:            keyArg.Pos(),
 					Message:        fmt.Sprintf("[%s] With() key must be a string, got %s", DiagIDWithNonStringKey, keyDesc),
@@ -175,6 +193,11 @@ func checkWithArguments(pass *analysis.Pass, call *ast.CallExpr, config *Config)
 				})
 			}
 
+			// Check if this diagnostic is suppressed
+			if config.isDiagnosticSuppressed(DiagIDWithEmptyKey) {
+				continue
+			}
+			
 			diag := analysis.Diagnostic{
 				Pos:            keyArg.Pos(),
 				Message:        fmt.Sprintf("[%s] With() key is empty and will be ignored", DiagIDWithEmptyKey),
@@ -199,6 +222,11 @@ func checkWithArguments(pass *analysis.Pass, call *ast.CallExpr, config *Config)
 			// Check for reserved properties (off by default)
 			if config.CheckReservedProperties {
 				if isReservedProperty(keyValue, config) {
+					// Check if this diagnostic is suppressed
+					if config.isDiagnosticSuppressed(DiagIDWithReservedProp) {
+						continue
+					}
+					
 					diag := analysis.Diagnostic{
 						Pos:     keyArg.Pos(),
 						Message: fmt.Sprintf("[%s] %s: property '%s' shadows a built-in property", DiagIDWithReservedProp, SeveritySuggestion, keyValue),

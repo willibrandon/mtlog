@@ -8,6 +8,8 @@ import java.io.File
 
 class WithQuickFixTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     fun testMTLOG009_AddEmptyStringValueQuickFix() {
         val originalContent = """
             package main
@@ -23,10 +25,23 @@ class WithQuickFixTest : MtlogIntegrationTestBase() {
         createGoFile("main.go", originalContent)
         
         val diagnostics = runRealAnalyzerWithQuickFixes()
+        
+        // Print what we got for debugging
+        println("Test found ${diagnostics.size} diagnostics")
+        diagnostics.forEach { d ->
+            if (d is AnalyzerDiagnostic) {
+                println("  - ${d.message}")
+            }
+        }
+        
+        // First check we got ANY diagnostics
+        assertTrue("Expected to find diagnostics, but got none. Diagnostics list: $diagnostics", diagnostics.isNotEmpty())
+        assertTrue("Expected to find at least one diagnostic, found ${diagnostics.size}", diagnostics.size >= 1)
+        
         val oddArgsError = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
             .find { it.message.contains("MTLOG009") || it.message.contains("even number") }
         
-        assertNotNull("Should detect odd number of arguments", oddArgsError)
+        assertNotNull("Should detect odd number of arguments. Found diagnostics: ${diagnostics.map { (it as? AnalyzerDiagnostic)?.message }}", oddArgsError)
         assertTrue("Should have suggested fixes", oddArgsError!!.suggestedFixes.isNotEmpty())
         
         // Find the "Add empty string value" fix
@@ -255,8 +270,7 @@ class WithQuickFixTest : MtlogIntegrationTestBase() {
                 log.With(
                     123, "value1",        // Non-string key
                     "", "value2",         // Empty key
-                    "key3"               // Odd number
-                )
+                    "key3")               // Odd number
             }
         """.trimIndent()
         
@@ -296,8 +310,7 @@ class WithQuickFixTest : MtlogIntegrationTestBase() {
                 log.With(
                     "key1", "value1",
                     "key2", "value2",
-                    "key3"  // Missing value
-                )
+                    "key3")  // Missing value
             }
         """.trimIndent()
         

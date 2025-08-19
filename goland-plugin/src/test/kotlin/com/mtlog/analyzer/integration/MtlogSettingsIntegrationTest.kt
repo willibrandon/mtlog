@@ -11,6 +11,8 @@ import java.io.File
 
 class MtlogSettingsIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     private lateinit var service: MtlogProjectService
     
     override fun setUp() {

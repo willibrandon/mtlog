@@ -240,6 +240,58 @@ You can ignore specific warnings using standard Go vet comments:
 log.Information("User {userId} logged in", id) // lowercase property name
 ```
 
+### Diagnostic Suppression
+
+The analyzer supports multiple methods for suppressing specific diagnostics:
+
+#### 1. Command-line Flag
+Use the `-suppress` flag with comma-separated diagnostic IDs:
+
+```bash
+# Suppress specific diagnostics
+mtlog-analyzer -suppress=MTLOG001,MTLOG009 ./...
+
+# Suppress With() odd arguments and non-string key diagnostics
+mtlog-analyzer -suppress=MTLOG009,MTLOG010 ./...
+```
+
+#### 2. Environment Variable
+Set the `MTLOG_SUPPRESS` environment variable:
+
+```bash
+# Suppress specific diagnostics via environment variable
+export MTLOG_SUPPRESS=MTLOG001,MTLOG009
+mtlog-analyzer ./...
+
+# Windows (PowerShell)
+$env:MTLOG_SUPPRESS="MTLOG001,MTLOG009"
+mtlog-analyzer ./...
+```
+
+#### 3. IDE Integration
+All IDE integrations support suppression:
+- **VS Code**: Configure in settings or use quick fix to suppress
+- **GoLand**: Use Alt+Enter → Suppress for statement/function/file
+- **Neovim**: Use `:MtlogSuppress [id]` command or code actions menu
+
+#### Suppressible Diagnostics
+
+| ID | Description | Example |
+|----|-------------|---------|
+| MTLOG001 | Template/argument mismatch | `log.Info("User {Id}", 1, 2)` |
+| MTLOG002 | Invalid format specifier | `log.Info("{Value:Z}", 1)` |
+| MTLOG003 | Duplicate property | `log.Info("{Id} {Id}", 1, 2)` |
+| MTLOG004 | Property naming suggestion | `log.Info("{userId}", 1)` |
+| MTLOG005 | Capturing hint | `log.Info("{User}", user)` |
+| MTLOG006 | Error logging pattern | `log.Error("Failed")` |
+| MTLOG007 | Context key suggestion | `log.ForContext("tenant", id)` |
+| MTLOG008 | Dynamic template warning | `log.Info(fmt.Sprintf(...))` |
+| MTLOG009 | With() odd arguments | `log.With("key1", "v1", "key2")` |
+| MTLOG010 | With() non-string key | `log.With(123, "value")` |
+| MTLOG011 | With() cross-call duplicate | Multiple With() calls with same key |
+| MTLOG012 | With() reserved property | `log.With("Message", "custom")` |
+| MTLOG013 | With() empty key | `log.With("", "value")` |
+
 ## IDE Integration
 
 Both VS Code and GoLand extensions provide real-time validation with automatic analyzer detection and installation:

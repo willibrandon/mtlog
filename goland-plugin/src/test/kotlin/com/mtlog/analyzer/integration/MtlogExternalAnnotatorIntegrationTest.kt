@@ -8,6 +8,8 @@ import java.io.File
 
 class MtlogExternalAnnotatorIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     fun testRealAnalyzerDetectsTemplateArgumentMismatch() {
         createGoFile("main.go", """
             package main

@@ -7,6 +7,8 @@ import java.io.File
 
 class WithDiagnosticsIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     fun testMTLOG009_OddNumberOfArguments() {
         createGoFile("main.go", """
             package main

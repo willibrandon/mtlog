@@ -77,6 +77,8 @@ class MtlogProjectService(
         private val ANALYZER_VERSION_REGEX = Regex("""mtlog-analyzer\s+version[:\s]+([^\s]+)""")
         private const val ENV_MTLOG_SUPPRESS = "MTLOG_SUPPRESS"  // Environment variable for diagnostic suppression
         private const val LOG_TRUNCATION_LENGTH = 500  // Maximum length for debug log output
+        private const val LINE_START = 1
+        private const val COLUMN_START = 1
         
         /**
          * Truncates a string for debug logging to prevent excessively long log entries.
@@ -381,6 +383,8 @@ class MtlogProjectService(
                 
                 // Add other analyzer flags
                 state.analyzerFlags.forEach { addParameter(it) }
+                
+                // Analyze the specific file
                 addParameter(filePath)
                 workDirectory = Paths.get(goModPath).toFile()
                 
@@ -445,10 +449,19 @@ class MtlogProjectService(
                 commandLine.createProcess()
             }
             
+            // Read output and errors concurrently to avoid deadlock
             val output = process.inputStream.bufferedReader().use { it.readText() }
             val errors = process.errorStream.bufferedReader().use { it.readText() }
             
-            val exitCode = process.waitFor()
+            // Wait for process with timeout (30 seconds should be enough for analyzer)
+            val completed = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+            if (!completed) {
+                MtlogLogger.error("Analyzer process timed out after 30 seconds, terminating", project)
+                process.destroyForcibly()
+                return emptyList()
+            }
+            
+            val exitCode = process.exitValue()
             MtlogLogger.info("Analyzer exit code: $exitCode", project)
             
             // Stderr output is expected for compilation errors, no need to log
@@ -577,6 +590,7 @@ class MtlogProjectService(
                         val targetFileName = Paths.get(filePath).fileName.toString()
                 MtlogLogger.debug("Comparing filenames - diagnostic: '$diagnosticFileName', target: '$targetFileName'", project)
                         
+                        // We're analyzing the package but filtering for the specific file
                         if (diagnosticFileName == targetFileName) {
                             val message = diagnostic.get("message").asString
                             MtlogLogger.debug("Found matching diagnostic: $message at line $lineNum, col $columnNum", project)
@@ -609,13 +623,85 @@ class MtlogProjectService(
                                 message.substringAfter("property '").substringBefore("'")
                             } else null
                             
+                            // Parse suggested fixes from go vet JSON output
+                            // Handle both snake_case (go vet) and camelCase (stdin mode) formats
+                            val suggestedFixes = mutableListOf<AnalyzerSuggestedFix>()
+                            val fixesArray = diagnostic.get("suggested_fixes")?.asJsonArray ?: diagnostic.get("suggestedFixes")?.asJsonArray
+                            if (fixesArray != null) {
+                                fixesArray.forEach { fixElement ->
+                                    val fixObj = fixElement.asJsonObject
+                                    val fixMessage = fixObj.get("message").asString
+                                    val textEdits = mutableListOf<AnalyzerTextEdit>()
+                                    
+                                    // Try both "edits" (go vet) and "textEdits" (stdin) formats
+                                    val editsArray = fixObj.get("edits")?.asJsonArray ?: fixObj.get("textEdits")?.asJsonArray
+                                    if (editsArray != null) {
+                                        editsArray.forEach { editElement ->
+                                            val editObj = editElement.asJsonObject
+                                            
+                                            // Check if it's go vet format (with byte offsets) or stdin format (with pos/end strings)
+                                            if (editObj.has("filename") && editObj.has("start") && editObj.has("end")) {
+                                                // Go vet format with byte offsets
+                                                val editFilename = editObj.get("filename").asString
+                                                val startOffset = editObj.get("start").asInt
+                                                val endOffset = editObj.get("end").asInt
+                                                val newText = editObj.get("new").asString
+                                                
+                                                // Validate file path to prevent directory traversal
+                                                val editFile = java.io.File(editFilename)
+                                                val projectPath = project.basePath?.let { java.io.File(it).canonicalPath }
+                                                // Allow paths within project or temp directory (for tests)
+                                                val canonicalPath = editFile.canonicalPath
+                                                val isInProject = projectPath != null && canonicalPath.startsWith(projectPath)
+                                                val isInTemp = canonicalPath.contains("Temp") || canonicalPath.contains("temp") || canonicalPath.contains("tmp")
+                                                
+                                                if (!isInProject && !isInTemp) {
+                                                    MtlogLogger.warn("Suspicious file path detected (outside project): $editFilename", project)
+                                                    return@forEach
+                                                }
+                                                
+                                                // Read file content to convert byte offsets to line:col
+                                                val fileContent = try {
+                                                    editFile.readText()
+                                                } catch (e: Exception) {
+                                                    MtlogLogger.warn("Could not read file for offset conversion: $editFilename - ${e.message}", project)
+                                                    ""
+                                                }
+                                                
+                                                if (fileContent.isNotEmpty()) {
+                                                    val startPos = offsetToLineCol(fileContent, startOffset)
+                                                    val endPos = offsetToLineCol(fileContent, endOffset)
+                                                    
+                                                    textEdits.add(AnalyzerTextEdit(
+                                                        pos = "$editFilename:${startPos.first}:${startPos.second}",
+                                                        end = "$editFilename:${endPos.first}:${endPos.second}",
+                                                        newText = newText
+                                                    ))
+                                                }
+                                            } else if (editObj.has("pos") && editObj.has("end")) {
+                                                // Stdin format with direct pos/end strings
+                                                val newTextValue = editObj.get("newText")?.asString ?: editObj.get("new_text")?.asString ?: ""
+                                                textEdits.add(AnalyzerTextEdit(
+                                                    pos = editObj.get("pos").asString,
+                                                    end = editObj.get("end").asString,
+                                                    newText = newTextValue
+                                                ))
+                                            }
+                                        }
+                                    }
+                                    
+                                    suggestedFixes.add(AnalyzerSuggestedFix(fixMessage, textEdits))
+                                }
+                            }
+                            
                             diagnostics.add(AnalyzerDiagnostic(
                                 lineNumber = lineNum,
                                 columnNumber = columnNum,
                                 message = message,
                                 severity = severity,
                                 propertyName = propertyName,
-                                diagnosticId = diagnosticId
+                                diagnosticId = diagnosticId,
+                                suggestedFixes = suggestedFixes
                             ))
                         }
                     }
@@ -802,6 +888,32 @@ class MtlogProjectService(
         }
         
         return diagnostics
+    }
+    
+    /**
+     * Converts a byte offset to line:column position in the given text.
+     */
+    private fun offsetToLineCol(text: String, offset: Int): Pair<Int, Int> {
+        var line = LINE_START
+        var col = COLUMN_START
+        var currentOffset = 0
+        
+        for (char in text) {
+            if (currentOffset == offset) {
+                return Pair(line, col)
+            }
+            
+            if (char == '\n') {
+                line++
+                col = COLUMN_START
+            } else {
+                col++
+            }
+            currentOffset++
+        }
+        
+        // If offset is at the end of file
+        return Pair(line, col)
     }
     
     /**
