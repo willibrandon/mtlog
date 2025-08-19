@@ -152,10 +152,9 @@ describe('mtlog With() diagnostics', function()
       assert.is_true(success)
       
       local lines = vim.api.nvim_buf_get_lines(test_bufnr, 3, 4, false)
-      -- The fix might leave a trailing comma, which is valid Go syntax
-      local expected1 = '    log.With("UserId", 123)'
-      local expected2 = '    log.With("UserId", 123,)'
-      assert.is_true(lines[1] == expected1 or lines[1] == expected2)
+      -- Check that "Action" is removed and the line matches the expected pattern
+      assert.is_nil(string.find(lines[1], '"Action"'), 'Dangling key "Action" was not removed')
+      assert.is_truthy(string.match(lines[1], '^%s*log%.With%("UserId",%s*123,?%)$'), 'Line does not match expected log.With pattern')
     end)
   end)
   

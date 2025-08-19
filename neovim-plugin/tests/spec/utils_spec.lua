@@ -51,11 +51,7 @@ describe('mtlog utils', function()
     
     it('should handle all known diagnostic codes', function()
       -- Test that all 13 codes are handled
-      local all_codes = {
-        "MTLOG001", "MTLOG002", "MTLOG003", "MTLOG004", "MTLOG005",
-        "MTLOG006", "MTLOG007", "MTLOG008", "MTLOG009", "MTLOG010",
-        "MTLOG011", "MTLOG012", "MTLOG013"
-      }
+      local all_codes = utils.get_all_diagnostic_codes()
       
       for _, code in ipairs(all_codes) do
         local desc = utils.get_diagnostic_description(code)

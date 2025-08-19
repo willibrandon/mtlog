@@ -6,6 +6,9 @@ local M = {}
 -- Test project directory (must be a real Go project)
 M.test_project_dir = vim.env.MTLOG_TEST_PROJECT_DIR or '/tmp/mtlog-test-project'
 
+-- Configurable mtlog module path for tests
+M.mtlog_module_path = vim.env.MTLOG_MODULE_PATH or 'github.com/willibrandon/mtlog'
+
 -- Ensure mtlog-analyzer is available
 function M.ensure_analyzer()
   local analyzer_path = vim.env.MTLOG_ANALYZER_PATH or vim.fn.exepath('mtlog-analyzer')
@@ -52,15 +55,15 @@ function M.setup_go_project()
   end
   
   -- Create a simple main.go FIRST so go knows what we need
-  local main_go_content = [[package main
+  local main_go_content = string.format([[package main
 
-import "github.com/willibrandon/mtlog"
+import "%s"
 
 func main() {
     log := mtlog.New()
     log.Information("Test message")
 }
-]]
+]], M.mtlog_module_path)
   
   local main_go_file = project_dir .. '/main.go'
   local file = io.open(main_go_file, 'w')
@@ -74,7 +77,7 @@ func main() {
   result = vim.fn.system('cd ' .. project_dir .. ' && go mod tidy 2>&1')
   if vim.v.shell_error ~= 0 then
     -- If tidy fails, try explicit go get
-    result = vim.fn.system('cd ' .. project_dir .. ' && go get github.com/willibrandon/mtlog 2>&1')
+    result = vim.fn.system('cd ' .. project_dir .. ' && go get ' .. M.mtlog_module_path .. ' 2>&1')
     if vim.v.shell_error ~= 0 then
       error("Failed to get mtlog module: " .. result)
     end
@@ -82,7 +85,8 @@ func main() {
   
   -- Verify mtlog is actually in the module list
   local mod_list = vim.fn.system('cd ' .. project_dir .. ' && go list -m all 2>&1')
-  if not mod_list:match("github%.com/willibrandon/mtlog") then
+  local escaped_module_path = M.mtlog_module_path:gsub("%.", "%%.")
+  if not mod_list:match(escaped_module_path) then
     error("mtlog module not found in go list -m all output: " .. mod_list)
   end
   

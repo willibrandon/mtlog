@@ -30,6 +30,8 @@ func TestWithLongArgumentList(t *testing.T) {
 
 		// Verify the event was logged
 		events := memSink.Events()
+		// Specifically check for 1 event to validate that With() emits a single event,
+		// even when handling a very long argument list. This ensures correct event emission behavior.
 		if len(events) != 1 {
 			t.Fatalf("expected 1 event, got %d", len(events))
 		}

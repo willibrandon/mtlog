@@ -378,4 +378,14 @@ function M.get_diagnostic_description(code)
   return descriptions[code] or "Unknown diagnostic"
 end
 
+-- Get all known diagnostic codes
+---@return table List of all diagnostic codes
+function M.get_all_diagnostic_codes()
+  return {
+    "MTLOG001", "MTLOG002", "MTLOG003", "MTLOG004", "MTLOG005",
+    "MTLOG006", "MTLOG007", "MTLOG008", "MTLOG009", "MTLOG010",
+    "MTLOG011", "MTLOG012", "MTLOG013"
+  }
+end
+
 return M
