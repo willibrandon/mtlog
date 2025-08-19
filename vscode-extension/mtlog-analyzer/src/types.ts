@@ -57,5 +57,11 @@ export const DIAGNOSTIC_DESCRIPTIONS: Record<string, string> = {
     'MTLOG005': 'Missing capturing hints',
     'MTLOG006': 'Error logging without error value',
     'MTLOG007': 'Context key constant suggestion',
-    'MTLOG008': 'Dynamic template warning'
+    'MTLOG008': 'Dynamic template warning',
+    // With() method diagnostics
+    'MTLOG009': 'With() odd argument count',
+    'MTLOG010': 'With() non-string key',
+    'MTLOG011': 'With() cross-call duplicate keys',
+    'MTLOG012': 'With() reserved property name',
+    'MTLOG013': 'With() empty key'
 };

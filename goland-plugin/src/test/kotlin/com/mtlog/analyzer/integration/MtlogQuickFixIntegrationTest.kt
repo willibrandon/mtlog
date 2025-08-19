@@ -8,6 +8,8 @@ import java.io.File
 
 class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     fun testPascalCaseQuickFixRealExecution() {
         createGoFile("main.go", """
             package main
@@ -119,11 +121,7 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
     }
     
     fun testApplyPascalCaseQuickFixOnRealFile() {
-        // Write go.mod to disk first
-        File(realProjectDir, "go.mod").writeText("""
-            module testproject
-            go 1.21
-        """.trimIndent())
+        // The base class already sets up go.mod and vendor directory
         
         // Write the test file to disk
         val code = """
@@ -169,11 +167,7 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
     }
     
     fun testApplyTemplateArgumentQuickFixOnRealFile() {
-        // Write go.mod to disk first
-        File(realProjectDir, "go.mod").writeText("""
-            module testproject
-            go 1.21
-        """.trimIndent())
+        // The base class already sets up go.mod and vendor directory
         
         // Write the test file to disk
         val code = """
@@ -219,11 +213,7 @@ class MtlogQuickFixIntegrationTest : MtlogIntegrationTestBase() {
     }
     
     fun testApplyTemplateArgumentQuickFixRemovesExtras() {
-        // Write go.mod to disk first
-        File(realProjectDir, "go.mod").writeText("""
-            module testproject
-            go 1.21
-        """.trimIndent())
+        // The base class already sets up go.mod and vendor directory
         
         // Write the test file to disk
         val code = """

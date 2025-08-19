@@ -269,7 +269,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-15]
-        neovim: ['v0.8.0', 'v0.9.0', 'v0.10.0', 'stable']
+        neovim: ['v0.10.0', 'stable']
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
@@ -305,10 +305,10 @@ jobs:
     - name: Validate Health Check
       working-directory: neovim-plugin
       run: |
-        # Run checkhealth with minimal init that loads the plugin
-        nvim --headless -u tests/minimal_init.lua -c "checkhealth mtlog" -c "w! health.txt" -c "qa!"
-        # Check if analyzer is detected
-        if grep -q "mtlog-analyzer is installed\|mtlog-analyzer version" health.txt; then
+        # Run checkhealth - on macOS it outputs to buffer not stdout, so we write to file
+        nvim --headless -u tests/minimal_init.lua -c "enew" -c "checkhealth mtlog" -c "w! health.txt" -c "qa" 2>&1
+        # Check if analyzer is detected and no errors occurred
+        if grep -q "mtlog-analyzer is installed\|mtlog-analyzer version" health.txt && ! grep -q "Error\|E121" health.txt; then
           echo "✅ Health check passed: mtlog-analyzer detected"
         else
           echo "❌ Health check failed - output:"

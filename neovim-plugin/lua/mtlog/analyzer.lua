@@ -9,7 +9,6 @@ local cache = require('mtlog.cache')
 -- Analyzer state
 local analyzer_version = nil
 local analyzer_available = nil
-local check_in_progress = false
 local last_checked_path = nil
 
 -- Force recheck availability (clears cache)
@@ -29,11 +28,7 @@ function M.is_available()
     return analyzer_available
   end
   
-  if check_in_progress then
-    return false
-  end
-  
-  check_in_progress = true
+  -- Remove concurrent check guard - just do the check synchronously
   last_checked_path = current_path
   
   -- mtlog-analyzer uses -V=full for version
@@ -54,7 +49,6 @@ function M.is_available()
     end
   end
   
-  check_in_progress = false
   return analyzer_available
 end
 
@@ -113,7 +107,7 @@ end
 ---@param filepath string File path
 ---@return table Neovim diagnostic
 local function convert_diagnostic(diag, filepath)
-  local severity_levels = config.get('severity_levels')
+  local severity_levels = config.get('severity_levels') or {}
   
   -- Determine severity based on code
   local severity = vim.diagnostic.severity.HINT
@@ -543,6 +537,27 @@ function M.reset()
   analyzer_version = nil
   analyzer_available = nil
   check_in_progress = false
+end
+
+-- Re-analyze all Go buffers
+function M.reanalyze_all()
+  local cache = require('mtlog.cache')
+  local utils = require('mtlog.utils')
+  cache.clear()  -- Clear cache to force re-analysis
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local name = vim.api.nvim_buf_get_name(bufnr)
+      if name:match('%.go$') and not utils.is_vendor_path(name) then
+        -- We need to call the main analyze_buffer function
+        -- but we can't require mtlog here (circular dependency)
+        -- So we'll use vim.schedule to defer and break the cycle
+        vim.schedule(function()
+          local mtlog = require('mtlog')
+          mtlog.analyze_buffer(bufnr)
+        end)
+      end
+    end
+  end
 end
 
 return M

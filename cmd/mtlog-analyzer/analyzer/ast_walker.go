@@ -40,6 +40,8 @@ func isRelevantMethod(name string) bool {
 		"Fatal": true, "F": true,
 		// Context methods
 		"ForContext": true,
+		// Field methods
+		"With": true,
 	}
 	return relevantMethods[name]
 }

@@ -304,18 +304,18 @@ describe('mtlog quick fix', function()
         return
       end
       
-      -- Create a buffer with an actual issue
-      vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
-        'package main',
-        'import "github.com/willibrandon/mtlog"',
-        'func main() {',
-        '    log := mtlog.New()',
-        '    log.Information("User {userid} logged in", 123)',
-        '}',
-      })
-      
-      local filepath = '/tmp/test_quickfix.go'
-      vim.api.nvim_buf_set_name(test_bufnr, filepath)
+      local test_helpers = require('test_helpers')
+      -- Create file in Go module context so analyzer can resolve imports
+      local filepath = test_helpers.create_test_go_file('test_quickfix.go', [[
+package main
+
+import "github.com/willibrandon/mtlog"
+
+func main() {
+    log := mtlog.New()
+    log.Information("User {userid} logged in", 123)
+}
+]])
       
       -- Since analyze_file is async, we simulate synchronous behavior for testing
       local results_received = nil
@@ -328,6 +328,9 @@ describe('mtlog quick fix', function()
       
       -- Wait a bit for the async operation (in tests, it should complete immediately)
       vim.wait(100, function() return results_received ~= nil or error_received ~= nil end)
+      
+      -- Clean up the file
+      test_helpers.delete_test_file(filepath)
       
       if error_received then
         -- Analyzer not working properly, skip test

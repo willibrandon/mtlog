@@ -51,6 +51,21 @@ M.topics = {
       "",
       "MTLOG008: Dynamic template warning",
       "  Template is not a string literal",
+      "",
+      "MTLOG009: With() odd argument count",
+      "  With() requires even number of key-value pairs",
+      "",
+      "MTLOG010: With() non-string key",
+      "  With() keys must be string type",
+      "",
+      "MTLOG011: With() cross-call duplicate",
+      "  Property set in With() duplicated across calls",
+      "",
+      "MTLOG012: With() reserved property",
+      "  Property name is reserved (e.g., Timestamp, Level)",
+      "",
+      "MTLOG013: With() empty key",
+      "  With() key is an empty string",
     }
   },
   
@@ -201,7 +216,7 @@ M.topics = {
 -- Diagnostic code explanations
 M.diagnostic_explanations = {
   MTLOG001 = {
-    name = "Template/Argument Mismatch",
+    name = "Template/argument mismatch",
     description = "The number of placeholders in the message template doesn't match the number of arguments provided.",
     example = {
       wrong = 'log.Info("User {UserId} logged in", userId, timestamp)',
@@ -278,6 +293,56 @@ M.diagnostic_explanations = {
       correct = 'log.Info("User {UserId}", userId)',
     },
     fix = "Use string literals for message templates when possible.",
+  },
+  
+  MTLOG009 = {
+    name = "With() Odd Argument Count",
+    description = "The With() method requires an even number of arguments as key-value pairs.",
+    example = {
+      wrong = 'log.With("UserId", 123, "Action")',
+      correct = 'log.With("UserId", 123, "Action", "login")',
+    },
+    fix = "Add a value for the last key or remove the dangling key.",
+  },
+  
+  MTLOG010 = {
+    name = "With() Non-String Key",
+    description = "Keys in With() method must be string type for property names.",
+    example = {
+      wrong = 'log.With(123, "value")',
+      correct = 'log.With("Id", 123)',
+    },
+    fix = "Convert the key to a string or use a string constant.",
+  },
+  
+  MTLOG011 = {
+    name = "With() Cross-Call Duplicate",
+    description = "The same property is being set in multiple With() calls, which may indicate a mistake.",
+    example = {
+      wrong = 'log.With("UserId", 1).With("UserId", 2)',
+      correct = 'log.With("UserId", 1).With("Action", "login")',
+    },
+    fix = "Use unique property names or remove duplicate properties.",
+  },
+  
+  MTLOG012 = {
+    name = "With() Reserved Property",
+    description = "The property name is reserved by the logging system and may cause confusion.",
+    example = {
+      wrong = 'log.With("Timestamp", time.Now())',
+      correct = 'log.With("RequestTime", time.Now())',
+    },
+    fix = "Use a different property name that doesn't conflict with reserved names.",
+  },
+  
+  MTLOG013 = {
+    name = "With() Empty Key",
+    description = "The key in With() method is an empty string, which is not valid.",
+    example = {
+      wrong = 'log.With("", "value")',
+      correct = 'log.With("Property", "value")',
+    },
+    fix = "Provide a non-empty string as the property key.",
   },
 }
 
@@ -397,6 +462,11 @@ function M.show_quick_reference()
     "  MTLOG006 - Missing error parameter",
     "  MTLOG007 - Use string constant",
     "  MTLOG008 - Dynamic template",
+    "  MTLOG009 - With() odd arguments",
+    "  MTLOG010 - With() non-string key",
+    "  MTLOG011 - With() duplicate",
+    "  MTLOG012 - With() reserved name",
+    "  MTLOG013 - With() empty key",
     "",
     "KEY BINDINGS (recommended)",
     "  <leader>ma - Analyze",

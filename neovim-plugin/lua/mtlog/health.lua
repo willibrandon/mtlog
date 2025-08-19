@@ -2,54 +2,34 @@
 
 local M = {}
 
-local health = vim.health or require('health')
+local health = vim.health
 local utils = require('mtlog.utils')
 local config = require('mtlog.config')
 local analyzer = require('mtlog.analyzer')
 
 -- Start health check report
 local function start(msg)
-  if health.start then
-    health.start(msg)
-  else
-    health.report_start(msg)
-  end
+  health.start(msg)
 end
 
 -- Report success
 local function ok(msg)
-  if health.ok then
-    health.ok(msg)
-  else
-    health.report_ok(msg)
-  end
+  health.ok(msg)
 end
 
 -- Report warning
 local function warn(msg, advice)
-  if health.warn then
-    health.warn(msg, advice)
-  else
-    health.report_warn(msg, advice)
-  end
+  health.warn(msg, advice)
 end
 
 -- Report error
 local function error(msg, advice)
-  if health.error then
-    health.error(msg, advice)
-  else
-    health.report_error(msg, advice)
-  end
+  health.error(msg, advice)
 end
 
 -- Report info
 local function info(msg)
-  if health.info then
-    health.info(msg)
-  else
-    health.report_info(msg)
-  end
+  health.info(msg)
 end
 
 -- Check Neovim version

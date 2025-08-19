@@ -318,6 +318,21 @@ logger.
 - Both methods create a new logger instance with the combined properties
 - Both are safe for concurrent use
 
+### Property Precedence
+
+When combining With() and ForContext(), properties follow a precedence order:
+- Properties passed directly to log methods take highest precedence
+- ForContext() properties override With() properties
+- Later With() calls override earlier With() calls in a chain
+
+Example:
+```go
+logger.With("user", "alice").              // user=alice
+    ForContext("user", "bob").             // user=bob (ForContext overrides)
+    With("user", "charlie").               // user=charlie (later With overrides)
+    Info("User {user} logged in", "david") // user=david (event property overrides all)
+```
+
 ## LogContext - Scoped Properties
 
 LogContext provides a way to attach properties to a context that will be automatically included in all log events created from loggers using that context. Properties follow a precedence order: event-specific properties (passed directly to log methods) override ForContext properties, which override LogContext properties (set via PushProperty).

@@ -158,7 +158,8 @@ function M.load_suppressions()
     vim.notify('Loaded suppressions from ' .. WORKSPACE_CONFIG_FILE, vim.log.levels.INFO)
     
     -- Re-analyze to apply suppressions
-    require('mtlog').reanalyze_all()
+    local analyzer = require('mtlog.analyzer')
+    analyzer.reanalyze_all()
   else
     vim.notify('No suppressions found in workspace config', vim.log.levels.INFO)
   end

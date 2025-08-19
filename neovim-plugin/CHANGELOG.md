@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **With() Method Diagnostics** - Support for new mtlog-analyzer With() method checks
+  - MTLOG009: Detects odd argument count in With() calls (requires key-value pairs)
+  - MTLOG010: Warns about non-string keys in With() calls
+  - MTLOG011: Informational cross-call duplicate property detection
+  - MTLOG012: Warns about reserved property names (Timestamp, Level, etc.)
+  - MTLOG013: Detects empty string keys in With() calls
+  
+### Enhanced
+- **Quick Fix Parser** - Updated to handle new position format
+  - Now supports both legacy `range` objects and new `pos`/`end` string format
+  - Handles "file:line:column" position strings from With() diagnostics
+  - Backward compatible with existing diagnostics
+  
+- **Help System** - Added explanations for all new diagnostic codes
+  - Interactive help for MTLOG009-MTLOG013
+  - Examples and fix suggestions for each new diagnostic
+  - Updated quick reference card
+
+### Fixed
+- **Position Parsing** - Improved handling of different position formats
+  - Correctly parses 1-indexed columns from analyzer
+  - Handles both insertion and replacement operations
+  - Works with exclusive end positions
+
 ## [0.8.1] - 2025-08-10
 
 ### Fixed

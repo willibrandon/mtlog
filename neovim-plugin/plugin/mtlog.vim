@@ -536,7 +536,7 @@ vim.api.nvim_create_user_command('MtlogQuickFix', function()
     vim.ui.select(fixes, {
       prompt = 'Select quick fix:',
       format_item = function(fix)
-        return fix.description or fix.title or 'Fix'
+        return fix.description or fix.title or fix.message or 'Fix'
       end,
     }, function(fix, idx)
       if fix and idx then

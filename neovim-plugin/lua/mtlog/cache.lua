@@ -101,8 +101,10 @@ local function is_cache_valid(entry, filepath)
   -- Check TTL
   local ttl = config.get('cache.ttl_seconds')
   if ttl and ttl > 0 then
-    local age = os.time() - entry.timestamp
-    if age > ttl then
+    -- Use high-resolution timer for sub-second accuracy
+    local now = vim.loop.now() / 1000  -- Convert milliseconds to seconds
+    local age = now - entry.timestamp
+    if age >= ttl then  -- Use >= for exact TTL expiration
       return false
     end
   end
@@ -168,7 +170,7 @@ function M.set(filepath, data)
     data = data,
     mtime = mtime,
     version = get_analyzer_version(),
-    timestamp = os.time(),
+    timestamp = vim.loop.now() / 1000,  -- High-resolution timestamp in seconds
   }
   
   if is_new then
@@ -183,7 +185,17 @@ end
 ---@param filepath string File path
 function M.invalidate(filepath)
   local key = get_cache_key(filepath)
-  cache[key] = nil
+  if cache[key] then
+    cache[key] = nil
+    stats.size = stats.size - 1
+    -- Remove from LRU order
+    for i, k in ipairs(lru_order) do
+      if k == key then
+        table.remove(lru_order, i)
+        break
+      end
+    end
+  end
 end
 
 -- Clear entire cache
@@ -201,11 +213,11 @@ function M.cleanup()
     return
   end
   
-  local now = os.time()
+  local now = vim.loop.now() / 1000  -- High-resolution timer
   local expired = {}
   
   for key, entry in pairs(cache) do
-    if (now - entry.timestamp) > ttl then
+    if (now - entry.timestamp) >= ttl then  -- Use >= for exact TTL
       table.insert(expired, key)
     end
   end
@@ -290,10 +302,17 @@ function M.load_from_disk(filepath)
     return false
   end
   
+  -- Clear existing cache first
+  cache = {}
+  lru_order = {}
+  stats.size = 0
+  
   -- Validate and load entries
   for key, entry in pairs(loaded) do
     if type(entry) == 'table' and entry.data and entry.mtime and entry.version and entry.timestamp then
       cache[key] = entry
+      stats.size = stats.size + 1
+      table.insert(lru_order, key)
     end
   end
   
@@ -320,7 +339,8 @@ function M.setup()
   
   -- Set up periodic cleanup
   local cleanup_timer = vim.loop.new_timer()
-  cleanup_timer:start(60000, 60000, vim.schedule_wrap(function()
+  local cleanup_interval = (config.get('cache.cleanup_interval') or 60) * 1000  -- Convert to milliseconds
+  cleanup_timer:start(cleanup_interval, cleanup_interval, vim.schedule_wrap(function()
     M.cleanup()
   end))
   

@@ -123,6 +123,7 @@ describe('diagnostic display timing', function()
   
   describe('analyzer integration', function()
     it('should analyze and display results quickly', function(done)
+      local done_fn = done
       -- Skip if analyzer not available
       if not analyzer.is_available() then
         pending("mtlog-analyzer not available")
@@ -154,7 +155,7 @@ func main() {
           
           if err then
             error("Analyzer failed: " .. err)
-            done()
+            done_fn()
             return
           end
           
@@ -173,7 +174,7 @@ func main() {
           local diags = vim.diagnostic.get(test_bufnr, { namespace = namespace })
           assert.equals(#results, #diags, "All diagnostics should be available immediately")
           
-          done()
+          done_fn()
         end)
       end)
     end, 3000) -- 3 second timeout for this async test

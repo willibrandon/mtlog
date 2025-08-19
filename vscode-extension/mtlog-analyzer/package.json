@@ -97,7 +97,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["MTLOG001", "MTLOG002", "MTLOG003", "MTLOG004", "MTLOG005", "MTLOG006", "MTLOG007", "MTLOG008"],
+            "enum": ["MTLOG001", "MTLOG002", "MTLOG003", "MTLOG004", "MTLOG005", "MTLOG006", "MTLOG007", "MTLOG008", "MTLOG009", "MTLOG010", "MTLOG011", "MTLOG012", "MTLOG013"],
             "enumDescriptions": [
               "Template/argument count mismatch",
               "Invalid format specifier", 
@@ -106,7 +106,12 @@
               "Missing capturing hints",
               "Error logging without error value",
               "Context key constant suggestion",
-              "Dynamic template warning"
+              "Dynamic template warning",
+              "With() odd argument count",
+              "With() non-string key",
+              "With() cross-call duplicate keys",
+              "With() reserved property name",
+              "With() empty key"
             ]
           },
           "default": [],
