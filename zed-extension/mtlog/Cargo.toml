@@ -2,7 +2,7 @@
 name = "zed-mtlog-analyzer"
 version = "0.1.0"
 edition = "2021"
-authors = ["Brandon Williams <willibrandon@gmail.com>"]
+authors = ["Brandon Williams"]
 description = "Zed extension for mtlog-analyzer static analysis tool"
 repository = "https://github.com/willibrandon/mtlog"
 license = "MIT"
