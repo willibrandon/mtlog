@@ -16,6 +16,11 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	// editContextLength is the number of characters to show before and after an edit location for debugging
+	editContextLength = 20
+)
+
 // Server represents the LSP server state
 type Server struct {
 	rootPath     string
@@ -167,18 +172,22 @@ func main() {
 			server.handleCodeAction(msg.ID, msg.Params)
 		case "shutdown":
 			// Clean up caches before shutdown
-			server.logger.Printf("Shutting down, clearing caches")
-			server.diagnosticsCache = nil
-			server.fixesCache = nil
+			server.cleanup()
 			sendResponse(msg.ID, nil)
 			os.Exit(0)
 		case "exit":
 			// Final cleanup on exit
-			server.diagnosticsCache = nil
-			server.fixesCache = nil
+			server.cleanup()
 			os.Exit(0)
 		}
 	}
+}
+
+// cleanup clears all caches and performs shutdown tasks
+func (s *Server) cleanup() {
+	s.logger.Printf("Cleaning up caches")
+	s.diagnosticsCache = nil
+	s.fixesCache = nil
 }
 
 func findAnalyzer() string {
@@ -509,11 +518,11 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 							endLine, endChar := byteOffsetToPosition(fileContent, edit.End)
 							
 							// Debug: show the text around the edit position
-							contextStart := edit.Start - 20
+							contextStart := edit.Start - editContextLength
 							if contextStart < 0 {
 								contextStart = 0
 							}
-							contextEnd := edit.End + 20
+							contextEnd := edit.End + editContextLength
 							if contextEnd > len(fileContent) {
 								contextEnd = len(fileContent)
 							}
