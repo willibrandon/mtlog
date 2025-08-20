@@ -122,12 +122,12 @@ func main() {
 		}
 		
 		// Skip empty line after Content-Length
-		reader.ReadString('\n')
+		_, _ = reader.ReadString('\n')
 		
 		// Parse Content-Length
 		contentLength := 0
 		if strings.HasPrefix(contentLengthLine, "Content-Length: ") {
-			fmt.Sscanf(contentLengthLine, "Content-Length: %d", &contentLength)
+			_, _ = fmt.Sscanf(contentLengthLine, "Content-Length: %d", &contentLength)
 		}
 		
 		if contentLength == 0 {
@@ -213,7 +213,7 @@ func findAnalyzer() string {
 
 func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 	var initParams InitializeParams
-	json.Unmarshal(params, &initParams)
+	_ = json.Unmarshal(params, &initParams)
 	
 	if initParams.RootPath != "" {
 		s.rootPath = initParams.RootPath
