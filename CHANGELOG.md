@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Core Library**
-  - `With()` method for creating child loggers with additional properties (#55)
-    - Immutable child logger creation with inherited properties
-    - Thread-safe property inheritance with zero impact on parent logger
-    - Performance optimized: only allocates when child is actually used
-    - OTEL adapter support with proper property forwarding
-    - Comprehensive test coverage including performance benchmarks
+  - `With()` method for structured field logging (#42, #55)
+    - Adds key-value pairs to log events: `logger.With("service", "api", "version", "1.0")`
+    - Chainable for building context: `logger.With("env", "prod").With("region", "us-west")`
+    - Performance optimized: 0 allocations when no fields, 2 allocations for ≤64 fields
+    - Maintains structured properties for Serilog compatibility
+    - Comprehensive analyzer diagnostics (MTLOG009-MTLOG013) for common mistakes
   
   - **OpenTelemetry (OTEL) Adapter** - Full integration with OpenTelemetry ecosystem
     - OTLP exporter with gRPC and HTTP transports
