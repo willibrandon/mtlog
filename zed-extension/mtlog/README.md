@@ -19,9 +19,10 @@ Static analysis for [mtlog](https://github.com/willibrandon/mtlog) message templ
 
 ### Prerequisites
 
-1. Install the mtlog-analyzer binary:
+1. Install the required binaries:
 ```bash
 go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
+go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest
 ```
 
 2. Install the extension in Zed:
@@ -31,7 +32,7 @@ go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
 
 ## Configuration
 
-The extension automatically detects mtlog-analyzer in these locations:
+The extension automatically detects mtlog-lsp in these locations:
 - `$GOBIN`
 - `$GOPATH/bin`
 - `$HOME/go/bin`
@@ -47,7 +48,7 @@ You can customize the analyzer in your Zed settings:
   "lsp": {
     "mtlog-analyzer": {
       "binary": {
-        "path": "/custom/path/to/mtlog-analyzer",
+        "path": "/custom/path/to/mtlog-lsp",
         "arguments": ["-strict", "-common-keys=tenant_id,org_id"]
       }
     }
@@ -91,12 +92,13 @@ The extension provides quick fixes for common issues:
 
 ## Troubleshooting
 
-### Analyzer Not Found
+### LSP Server Not Found
 
-If the extension can't find mtlog-analyzer:
+If the extension can't find mtlog-lsp:
 
 1. Verify installation:
 ```bash
+which mtlog-lsp
 which mtlog-analyzer
 ```
 
