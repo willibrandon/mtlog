@@ -1,5 +1,12 @@
-// mtlog-lsp is a minimal Language Server Protocol wrapper for mtlog-analyzer.
-// It allows mtlog-analyzer to work with editors that only support LSP, like Zed.
+// Package main implements mtlog-lsp, a Language Server Protocol wrapper for mtlog-analyzer.
+//
+// mtlog-lsp bridges the gap between mtlog-analyzer's go vet-style output and the
+// Language Server Protocol, enabling rich IDE features like real-time diagnostics
+// and code actions in LSP-compatible editors such as Zed.
+//
+// The server wraps mtlog-analyzer, converting its analysis output to LSP diagnostics
+// and suggested fixes to LSP code actions, while handling the JSON-RPC communication
+// protocol required by LSP.
 package main
 
 import (
@@ -21,7 +28,9 @@ const (
 	editContextLength = 20
 )
 
-// Server represents the LSP server state
+// Server manages the LSP server state and caches.
+// It maintains separate caches for diagnostics and their associated code actions
+// to efficiently handle LSP requests without re-running the analyzer unnecessarily.
 type Server struct {
 	rootPath     string
 	analyzerPath string
@@ -31,7 +40,8 @@ type Server struct {
 	fixesCache       map[string]map[string][]CodeAction // uri -> diagnostic key -> fixes
 }
 
-// CodeAction represents an LSP code action
+// CodeAction represents an LSP code action that can be applied to fix diagnostics.
+// Code actions are cached and associated with specific diagnostics via a key.
 type CodeAction struct {
 	Title       string                 `json:"title"`
 	Kind        string                 `json:"kind,omitempty"`
@@ -39,7 +49,7 @@ type CodeAction struct {
 	Edit        map[string]interface{} `json:"edit,omitempty"`
 }
 
-// JSONRPCMessage represents a JSON-RPC message
+// JSONRPCMessage represents a JSON-RPC 2.0 message used in LSP communication.
 type JSONRPCMessage struct {
 	Jsonrpc string          `json:"jsonrpc"`
 	ID      interface{}     `json:"id,omitempty"`
@@ -47,13 +57,13 @@ type JSONRPCMessage struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 
-// InitializeParams represents the initialize request parameters
+// InitializeParams contains the parameters sent by the client during initialization.
 type InitializeParams struct {
 	RootPath string `json:"rootPath,omitempty"`
 	RootURI  string `json:"rootUri,omitempty"`
 }
 
-// TextDocumentItem represents a text document
+// TextDocumentItem contains the full content and metadata of an opened text document.
 type TextDocumentItem struct {
 	URI        string `json:"uri"`
 	LanguageID string `json:"languageId"`
@@ -61,19 +71,19 @@ type TextDocumentItem struct {
 	Text       string `json:"text"`
 }
 
-// DidOpenTextDocumentParams represents textDocument/didOpen parameters
+// DidOpenTextDocumentParams contains the parameters for the textDocument/didOpen notification.
 type DidOpenTextDocumentParams struct {
 	TextDocument TextDocumentItem `json:"textDocument"`
 }
 
-// DidSaveTextDocumentParams represents textDocument/didSave parameters
+// DidSaveTextDocumentParams contains the parameters for the textDocument/didSave notification.
 type DidSaveTextDocumentParams struct {
 	TextDocument struct {
 		URI string `json:"uri"`
 	} `json:"textDocument"`
 }
 
-// Diagnostic represents an LSP diagnostic
+// Diagnostic represents a problem found in the source code, such as a template/argument mismatch.
 type Diagnostic struct {
 	Range    Range  `json:"range"`
 	Severity int    `json:"severity"`
@@ -82,13 +92,13 @@ type Diagnostic struct {
 	Message  string `json:"message"`
 }
 
-// Range represents a text range
+// Range defines a contiguous range between two positions in a text document.
 type Range struct {
 	Start Position `json:"start"`
 	End   Position `json:"end"`
 }
 
-// Position represents a text position
+// Position represents a zero-based position in a text document using line and character offsets.
 type Position struct {
 	Line      int `json:"line"`
 	Character int `json:"character"`
@@ -183,13 +193,17 @@ func main() {
 	}
 }
 
-// cleanup clears all caches and performs shutdown tasks
+// cleanup clears all caches and performs shutdown tasks.
+// It is called during both shutdown and exit to ensure proper resource cleanup.
 func (s *Server) cleanup() {
 	s.logger.Printf("Cleaning up caches")
 	s.diagnosticsCache = nil
 	s.fixesCache = nil
 }
 
+// findAnalyzer locates the mtlog-analyzer binary in standard Go installation paths.
+// It checks PATH, GOBIN, GOPATH/bin, ~/go/bin, and /usr/local/bin in order of preference.
+// Returns the path to the analyzer or an empty string if not found.
 func findAnalyzer() string {
 	// Check common locations
 	paths := []string{
@@ -220,6 +234,8 @@ func findAnalyzer() string {
 	return ""
 }
 
+// handleInitialize processes the LSP initialize request and responds with server capabilities.
+// It sets up the root path for analysis and advertises support for text synchronization and code actions.
 func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 	var initParams InitializeParams
 	_ = json.Unmarshal(params, &initParams)
@@ -247,6 +263,8 @@ func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 	sendResponse(id, result)
 }
 
+// handleDidOpen processes the textDocument/didOpen notification when a file is opened.
+// It triggers analysis for Go files and publishes the resulting diagnostics.
 func (s *Server) handleDidOpen(params json.RawMessage) {
 	var didOpen DidOpenTextDocumentParams
 	if err := json.Unmarshal(params, &didOpen); err != nil {
@@ -263,6 +281,8 @@ func (s *Server) handleDidOpen(params json.RawMessage) {
 	s.analyzAndPublish(uri)
 }
 
+// handleDidSave processes the textDocument/didSave notification when a file is saved.
+// It re-runs the analyzer to detect any issues in the saved content.
 func (s *Server) handleDidSave(params json.RawMessage) {
 	var didSave DidSaveTextDocumentParams
 	if err := json.Unmarshal(params, &didSave); err != nil {
@@ -274,6 +294,8 @@ func (s *Server) handleDidSave(params json.RawMessage) {
 	s.analyzAndPublish(uri)
 }
 
+// analyzAndPublish runs mtlog-analyzer on the specified file and publishes diagnostics.
+// It caches both diagnostics and their associated code actions for efficient retrieval.
 func (s *Server) analyzAndPublish(uri string) {
 	filePath := strings.TrimPrefix(uri, "file://")
 	
@@ -297,6 +319,7 @@ func (s *Server) analyzAndPublish(uri string) {
 	publishDiagnostics(uri, diagnostics)
 }
 
+// getMapKeys returns all keys from a map as a slice for debugging purposes.
 func getMapKeys(m map[string][]CodeAction) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -305,6 +328,8 @@ func getMapKeys(m map[string][]CodeAction) []string {
 	return keys
 }
 
+// handleCodeAction processes the textDocument/codeAction request to provide fixes for diagnostics.
+// It retrieves cached code actions associated with the diagnostics in the requested range.
 func (s *Server) handleCodeAction(id interface{}, params json.RawMessage) {
 	// Parse code action params
 	var codeActionParams struct {
@@ -362,8 +387,9 @@ func (s *Server) handleCodeAction(id interface{}, params json.RawMessage) {
 	sendResponse(id, actions)
 }
 
-// byteOffsetToPosition converts a byte offset to line/character position
-// LSP expects UTF-16 code unit positions, not byte positions
+// byteOffsetToPosition converts a byte offset to LSP line/character position.
+// LSP expects UTF-16 code unit positions, so this function properly handles
+// multi-byte UTF-8 characters and surrogate pairs.
 func byteOffsetToPosition(content []byte, offset int) (line, character int) {
 	if offset > len(content) {
 		offset = len(content)
@@ -392,6 +418,9 @@ func byteOffsetToPosition(content []byte, offset int) (line, character int) {
 	return line, character
 }
 
+// runAnalyzer executes mtlog-analyzer and converts its output to LSP diagnostics and code actions.
+// It parses the analyzer's JSON output, filters diagnostics for the target file,
+// and creates corresponding LSP structures with proper position conversion.
 func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[string][]CodeAction) {
 	// Read the file content for byte offset conversion
 	fileContent, err := os.ReadFile(targetFile)
@@ -608,12 +637,16 @@ func sendResponse(id interface{}, result interface{}) {
 	sendMessage(response)
 }
 
+// sendMessage sends a JSON-RPC message to the client via stdout.
+// It prepends the required Content-Length header for LSP communication.
 func sendMessage(msg interface{}) {
 	msgBytes := mustMarshal(msg)
 	content := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(msgBytes), msgBytes)
 	os.Stdout.Write([]byte(content))
 }
 
+// mustMarshal marshals a value to JSON, panicking on error.
+// Used for internal structures that should always be marshalable.
 func mustMarshal(v interface{}) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {

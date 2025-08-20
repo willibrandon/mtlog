@@ -1,10 +1,30 @@
+//! Zed extension for mtlog-analyzer, providing real-time static analysis
+//! for mtlog message templates in Go code.
+//!
+//! This extension integrates mtlog-analyzer's diagnostics into Zed through
+//! the Language Server Protocol, offering features like template validation,
+//! format specifier checking, and quick fixes for common issues.
+
 use zed_extension_api::{self as zed, settings::LspSettings, Command, Extension, LanguageServerId, Result, Worktree};
 
+/// Extension state for the mtlog-analyzer LSP integration.
+/// Caches the binary path to avoid repeated filesystem lookups.
 struct MtlogAnalyzerExtension {
     cached_binary_path: Option<String>,
 }
 
 impl MtlogAnalyzerExtension {
+    /// Locates the mtlog-lsp binary using multiple strategies.
+    ///
+    /// Search order:
+    /// 1. Explicit path from Zed settings
+    /// 2. System PATH via `which` command
+    /// 3. GOBIN environment variable
+    /// 4. GOPATH/bin directory
+    /// 5. HOME/go/bin (default Go installation)
+    /// 6. /usr/local/bin fallback
+    ///
+    /// Returns the first valid path found, or a fallback path if none are found.
     fn find_mtlog_analyzer(&self, worktree: &Worktree) -> Option<String> {
         // Check explicit path from settings first
         if let Ok(lsp_settings) = LspSettings::for_worktree("mtlog-analyzer", worktree) {
@@ -52,12 +72,22 @@ impl MtlogAnalyzerExtension {
 }
 
 impl Extension for MtlogAnalyzerExtension {
+    /// Creates a new instance of the extension with an empty cache.
     fn new() -> Self {
         Self {
             cached_binary_path: None,
         }
     }
 
+    /// Returns the command to start the mtlog-lsp language server.
+    ///
+    /// This method is called by Zed when a Go file is opened. It locates
+    /// the mtlog-lsp binary and returns the command to execute it.
+    /// The binary path is cached after the first successful lookup.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if mtlog-lsp cannot be found in any of the standard locations.
     fn language_server_command(
         &mut self,
         _id: &LanguageServerId,
@@ -87,18 +117,23 @@ impl Extension for MtlogAnalyzerExtension {
     }
 }
 
+// Register the extension with Zed's extension system.
+// This macro generates the WebAssembly bindings required for the extension to work.
 zed::register_extension!(MtlogAnalyzerExtension);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Verifies that the extension can be created with proper initial state.
     #[test]
     fn test_extension_creation() {
         let ext = MtlogAnalyzerExtension::new();
         assert!(ext.cached_binary_path.is_none());
     }
 
+    /// Tests that the path detection logic doesn't panic.
+    /// Full testing requires WASM context which isn't available in unit tests.
     #[test]
     fn test_path_detection() {
         // Test that path detection logic doesn't panic
