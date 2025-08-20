@@ -29,11 +29,11 @@ func TestConsoleSinkStringQuoting(t *testing.T) {
 
 	t.Logf("Actual output: %s", output)
 
-	// Check what we actually get
-	if strings.Contains(output, "User \"John\" logged in") {
-		t.Log("✓ String is quoted as expected")
-	} else if strings.Contains(output, "User John logged in") {
-		t.Error("✗ String is NOT quoted - still rendering as literal")
+	// Check that strings are NOT quoted (new behavior)
+	if strings.Contains(output, "User John logged in") {
+		t.Log("✓ String is NOT quoted as expected (new behavior)")
+	} else if strings.Contains(output, "User \"John\" logged in") {
+		t.Error("✗ String is still quoted - old behavior still active")
 	} else {
 		t.Errorf("✗ Unexpected output: %s", output)
 	}

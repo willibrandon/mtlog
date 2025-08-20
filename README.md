@@ -120,13 +120,19 @@ log.Information("Processing time: {Duration:F2}ms", 123.456)
 log.Information("Disk usage at {Percentage:P1}", 0.85)  // 85.0%
 log.Information("Order {OrderId:000} total: ${Amount:F2}", 42, 99.95)
 
+// String formatting - default is no quotes (Go-idiomatic)
+log.Information("User {Name} logged in", "Alice")  // User Alice logged in
+log.Information("User {Name:q} logged in", "Alice")  // User "Alice" logged in (explicit quotes)
+log.Information("User {Name:l} logged in", "Alice")  // User Alice logged in (same as default)
+
+// JSON formatting - outputs any value as JSON
+log.Information("Config: {Settings:j}", map[string]any{"debug": true, "port": 8080})
+// Config: {"debug":true,"port":8080}
+
 // Numeric indexing (like string.Format in .NET)
 log.Information("Processing {0} of {1} items", 5, 10)
 log.Information("The {0} {1} {2} jumped over the {3} {4}", 
     "quick", "brown", "fox", "lazy", "dog")
-
-// Literal format to remove quotes from strings
-log.Information("Command: {Cmd:l} {Args:l}", "git", "status")  // git status (no quotes)
 ```
 
 ### Numeric Indexing

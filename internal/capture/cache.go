@@ -132,7 +132,7 @@ func NewCachedCapturer() *CachedCapturer {
 // TryCapture attempts to capture a value using cached type information.
 func (d *CachedCapturer) TryCapture(value any, propertyFactory core.LogEventPropertyFactory) (*core.LogEventProperty, bool) {
 	if value == nil {
-		return propertyFactory.CreateProperty("", nil), true
+		return propertyFactory.CreateProperty("", Null{}), true
 	}
 
 	// Check if the value implements LogValue interface
@@ -152,18 +152,50 @@ func (d *CachedCapturer) captureStructCached(v reflect.Value, depth int) any {
 	t := v.Type()
 	desc := d.typeCache.getOrCreate(t)
 
-	result := make(map[string]any, len(desc.Fields))
+	fields := make([]CapturedField, 0, len(desc.Fields))
 
 	for _, field := range desc.Fields {
 		fieldValue := v.Field(field.Index)
-		result[field.Name] = d.capture(fieldValue.Interface(), depth+1)
+		fields = append(fields, CapturedField{
+			Name:  field.Name,
+			Value: d.capture(fieldValue.Interface(), depth+1),
+		})
 	}
 
-	return result
+	// Return CapturedStruct to preserve type information and field order
+	return &CapturedStruct{
+		TypeName: t.String(),
+		Fields:   fields,
+	}
 }
 
 // captureSliceCached captures a slice checking for LogValue on elements.
 func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) any {
+	// Check if slice is nil
+	if v.Kind() == reflect.Slice && v.IsNil() {
+		return Null{}
+	}
+	
+	// Special handling for byte slices - render as string if valid UTF-8
+	if v.Type().Elem().Kind() == reflect.Uint8 {
+		length := v.Len()
+		bytes := make([]byte, length)
+		for i := 0; i < length; i++ {
+			bytes[i] = byte(v.Index(i).Uint())
+		}
+		
+		// Use shared function to convert bytes to string if printable
+		result := convertBytesToStringIfPrintable(bytes, d.maxStringLength)
+		if str, ok := result.(string); ok {
+			return str
+		}
+		// For binary data, show first few bytes and length
+		if len(bytes) > 20 {
+			return fmt.Sprintf("[%d bytes: %v...]", len(bytes), bytes[:20])
+		}
+		return bytes
+	}
+	
 	length := v.Len()
 	if length == 0 {
 		return []any{}
@@ -197,7 +229,7 @@ func (d *CachedCapturer) captureSliceCached(v reflect.Value, depth int) any {
 // Override the capture method to use caching
 func (d *CachedCapturer) capture(value any, depth int) any {
 	if value == nil {
-		return nil
+		return Null{}  // Return Null{} sentinel type
 	}
 
 	// Check depth limit
@@ -224,13 +256,13 @@ func (d *CachedCapturer) capture(value any, depth int) any {
 
 	case reflect.Ptr:
 		if v.IsNil() {
-			return nil
+			return Null{}  // Return Null{} sentinel type
 		}
 		return d.capture(v.Elem().Interface(), depth)
 
 	case reflect.Interface:
 		if v.IsNil() {
-			return nil
+			return Null{}  // Return Null{} sentinel type
 		}
 		return d.capture(v.Elem().Interface(), depth)
 

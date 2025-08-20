@@ -175,8 +175,11 @@ func TestCapturerPanicScenarios(t *testing.T) {
 		if !ok {
 			t.Error("expected TryCapture to return true for nil pointer")
 		}
-		if prop == nil || prop.Value != nil {
-			t.Errorf("expected nil value for nil pointer, got: %v", prop)
+		// Check for Null{} sentinel type
+		if prop == nil {
+			t.Error("expected non-nil property")
+		} else if _, ok := prop.Value.(capture.Null); !ok {
+			t.Errorf("expected Null{} for nil pointer, got: %T(%v)", prop.Value, prop.Value)
 		}
 
 		// No panic for nil pointer
