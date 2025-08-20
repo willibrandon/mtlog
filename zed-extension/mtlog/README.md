@@ -137,7 +137,7 @@ cd mtlog/zed-extension/mtlog
 cargo build --release
 ```
 
-3. The compiled extension will be at `target/wasm32-wasip1/release/zed_mtlog_analyzer.wasm`
+3. The compiled extension will be at `target/wasm32-wasip2/release/mtlog_analyzer.wasm`
 
 ## License
 
