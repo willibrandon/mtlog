@@ -75,7 +75,7 @@ CLAUDE.local.md
 
 # mtlog-lsp build artifacts
 cmd/mtlog-lsp/mtlog-lsp
-mtlog-lsp
+/mtlog-lsp
 
 # Zed extension
 zed-extension/mtlog/target/
