@@ -55,6 +55,11 @@ local defaults = {
     MTLOG006 = vim.diagnostic.severity.WARN,   -- Duplicate property
     MTLOG007 = vim.diagnostic.severity.HINT,   -- String context key suggestion
     MTLOG008 = vim.diagnostic.severity.INFO,   -- General info
+    MTLOG009 = vim.diagnostic.severity.ERROR,  -- With() odd argument count
+    MTLOG010 = vim.diagnostic.severity.WARN,   -- With() non-string key
+    MTLOG011 = vim.diagnostic.severity.INFO,   -- With() cross-call duplicate detection
+    MTLOG012 = vim.diagnostic.severity.WARN,   -- With() reserved property name
+    MTLOG013 = vim.diagnostic.severity.ERROR,  -- With() empty key
   },
   
   -- Rate limiting configuration

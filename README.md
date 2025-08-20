@@ -324,6 +324,21 @@ logger.
 - Both methods create a new logger instance with the combined properties
 - Both are safe for concurrent use
 
+### Property Precedence
+
+When combining With() and ForContext(), properties follow a precedence order:
+- Properties passed directly to log methods take highest precedence
+- ForContext() properties override With() properties
+- Later With() calls override earlier With() calls in a chain
+
+Example:
+```go
+logger.With("user", "alice").              // user=alice
+    ForContext("user", "bob").             // user=bob (ForContext overrides)
+    With("user", "charlie").               // user=charlie (later With overrides)
+    Info("User {user} logged in", "david") // user=david (event property overrides all)
+```
+
 ## LogContext - Scoped Properties
 
 LogContext provides a way to attach properties to a context that will be automatically included in all log events created from loggers using that context. Properties follow a precedence order: event-specific properties (passed directly to log methods) override ForContext properties, which override LogContext properties (set via PushProperty).
@@ -931,9 +946,12 @@ go vet -vettool=$(which mtlog-analyzer) ./...
 The analyzer detects:
 - Template/argument count mismatches
 - Invalid property names (spaces, starting with numbers)
-- Duplicate properties in templates
+- Duplicate properties in templates and With() calls
 - Missing capturing hints for complex types
 - Error logging without error values
+- With() method issues (odd arguments, non-string keys, empty keys)
+- Cross-call duplicate detection for property overrides
+- Reserved property name shadowing (opt-in)
 
 Example catches:
 ```go
@@ -943,11 +961,22 @@ log.Information("User {UserId} logged in from {IP}", userId)
 // ❌ Duplicate property 'UserId'
 log.Information("User {UserId} did {Action} as {UserId}", id, "login", id)
 
-// ❌ Using @ prefix for basic type
-log.Information("Count is {@Count}", 42)
+// ❌ With() requires even number of arguments (MTLOG009)
+log.With("key1", "value1", "key2")  // Missing value
+
+// ❌ With() key must be a string (MTLOG010)
+log.With(123, "value")
+
+// ❌ Duplicate keys in With() (MTLOG003)
+log.With("id", 1, "name", "test", "id", 2)
+
+// ⚠️ Cross-call property override (MTLOG011)
+logger := log.With("service", "api")
+logger.With("service", "auth")  // Overrides previous 'service'
 
 // ✅ Correct usage
 log.Information("User {@User} has {Count} items", user, count)
+log.With("userId", 123, "requestId", "abc").Info("Request processed")
 ```
 
 See [mtlog-analyzer README](./cmd/mtlog-analyzer/README.md) for detailed documentation and CI integration.

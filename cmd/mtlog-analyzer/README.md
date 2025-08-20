@@ -12,6 +12,7 @@ A production-ready static analysis tool for mtlog that catches common mistakes a
 - **Capturing hints** - Suggests using `@` prefix for complex types
 - **Error logging patterns** - Warns when using Error level without an actual error
 - **Context key suggestions** - Suggests constants for commonly used context keys
+- **With() method validation** - Validates key-value pairs in structured field logging
 
 ### Advanced Features
 - **Receiver type checking** - Reduces false positives by verifying logger types
@@ -99,6 +100,32 @@ log.Information("User details: {User}", user)
 
 // ✅ Correct usage
 log.Information("User {@User} has {Count} items", user, count)
+
+// With() method checks
+// ❌ Odd number of arguments
+log.With("key1", "value1", "key2")  // MTLOG009: requires even number of arguments
+
+// ❌ Non-string keys
+log.With(123, "value")  // MTLOG010: key must be a string
+
+// ❌ Duplicate keys
+log.With("id", 1, "name", "test", "id", 2)  // MTLOG003: duplicate key 'id'
+
+// ❌ Cross-call duplicates (overriding properties)
+logger := log.With("service", "api")
+logger.With("service", "auth")  // MTLOG011: overrides property 'service'
+
+// Method chaining
+log.With("id", 1).With("id", 2)  // MTLOG011: overrides in chain
+
+// ❌ Empty keys
+log.With("", "value")  // MTLOG013: empty key will be ignored
+
+// ⚠️ Reserved properties (when -check-reserved is enabled)
+log.With("Message", "custom")  // MTLOG012: shadows built-in property
+
+// ✅ Correct With() usage
+log.With("userId", 123, "requestId", "abc-123")
 ```
 
 ## Severity Levels
@@ -106,19 +133,24 @@ log.Information("User {@User} has {Count} items", user, count)
 The analyzer reports issues at three severity levels:
 
 1. **Error** - Critical issues that will cause runtime problems
-   - Template/argument count mismatches
-   - Invalid property names (spaces, starting with numbers)
-   - Duplicate properties
+   - Template/argument count mismatches (MTLOG001)
+   - Invalid property names (spaces, starting with numbers) (MTLOG004)
+   - With() odd argument count (MTLOG009)
+   - With() non-string keys (MTLOG010)
+   - With() empty keys (MTLOG013)
 
 2. **Warning** - Issues that may indicate mistakes
-   - Using `@` prefix with basic types
-   - Dynamic template strings
+   - Duplicate properties (MTLOG003)
+   - Using `@` prefix with basic types (MTLOG005)
+   - Dynamic template strings (MTLOG008)
+   - Cross-call property overrides in With()/ForContext() (MTLOG011)
 
 3. **Suggestion** - Best practice recommendations
-   - PascalCase property naming
-   - Missing `@` prefix for complex types
-   - Error logging without error values
-   - Common context keys without constants
+   - PascalCase property naming (MTLOG004)
+   - Missing `@` prefix for complex types (MTLOG005)
+   - Error logging without error values (MTLOG006)
+   - Common context keys without constants (MTLOG007)
+   - Reserved property names in With() (MTLOG012, requires -check-reserved flag)
 
 ## Importable Package
 
@@ -136,6 +168,21 @@ The analyzer includes several performance optimizations:
 - Template caching to avoid redundant parsing
 - Receiver type checking to skip non-mtlog calls early
 - Efficient property extraction with minimal allocations
+
+### Performance Considerations
+
+For very large codebases, the cross-call duplicate detection (MTLOG011) performs data flow analysis that tracks logger variable assignments across the entire package. While optimized, this can add processing time for packages with thousands of logger instances.
+
+If you experience performance issues:
+```bash
+# Disable only cross-call duplicate detection
+mtlog-analyzer -disable=with-cross-call ./...
+
+# Or suppress the specific diagnostic
+mtlog-analyzer -suppress=MTLOG011 ./...
+```
+
+This only affects the cross-call duplicate detection. Single-call duplicate detection (MTLOG003) and other With() diagnostics remain active.
 
 ## Configuration
 
@@ -168,14 +215,21 @@ Available flags:
 - `-ignore-dynamic-templates` - Suppress warnings for non-literal template strings
 - `-strict-logger-types` - Only analyze exact mtlog logger types (disable lenient checking)
 - `-downgrade-errors` - Downgrade all errors to warnings (useful for CI environments during migration)
+- `-check-reserved` - Enable checking for reserved property names in With() calls
+- `-reserved-props` - Comma-separated list of reserved property names (overrides defaults)
+- `-suppress` - Comma-separated list of diagnostic IDs to suppress (e.g., MTLOG001,MTLOG004)
 
 Available check names for `-disable`:
 - `template` - Template/argument mismatch detection
-- `duplicate` - Duplicate property detection
+- `duplicate` - Duplicate property detection (includes With() duplicates)
 - `naming` - Property naming checks (including PascalCase suggestions)
 - `capturing` - Capturing hint suggestions
 - `error` - Error logging pattern checks
 - `context` - Context key suggestions
+- `with-odd` - With() odd argument count check
+- `with-nonstring` - With() non-string key check
+- `with-empty` - With() empty key check
+- `with-cross-call` - With()/ForContext() cross-call duplicate detection
 
 ### Ignoring Specific Warnings
 
@@ -185,6 +239,58 @@ You can ignore specific warnings using standard Go vet comments:
 //lint:ignore mtlog reason
 log.Information("User {userId} logged in", id) // lowercase property name
 ```
+
+### Diagnostic Suppression
+
+The analyzer supports multiple methods for suppressing specific diagnostics:
+
+#### 1. Command-line Flag
+Use the `-suppress` flag with comma-separated diagnostic IDs:
+
+```bash
+# Suppress specific diagnostics
+mtlog-analyzer -suppress=MTLOG001,MTLOG009 ./...
+
+# Suppress With() odd arguments and non-string key diagnostics
+mtlog-analyzer -suppress=MTLOG009,MTLOG010 ./...
+```
+
+#### 2. Environment Variable
+Set the `MTLOG_SUPPRESS` environment variable:
+
+```bash
+# Suppress specific diagnostics via environment variable
+export MTLOG_SUPPRESS=MTLOG001,MTLOG009
+mtlog-analyzer ./...
+
+# Windows (PowerShell)
+$env:MTLOG_SUPPRESS="MTLOG001,MTLOG009"
+mtlog-analyzer ./...
+```
+
+#### 3. IDE Integration
+All IDE integrations support suppression:
+- **VS Code**: Configure in settings or use quick fix to suppress
+- **GoLand**: Use Alt+Enter → Suppress for statement/function/file
+- **Neovim**: Use `:MtlogSuppress [id]` command or code actions menu
+
+#### Suppressible Diagnostics
+
+| ID | Description | Example |
+|----|-------------|---------|
+| MTLOG001 | Template/argument mismatch | `log.Info("User {Id}", 1, 2)` |
+| MTLOG002 | Invalid format specifier | `log.Info("{Value:Z}", 1)` |
+| MTLOG003 | Duplicate property | `log.Info("{Id} {Id}", 1, 2)` |
+| MTLOG004 | Property naming suggestion | `log.Info("{userId}", 1)` |
+| MTLOG005 | Capturing hint | `log.Info("{User}", user)` |
+| MTLOG006 | Error logging pattern | `log.Error("Failed")` |
+| MTLOG007 | Context key suggestion | `log.ForContext("tenant", id)` |
+| MTLOG008 | Dynamic template warning | `log.Info(fmt.Sprintf(...))` |
+| MTLOG009 | With() odd arguments | `log.With("key1", "v1", "key2")` |
+| MTLOG010 | With() non-string key | `log.With(123, "value")` |
+| MTLOG011 | With() cross-call duplicate | Multiple With() calls with same key |
+| MTLOG012 | With() reserved property | `log.With("Message", "custom")` |
+| MTLOG013 | With() empty key | `log.With("", "value")` |
 
 ## IDE Integration
 
@@ -310,6 +416,34 @@ The analyzer requires Go 1.23 or later due to its dependency on newer analysis f
 - Aliased types (e.g., `type MyLogger = mtlog.Logger`) may not be fully supported
 - Context keys with multiple separators (e.g., `user_id.test-value`) are concatenated into a single PascalCase constant name (e.g., `ctxUserIdTestValue`)
 - Templates with thousands of properties are supported but may impact performance (tested up to 10,000 properties in <1 second)
+
+## Detailed Check Documentation
+
+### MTLOG012 - Reserved Property Names
+
+The analyzer can check for property names that might shadow mtlog's built-in properties. This check is **disabled by default** to avoid surprising users with new warnings.
+
+Default reserved properties:
+- `Timestamp` - The log event timestamp
+- `Level` - The log level (INFO, WARN, etc.)
+- `Message` - The rendered message
+- `MessageTemplate` - The original message template
+- `Exception` - Exception details if present
+- `SourceContext` - Logger context/category
+
+To enable and customize:
+```bash
+# Enable with default reserved list
+mtlog-analyzer -check-reserved ./...
+
+# Use custom reserved properties
+mtlog-analyzer -check-reserved -reserved-props=Timestamp,Level,Message,RequestId ./...
+
+# Add to your project's reserved list
+mtlog-analyzer -check-reserved -reserved-props=Timestamp,Level,Message,MyCompanyProperty ./...
+```
+
+Note: mtlog uses `${...}` syntax for built-ins in output templates, so these don't cause actual conflicts, but the check helps maintain clarity in your logs.
 
 ## Troubleshooting
 

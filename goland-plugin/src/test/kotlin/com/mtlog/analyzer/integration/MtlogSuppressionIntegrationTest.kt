@@ -8,6 +8,8 @@ import org.junit.Test
 
 class MtlogSuppressionIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     /**
      * Test diagnostic ID extraction from various message formats.
      */

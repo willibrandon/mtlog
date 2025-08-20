@@ -29,6 +29,8 @@ func init() {
 	Analyzer.Flags.Bool("downgrade-errors", false, "downgrade errors to warnings (useful for CI environments during migration)")
 	Analyzer.Flags.Bool("disable-all", false, "disable all mtlog diagnostics (global kill switch)")
 	Analyzer.Flags.String("suppress", "", "comma-separated list of diagnostic IDs to suppress (e.g., MTLOG001,MTLOG004)")
+	Analyzer.Flags.String("reserved-props", "", "comma-separated list of reserved property names for With() method (overrides defaults)")
+	Analyzer.Flags.Bool("check-reserved", false, "enable checking for reserved property names in With() calls")
 }
 
 // Analyzer is the mtlog-analyzer that checks for common logging mistakes.
@@ -98,31 +100,77 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 	}
 
+	// Parse reserved properties configuration
+	if reservedProps, found := getStringFlag(pass, "reserved-props"); found && reservedProps != "" {
+		config.ReservedProperties = strings.Split(reservedProps, ",")
+		for i := range config.ReservedProperties {
+			config.ReservedProperties[i] = strings.TrimSpace(config.ReservedProperties[i])
+		}
+	}
+
+	if checkReserved, found := getBoolFlag(pass, "check-reserved"); found {
+		config.CheckReservedProperties = checkReserved
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	cache := &templateCache{cache: make(map[string]templateInfo)}
+	
+	// Create cross-call analyzer for tracking logger variables
+	crossCallAnalyzer := NewCrossCallAnalyzer(pass, config)
 
+	// First pass: track variable assignments
 	nodeFilter := []ast.Node{
+		(*ast.AssignStmt)(nil),
 		(*ast.CallExpr)(nil),
 	}
 
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			// Track logger variable assignments for cross-call analysis
+			crossCallAnalyzer.AnalyzeAssignment(node)
+			
+		case *ast.CallExpr:
+			// Check if this is an mtlog-related call (logging or context methods)
+			sel, ok := node.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
 
-		// Check if this is an mtlog-related call (logging or context methods)
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return
+			// Quick check: is this potentially an mtlog logger call?
+			if !isPotentialMtlogCall(pass, sel, config) {
+				return
+			}
+
+			// Check for cross-call duplicates (collects them for later reporting)
+			crossCallAnalyzer.CheckMethodCall(node)
+
+			// Process all method calls on what could be a logger
+			// Individual checks will decide if they apply
+			runWithAllChecks(pass, node, cache, config)
 		}
-
-		// Quick check: is this potentially an mtlog logger call?
-		if !isPotentialMtlogCall(pass, sel, config) {
-			return
-		}
-
-		// Process all method calls on what could be a logger
-		// Individual checks will decide if they apply
-		runWithAllChecks(pass, call, cache, config)
 	})
+
+	// Report all collected cross-call duplicates
+	// IMPORTANT: We collect duplicates during the AST walk and report them here at the end
+	// rather than reporting them immediately when found. This is necessary because the
+	// analysistest framework has issues matching diagnostics that are reported from
+	// different analyzer contexts. When diagnostics are reported directly from the
+	// CrossCallAnalyzer during the AST walk, the test framework cannot properly match
+	// them with want comments, causing tests to fail with "unexpected diagnostic" errors.
+	// By collecting them first and reporting them all here from the main analyzer context,
+	// we ensure the test framework can properly match diagnostics with their want comments.
+	for _, dup := range crossCallAnalyzer.GetDuplicates() {
+		var message string
+		if dup.MethodName == "With" {
+			message = "With() overrides property '%s' set in previous call"
+		} else {
+			message = "ForContext() overrides property '%s' set in previous call"
+		}
+		
+		reportDiagnosticWithID(pass, dup.Pos, SeverityWarning, config, DiagIDWithCrossCall,
+			message, dup.Key)
+	}
 
 	return nil, nil
 }

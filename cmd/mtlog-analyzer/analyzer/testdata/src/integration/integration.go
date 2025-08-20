@@ -21,6 +21,7 @@ func (l *Logger) E(template string, args ...interface{})           {}
 func (l *Logger) Fatal(template string, args ...interface{})       {}
 func (l *Logger) F(template string, args ...interface{})           {}
 func (l *Logger) ForContext(key string, value interface{}) *Logger { return l }
+func (l *Logger) With(args ...interface{}) *Logger                 { return l }
 
 func testTemplateArgMismatch() {
 	log := &Logger{}
@@ -134,6 +135,21 @@ func testShortMethods() {
 	log.W("Warning {}", "test")                  // want "template has 0 properties but 1 arguments provided"
 	log.E("Error occurred")                      // want "suggestion: Error level log without error value, consider including the error or using Warning level"
 	log.F("Fatal {UserId}", userId) // Valid
+}
+
+func testWithMethod() {
+	log := &Logger{}
+	userId := 123
+	
+	// Valid With() calls
+	log.With("userId", 123)
+	log.With("name", "Alice", "age", 30)
+	
+	// Invalid With() calls
+	log.With("key1") // want `\[MTLOG009\] With\(\) requires an even number of arguments`
+	log.With(userId, "value") // want `\[MTLOG010\] With\(\) key must be a string`
+	log.With("id", 1, "id", 2) // want `\[MTLOG003\] warning: duplicate key 'id' in With\(\) call`
+	log.With("", "value") // want `\[MTLOG013\] With\(\) key is empty and will be ignored`
 }
 
 func testEverything() {

@@ -34,6 +34,12 @@ type Config struct {
 	
 	// SuppressedDiagnostics allows specific diagnostics to be suppressed by ID
 	SuppressedDiagnostics map[string]bool
+	
+	// ReservedProperties defines property names that are considered reserved (for With() method)
+	ReservedProperties []string
+	
+	// CheckReservedProperties enables checking for reserved property names (off by default)
+	CheckReservedProperties bool
 }
 
 // DefaultConfig returns the default configuration

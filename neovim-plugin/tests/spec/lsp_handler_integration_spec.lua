@@ -14,7 +14,9 @@ describe('mtlog LSP handler integration', function()
     package.loaded['mtlog'] = nil
     
     -- Stop any existing mtlog clients
-    for _, client in ipairs(vim.lsp.get_active_clients()) do
+    local get_clients = vim.lsp.get_active_clients or vim.lsp.get_clients
+    local clients = get_clients and get_clients() or {}
+    for _, client in ipairs(clients) do
       if client.name == 'mtlog-analyzer' then
         vim.lsp.stop_client(client.id)
       end
@@ -48,7 +50,8 @@ describe('mtlog LSP handler integration', function()
     lsp_integration.setup()
     
     -- Check that a client was created
-    local clients = vim.lsp.get_active_clients()
+    local get_clients = vim.lsp.get_active_clients or vim.lsp.get_clients
+    local clients = get_clients and get_clients() or {}
     local found_mtlog = false
     for _, client in ipairs(clients) do
       if client.name == 'mtlog-analyzer' then

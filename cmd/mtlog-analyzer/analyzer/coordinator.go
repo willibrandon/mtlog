@@ -15,6 +15,13 @@ func runWithAllChecks(pass *analysis.Pass, call *ast.CallExpr, cache *templateCa
 		checkContextUsage(pass, call, config)
 	}
 	
+	// Check With() method arguments
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if ok && sel.Sel.Name == "With" {
+		checkWithArguments(pass, call, config)
+		return // With() doesn't have templates, so skip template checks
+	}
+	
 	// Check if this is a logging method
 	if !isLogCall(call) {
 		return

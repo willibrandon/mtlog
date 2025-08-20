@@ -498,16 +498,9 @@ function M.show_suppressions()
 end
 
 -- Re-analyze all open buffers
+-- Delegate to analyzer module to avoid circular dependencies
 function M.reanalyze_all()
-  cache.clear()  -- Clear cache to force re-analysis
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) then
-      local name = vim.api.nvim_buf_get_name(bufnr)
-      if name:match('%.go$') and not utils.is_vendor_path(name) then
-        M.analyze_buffer(bufnr)
-      end
-    end
-  end
+  analyzer.reanalyze_all()
 end
 
 -- Export public API

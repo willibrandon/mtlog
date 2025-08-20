@@ -8,6 +8,8 @@ import java.io.File
 
 class MtlogExternalAnnotatorIntegrationTest : MtlogIntegrationTestBase() {
     
+    override fun shouldSetupRealTestProject(): Boolean = true
+    
     fun testRealAnalyzerDetectsTemplateArgumentMismatch() {
         createGoFile("main.go", """
             package main
@@ -262,5 +264,92 @@ class MtlogExternalAnnotatorIntegrationTest : MtlogIntegrationTestBase() {
                 assertEquals("Should extract property name", "user_id", diagnostic.propertyName)
             }
         }
+    }
+    
+    fun testWithMethodDiagnostics() {
+        createGoFile("main.go", """
+            package main
+            
+            import "github.com/willibrandon/mtlog"
+            
+            func main() {
+                log := mtlog.New()
+                
+                // Test With() method issues
+                log.With("key1", "value1", "key2")  // Odd number of arguments
+                log.With(123, "value")  // Non-string key
+                log.With("", "value")  // Empty key
+                log.With("id", 1, "name", "test", "id", 2)  // Duplicate key
+                
+                // Cross-call duplicate
+                logger := log.With("service", "api")
+                logger.With("service", "auth")  // Overrides previous value
+            }
+        """.trimIndent())
+        
+        val diagnostics = runRealAnalyzerWithQuickFixes()
+        val withProblems = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
+            .filter { it.message.contains("With()") || it.message.contains("MTLOG0") }
+        
+        // Should detect various With() issues
+        assertTrue("Should detect With() method issues", withProblems.isNotEmpty())
+        
+        // Check for specific diagnostic types
+        val hasOddArgs = withProblems.any { it.message.contains("even number") || it.message.contains("MTLOG009") }
+        val hasNonStringKey = withProblems.any { it.message.contains("must be a string") || it.message.contains("MTLOG010") }
+        val hasEmptyKey = withProblems.any { it.message.contains("empty") && it.message.contains("key") || it.message.contains("MTLOG013") }
+        val hasDuplicate = withProblems.any { it.message.contains("duplicate") || it.message.contains("MTLOG003") }
+        val hasCrossCallDup = withProblems.any { it.message.contains("overrides") || it.message.contains("MTLOG011") }
+        
+        assertTrue("Should detect odd number of arguments", hasOddArgs)
+        assertTrue("Should detect non-string key", hasNonStringKey)
+        assertTrue("Should detect empty key", hasEmptyKey)
+        assertTrue("Should detect duplicate key", hasDuplicate)
+        assertTrue("Should detect cross-call duplicate", hasCrossCallDup)
+    }
+    
+    fun testWithMethodQuickFixes() {
+        createGoFile("main.go", """
+            package main
+            
+            import "github.com/willibrandon/mtlog"
+            
+            func main() {
+                log := mtlog.New()
+                
+                // Issue that should have quick fixes
+                log.With("key1", "value1", "key2")  // Should have fixes to add value or remove key
+                log.With(123, "value")  // Should have fix to convert to string
+            }
+        """.trimIndent())
+        
+        val diagnostics = runRealAnalyzerWithQuickFixes()
+        
+        // Check odd args has fixes
+        val oddArgsError = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
+            .find { it.message.contains("even number") || it.message.contains("MTLOG009") }
+        assertNotNull("Should detect odd args", oddArgsError)
+        assertTrue("Odd args should have suggested fixes", oddArgsError!!.suggestedFixes.isNotEmpty())
+        
+        // Verify fix messages
+        val hasAddValueFix = oddArgsError.suggestedFixes.any { 
+            it.message.contains("Add empty string") || it.message.contains("add value")
+        }
+        val hasRemoveKeyFix = oddArgsError.suggestedFixes.any {
+            it.message.contains("Remove") && it.message.contains("dangling")
+        }
+        assertTrue("Should have 'add value' fix", hasAddValueFix)
+        assertTrue("Should have 'remove key' fix", hasRemoveKeyFix)
+        
+        // Check non-string key has fixes
+        val nonStringError = diagnostics.filterIsInstance<AnalyzerDiagnostic>()
+            .find { it.message.contains("must be a string") || it.message.contains("MTLOG010") }
+        assertNotNull("Should detect non-string key", nonStringError)
+        assertTrue("Non-string key should have suggested fixes", nonStringError!!.suggestedFixes.isNotEmpty())
+        
+        val hasConvertFix = nonStringError.suggestedFixes.any {
+            it.message.contains("Convert") && it.message.contains("123")
+        }
+        assertTrue("Should have conversion fix", hasConvertFix)
     }
 }
