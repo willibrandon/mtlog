@@ -4,6 +4,8 @@ All notable changes to the "mtlog-analyzer" extension will be documented in this
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-08-19
+
 ### Added
 - Support for With() method diagnostics (MTLOG009-MTLOG013)
   - MTLOG009: Detects odd argument count in With() calls

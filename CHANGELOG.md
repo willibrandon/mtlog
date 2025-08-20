@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-08-19
+
+### Added
+- **Core Library**
+  - `With()` method for creating child loggers with additional properties (#55)
+    - Immutable child logger creation with inherited properties
+    - Thread-safe property inheritance with zero impact on parent logger
+    - Performance optimized: only allocates when child is actually used
+    - OTEL adapter support with proper property forwarding
+    - Comprehensive test coverage including performance benchmarks
+  
+  - **OpenTelemetry (OTEL) Adapter** - Full integration with OpenTelemetry ecosystem
+    - OTLP exporter with gRPC and HTTP transports
+    - Adaptive sampling based on trace decisions
+    - Automatic trace/span context correlation
+    - Resource detection (process, OS, runtime)
+    - Configurable batching and retry logic
+    - TLS support with automatic detection
+    - Comprehensive integration tests with real OTEL collector
+  
+  - **Modern Serilog Alignment** - Enhanced formatting capabilities (#37)
+    - New `:j` format specifier for JSON output: `{Data:j}` renders any value as JSON
+    - New `:q` format specifier to explicitly quote strings: `{Name:q}` → `"Alice"`
+    - New `:l` format specifier for literal string output (no escaping)
+    - Numeric property indexing: `{0}`, `{1}` for positional arguments (like .NET string.Format)
+    - Structs render in Go style: `{Field1:value1 Field2:value2}`
+    - Improved nil handling with `Null{}` sentinel type
+    - Smart byte slice handling (UTF-8 string vs byte array)
+  
+  - **Template Cache Security Fix** - LRU cache with bounded size (#39)
+    - Prevents memory exhaustion from unbounded template generation
+    - Configurable cache size (default: 10,000 entries)
+    - Sharded design for concurrent access (up to 64 shards)
+    - O(1) operations with proper LRU eviction
+    - Optional TTL support for time-based expiration
+
+- **mtlog-analyzer Static Analysis Tool**
+  - **With() Method Diagnostics** (MTLOG009-MTLOG013)
+    - MTLOG009: Empty With() calls
+    - MTLOG010: Duplicate properties in With()
+    - MTLOG011: With() called on nil logger
+    - MTLOG012: Invalid property count (odd number of arguments)
+    - MTLOG013: Non-string property names
+    - Suppression support via comments for all With() diagnostics
+  
+- **IDE Extensions**
+  - **VS Code Extension** - Support for With() method diagnostics
+    - Real-time validation of With() method usage
+    - Quick fixes for common With() issues
+    - Updated to handle all new MTLOG009-MTLOG013 diagnostics
+  
+  - **GoLand Plugin** - Support for With() method diagnostics
+    - Full integration of With() method analysis
+    - Quick fixes and intention actions for With() issues
+    - Comprehensive test coverage for new diagnostics
+  
+  - **Neovim Plugin** - Enhanced reliability and With() diagnostics
+    - Support for MTLOG009-MTLOG013 diagnostics
+    - Improved test file creation in Go module context
+    - Better fix descriptions in MtlogQuickFix menu
+    - Comprehensive real-world testing framework
+
+### Documentation
+- Added comprehensive With() method examples and documentation
+- Created OpenTelemetry adapter documentation with integration examples
+- Updated README with new format specifiers and numeric indexing examples
+- Added static analysis section covering With() diagnostics
+
 ## [0.8.1] - 2025-08-10
 
 ### Fixed

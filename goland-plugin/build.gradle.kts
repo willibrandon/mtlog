@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.8.1"
+version = "0.9.0"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,18 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.9.0</h2>
+            <ul>
+                <li>Added support for With() method diagnostics (MTLOG009-MTLOG013)</li>
+                <li>MTLOG009: Detects odd argument count in With() calls</li>
+                <li>MTLOG010: Warns about non-string keys in With()</li>
+                <li>MTLOG011: Identifies duplicate keys across multiple With() calls</li>
+                <li>MTLOG012: Warns about reserved property names</li>
+                <li>MTLOG013: Detects empty string keys</li>
+                <li>Full integration with analyzer's With() method analysis</li>
+                <li>Quick fixes and intention actions for With() issues</li>
+                <li>Comprehensive test coverage for new diagnostics</li>
+            </ul>
             <h2>0.8.1</h2>
             <ul>
                 <li>Version bump for v0.8.1 patch release</li>

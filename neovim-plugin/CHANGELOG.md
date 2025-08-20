@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-08-19
+
 ### Added
 - **With() Method Diagnostics** - Support for new mtlog-analyzer With() method checks
   - MTLOG009: Detects odd argument count in With() calls (requires key-value pairs)
@@ -14,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - MTLOG011: Informational cross-call duplicate property detection
   - MTLOG012: Warns about reserved property names (Timestamp, Level, etc.)
   - MTLOG013: Detects empty string keys in With() calls
+
+- **Comprehensive Real-World Testing** - Improved reliability and test coverage
+  - Test file creation now works within Go module context
+  - Added real-world testing framework
+  - Direct disk write for analyzer integration tests
   
 ### Enhanced
 - **Quick Fix Parser** - Updated to handle new position format
@@ -26,7 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Examples and fix suggestions for each new diagnostic
   - Updated quick reference card
 
+- **Quick Fix Descriptions** - Improved fix menu display
+  - Shows proper fix descriptions in MtlogQuickFix menu
+  - Better user experience with clear action descriptions
+
 ### Fixed
+- **macOS Compatibility** - Resolved macOS-specific issues
+  - Now uses only vim.health API to avoid legacy errors
+
 - **Position Parsing** - Improved handling of different position formats
   - Correctly parses 1-indexed columns from analyzer
   - Handles both insertion and replacement operations
