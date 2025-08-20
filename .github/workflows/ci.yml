@@ -37,6 +37,11 @@ jobs:
         cd cmd/mtlog-analyzer
         go test -v ./...
 
+    - name: Test mtlog-lsp
+      run: |
+        cd cmd/mtlog-lsp
+        go test -v ./...
+
     - name: Test benchmarks module
       run: |
         cd benchmarks
@@ -263,6 +268,52 @@ jobs:
       with:
         name: mtlog-analyzer-goland-plugin
         path: goland-plugin/build/distributions/*.zip
+
+  zed-extension:
+    name: Zed Extension
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.85.0
+        targets: wasm32-wasip2
+    
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: false
+    
+    - name: Build and Install mtlog-lsp
+      run: |
+        cd cmd/mtlog-lsp
+        go build -o $HOME/go/bin/mtlog-lsp .
+        echo "$HOME/go/bin" >> $GITHUB_PATH
+        cd ../..
+    
+    - name: Build Zed Extension
+      working-directory: zed-extension/mtlog
+      run: |
+        cargo build --release --target wasm32-wasip2
+        # Verify WASM was created
+        test -f target/wasm32-wasip2/release/mtlog_analyzer.wasm
+    
+    - name: Run Rust Tests
+      working-directory: zed-extension/mtlog
+      run: cargo test
+    
+    - name: Upload WASM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: zed-extension-wasm-${{ matrix.os }}
+        path: zed-extension/mtlog/target/wasm32-wasip2/release/mtlog_analyzer.wasm
+      if: matrix.os == 'ubuntu-latest'
 
   neovim-plugin:
     name: Neovim Plugin
