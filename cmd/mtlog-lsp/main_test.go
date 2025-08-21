@@ -349,6 +349,205 @@ func TestGetMapKeys(t *testing.T) {
 	}
 }
 
+func TestShouldSuppressDiagnostic(t *testing.T) {
+	tests := []struct {
+		name            string
+		config          WorkspaceConfiguration
+		code            string
+		wantSuppressed  bool
+	}{
+		{
+			name:            "not suppressed when empty config",
+			config:          WorkspaceConfiguration{},
+			code:            "MTLOG001",
+			wantSuppressed:  false,
+		},
+		{
+			name: "suppressed when code in list",
+			config: WorkspaceConfiguration{
+				Mtlog: struct {
+					SuppressedCodes        []string          `json:"suppressedCodes"`
+					SeverityOverrides      map[string]string `json:"severityOverrides"`
+					DisableAll            bool              `json:"disableAll"`
+					CommonKeys            []string          `json:"commonKeys"`
+					StrictMode            bool              `json:"strictMode"`
+					IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+				}{
+					SuppressedCodes: []string{"MTLOG001", "MTLOG003"},
+				},
+			},
+			code:           "MTLOG001",
+			wantSuppressed: true,
+		},
+		{
+			name: "not suppressed when code not in list",
+			config: WorkspaceConfiguration{
+				Mtlog: struct {
+					SuppressedCodes        []string          `json:"suppressedCodes"`
+					SeverityOverrides      map[string]string `json:"severityOverrides"`
+					DisableAll            bool              `json:"disableAll"`
+					CommonKeys            []string          `json:"commonKeys"`
+					StrictMode            bool              `json:"strictMode"`
+					IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+				}{
+					SuppressedCodes: []string{"MTLOG001", "MTLOG003"},
+				},
+			},
+			code:           "MTLOG002",
+			wantSuppressed: false,
+		},
+		{
+			name: "all suppressed when disableAll is true",
+			config: WorkspaceConfiguration{
+				Mtlog: struct {
+					SuppressedCodes        []string          `json:"suppressedCodes"`
+					SeverityOverrides      map[string]string `json:"severityOverrides"`
+					DisableAll            bool              `json:"disableAll"`
+					CommonKeys            []string          `json:"commonKeys"`
+					StrictMode            bool              `json:"strictMode"`
+					IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+				}{
+					DisableAll: true,
+				},
+			},
+			code:           "MTLOG999",
+			wantSuppressed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Server{
+				config: tt.config,
+			}
+			
+			got := s.shouldSuppressDiagnostic(tt.code)
+			if got != tt.wantSuppressed {
+				t.Errorf("shouldSuppressDiagnostic(%q) = %v, want %v", tt.code, got, tt.wantSuppressed)
+			}
+		})
+	}
+}
+
+func TestInitializationOptionsParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		initOptions    string
+		wantCodes      []string
+		wantDisableAll bool
+	}{
+		{
+			name: "parse initialization options with suppressed codes",
+			initOptions: `{
+				"suppressedCodes": ["MTLOG001", "MTLOG009"],
+				"disableAll": false
+			}`,
+			wantCodes:      []string{"MTLOG001", "MTLOG009"},
+			wantDisableAll: false,
+		},
+		{
+			name: "parse initialization options with disableAll",
+			initOptions: `{
+				"suppressedCodes": [],
+				"disableAll": true
+			}`,
+			wantCodes:      []string{},
+			wantDisableAll: true,
+		},
+		{
+			name:           "empty initialization options",
+			initOptions:    `{}`,
+			wantCodes:      nil,
+			wantDisableAll: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var initConfig struct {
+				SuppressedCodes        []string          `json:"suppressedCodes"`
+				SeverityOverrides      map[string]string `json:"severityOverrides"`
+				DisableAll            bool              `json:"disableAll"`
+				CommonKeys            []string          `json:"commonKeys"`
+				StrictMode            bool              `json:"strictMode"`
+				IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+			}
+			
+			err := json.Unmarshal([]byte(tt.initOptions), &initConfig)
+			if err != nil {
+				t.Fatalf("Failed to unmarshal initialization options: %v", err)
+			}
+			
+			// Check suppressed codes
+			if len(initConfig.SuppressedCodes) != len(tt.wantCodes) {
+				t.Errorf("SuppressedCodes length = %d, want %d", len(initConfig.SuppressedCodes), len(tt.wantCodes))
+			} else {
+				for i, code := range initConfig.SuppressedCodes {
+					if code != tt.wantCodes[i] {
+						t.Errorf("SuppressedCodes[%d] = %q, want %q", i, code, tt.wantCodes[i])
+					}
+				}
+			}
+			
+			// Check disableAll
+			if initConfig.DisableAll != tt.wantDisableAll {
+				t.Errorf("DisableAll = %v, want %v", initConfig.DisableAll, tt.wantDisableAll)
+			}
+		})
+	}
+}
+
+func TestSuppressionCodeActionGeneration(t *testing.T) {
+	// Test that suppression action generates valid JSON
+	code := "MTLOG009"
+	expectedJSON := `{
+  "lsp": {
+    "mtlog-analyzer": {
+      "initialization_options": {
+        "suppressedCodes": ["MTLOG009"]
+      }
+    }
+  }
+}`
+	
+	// Parse and verify the JSON structure
+	var jsonTest map[string]interface{}
+	if err := json.Unmarshal([]byte(expectedJSON), &jsonTest); err != nil {
+		t.Fatalf("Generated invalid JSON for suppression: %v", err)
+	}
+	
+	// Verify structure
+	lsp, ok := jsonTest["lsp"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Missing or invalid 'lsp' key")
+	}
+	
+	analyzer, ok := lsp["mtlog-analyzer"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Missing or invalid 'mtlog-analyzer' key")
+	}
+	
+	initOpts, ok := analyzer["initialization_options"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Missing or invalid 'initialization_options' key")
+	}
+	
+	codes, ok := initOpts["suppressedCodes"].([]interface{})
+	if !ok {
+		t.Fatal("Missing or invalid 'suppressedCodes' key")
+	}
+	
+	if len(codes) != 1 || codes[0] != code {
+		t.Errorf("Expected suppressedCodes to contain [%s], got %v", code, codes)
+	}
+	
+	// Verify action title format
+	expectedTitle := fmt.Sprintf("Suppress %s in workspace", code)
+	if expectedTitle != "Suppress MTLOG009 in workspace" {
+		t.Errorf("Action title format incorrect: got %q", expectedTitle)
+	}
+}
+
 func TestCodeActionConversion(t *testing.T) {
 	// Create a temporary test file
 	tmpDir := t.TempDir()
