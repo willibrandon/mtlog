@@ -3,6 +3,18 @@
 
 set -e
 
+# Add validation for required tools
+if ! command -v gh &> /dev/null; then
+    echo "Error: GitHub CLI (gh) not found. Please install it first."
+    echo "Visit: https://cli.github.com/manual/installation"
+    exit 1
+fi
+
+if ! command -v git &> /dev/null; then
+    echo "Error: git not found. Please install git first."
+    exit 1
+fi
+
 VERSION=$1
 COMMIT=$2
 EXTENSIONS_DIR="$HOME/zed-extensions-fork"

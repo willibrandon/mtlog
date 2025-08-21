@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	analyzer "github.com/willibrandon/mtlog/cmd/mtlog-analyzer/analyzer"
@@ -59,9 +61,15 @@ type Server struct {
 	rootPath     string
 	logger       *log.Logger
 	config       WorkspaceConfiguration // Workspace configuration from client
-	// Store diagnostics and their fixes separately
+	
+	// Caches with mutex protection for concurrent access
+	mu               sync.RWMutex
 	diagnosticsCache map[string][]Diagnostic // uri -> diagnostics
 	fixesCache       map[string]map[string][]CodeAction // uri -> diagnostic key -> fixes
+	
+	// Package cache to avoid reloading
+	packageCache     map[string]*packages.Package // dir -> package
+	packageCacheTime map[string]time.Time        // dir -> cache time
 }
 
 // CodeAction represents an LSP code action that can be applied to fix diagnostics.
@@ -120,6 +128,8 @@ func main() {
 		logger:           logger,
 		diagnosticsCache: make(map[string][]Diagnostic),
 		fixesCache:       make(map[string]map[string][]CodeAction),
+		packageCache:     make(map[string]*packages.Package),
+		packageCacheTime: make(map[string]time.Time),
 	}
 	
 	// Set up LSP communication
@@ -334,9 +344,11 @@ func (s *Server) handleDidOpen(params json.RawMessage) {
 	// Analyze the file using bundled analyzer
 	diagnostics, fixes := s.runBundledAnalyzer(s.rootPath, path)
 	
-	// Cache the results
+	// Cache the results with mutex protection
+	s.mu.Lock()
 	s.diagnosticsCache[uri] = diagnostics
 	s.fixesCache[uri] = fixes
+	s.mu.Unlock()
 	
 	// Send diagnostics
 	sendDiagnostics(uri, diagnostics)
@@ -365,9 +377,11 @@ func (s *Server) handleDidSave(params json.RawMessage) {
 	// Re-analyze the file
 	diagnostics, fixes := s.runBundledAnalyzer(s.rootPath, path)
 	
-	// Update caches
+	// Update caches with mutex protection
+	s.mu.Lock()
 	s.diagnosticsCache[uri] = diagnostics
 	s.fixesCache[uri] = fixes
+	s.mu.Unlock()
 	
 	// Send updated diagnostics
 	sendDiagnostics(uri, diagnostics)
@@ -398,8 +412,12 @@ func (s *Server) handleCodeAction(id interface{}, params json.RawMessage) {
 	uri := actionParams.TextDocument.URI
 	actions := []CodeAction{}
 	
-	// Get cached fixes for this URI
-	if fixesMap, ok := s.fixesCache[uri]; ok {
+	// Get cached fixes for this URI with mutex protection
+	s.mu.RLock()
+	fixesMap, ok := s.fixesCache[uri]
+	s.mu.RUnlock()
+	
+	if ok {
 		s.logger.Printf("Found fixes cache for URI, keys: %v", getMapKeys(fixesMap))
 		
 		// For each diagnostic in the request, find matching fixes
@@ -475,6 +493,47 @@ func byteOffsetToPosition(content []byte, offset int) (line, character int) {
 	return line, character
 }
 
+// positionToByteOffset converts line and character position to byte offset.
+// This is the reverse of byteOffsetToPosition for completeness.
+func positionToByteOffset(content []byte, line, character int) int {
+	currentLine := 0
+	bytePos := 0
+	charCount := 0
+	
+	for bytePos < len(content) {
+		if currentLine == line {
+			// We're on the target line, count UTF-16 code units
+			for bytePos < len(content) && charCount < character {
+				r, size := utf8.DecodeRune(content[bytePos:])
+				if r == '\n' {
+					break // Don't go past line end
+				}
+				
+				// Count UTF-16 code units
+				if r >= 0x10000 {
+					charCount += 2 // Surrogate pair
+				} else {
+					charCount += 1
+				}
+				bytePos += size
+			}
+			return bytePos
+		}
+		
+		// Skip to next line
+		for bytePos < len(content) {
+			if content[bytePos] == '\n' {
+				currentLine++
+				bytePos++
+				break
+			}
+			bytePos++
+		}
+	}
+	
+	return bytePos
+}
+
 // runBundledAnalyzer runs the analyzer directly on the specified file.
 // It uses the bundled analyzer package instead of executing an external binary.
 func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic, map[string][]CodeAction) {
@@ -482,6 +541,8 @@ func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic
 	
 	diagnostics := []Diagnostic{}
 	fixesMap := make(map[string][]CodeAction)
+	
+	const maxDiagnosticsPerFile = 100 // Limit diagnostics to avoid overwhelming the client
 	
 	// Read the file content for position conversion
 	fileContent, err := os.ReadFile(targetFile)
@@ -531,22 +592,44 @@ func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic
 		analyzerInstance.Flags.Set("suppress", strings.Join(s.config.Mtlog.SuppressedCodes, ","))
 	}
 	
-	// Load the package containing the target file
-	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
-			packages.NeedImports | packages.NeedTypes | packages.NeedSyntax |
-			packages.NeedTypesInfo | packages.NeedTypesSizes,
-		Dir: dir,
-		Env: os.Environ(),
-		Tests: false,
-	}
-	
-	// Load packages for the target file's directory
+	// Check package cache (5 minute TTL)
 	pkgPath := filepath.Dir(targetFile)
-	pkgs, err := packages.Load(cfg, pkgPath)
-	if err != nil {
-		s.logger.Printf("Error loading packages: %v", err)
-		return diagnostics, fixesMap
+	var pkgs []*packages.Package
+	
+	s.mu.RLock()
+	cachedPkg, hasCached := s.packageCache[pkgPath]
+	cacheTime, hasTime := s.packageCacheTime[pkgPath]
+	s.mu.RUnlock()
+	
+	if hasCached && hasTime && time.Since(cacheTime) < 5*time.Minute {
+		s.logger.Printf("Using cached package for %s", pkgPath)
+		pkgs = []*packages.Package{cachedPkg}
+	} else {
+		// Load the package containing the target file
+		cfg := &packages.Config{
+			Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
+				packages.NeedImports | packages.NeedTypes | packages.NeedSyntax |
+				packages.NeedTypesInfo | packages.NeedTypesSizes,
+			Dir: dir,
+			Env: os.Environ(),
+			Tests: false,
+		}
+		
+		// Load packages for the target file's directory
+		var err error
+		pkgs, err = packages.Load(cfg, pkgPath)
+		if err != nil {
+			s.logger.Printf("Error loading packages: %v", err)
+			return diagnostics, fixesMap
+		}
+		
+		// Cache the first valid package
+		if len(pkgs) > 0 && len(pkgs[0].Errors) == 0 {
+			s.mu.Lock()
+			s.packageCache[pkgPath] = pkgs[0]
+			s.packageCacheTime[pkgPath] = time.Now()
+			s.mu.Unlock()
+		}
 	}
 	
 	// Process each package
@@ -644,6 +727,23 @@ func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic
 					Code:     code,
 					Source:   "mtlog-analyzer",
 					Message:  message,
+				}
+				
+				// Check diagnostic limit
+				if len(diagnostics) >= maxDiagnosticsPerFile {
+					// Add a summary diagnostic about truncation
+					truncationDiag := Diagnostic{
+						Range: Range{
+							Start: Position{Line: 0, Character: 0},
+							End:   Position{Line: 0, Character: 0},
+						},
+						Severity: 2, // Warning
+						Code:     "MTLOG-TRUNCATED",
+						Source:   "mtlog-analyzer",
+						Message:  fmt.Sprintf("Too many diagnostics (showing first %d)", maxDiagnosticsPerFile),
+					}
+					diagnostics = append(diagnostics, truncationDiag)
+					return
 				}
 				
 				diagnostics = append(diagnostics, diag)

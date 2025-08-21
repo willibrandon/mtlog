@@ -24,7 +24,7 @@ impl MtlogAnalyzerExtension {
     /// 5. HOME/go/bin (default Go installation)
     /// 6. /usr/local/bin fallback
     ///
-    /// Returns the first valid path found, or suggests installation command if not found.
+    /// Returns the first valid path found, or None if not found.
     fn find_mtlog_lsp(&self, worktree: &Worktree) -> Option<String> {
         // Check explicit path from settings first
         if let Ok(lsp_settings) = LspSettings::for_worktree("mtlog-analyzer", worktree) {
@@ -99,8 +99,11 @@ impl Extension for MtlogAnalyzerExtension {
         } else {
             let path = self.find_mtlog_lsp(worktree)
                 .ok_or_else(|| {
-                    "mtlog-lsp not found. Please install it with: go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest"
-                        .to_string()
+                    format!(
+                        "mtlog-lsp not found in PATH or standard Go locations.\n\
+                         Searched: PATH, $GOBIN, $GOPATH/bin, ~/go/bin\n\
+                         Please install with: go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest"
+                    )
                 })?;
             self.cached_binary_path = Some(path.clone());
             path
