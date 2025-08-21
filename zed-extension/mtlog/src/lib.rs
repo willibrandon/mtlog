@@ -5,7 +5,7 @@
 //! the Language Server Protocol, offering features like template validation,
 //! format specifier checking, and quick fixes for common issues.
 
-use zed_extension_api::{self as zed, settings::LspSettings, Command, Extension, LanguageServerId, Result, Worktree};
+use zed_extension_api::{self as zed, settings::LspSettings, serde_json::{self, Value}, Command, Extension, LanguageServerId, Result, Worktree};
 
 /// Extension state for the mtlog-analyzer LSP integration.
 /// Caches the binary path to avoid repeated filesystem lookups.
@@ -115,6 +115,55 @@ impl Extension for MtlogAnalyzerExtension {
             env: Default::default(),
         })
     }
+    
+    /// Provides initialization options to the LSP server during startup.
+    /// This method sends configuration immediately when the LSP server starts.
+    ///
+    /// Users can configure these settings in their `.zed/settings.json`:
+    /// ```json
+    /// {
+    ///   "lsp": {
+    ///     "mtlog-analyzer": {
+    ///       "initialization_options": {
+    ///         "suppressedCodes": ["MTLOG001", "MTLOG003"],
+    ///         "severityOverrides": {
+    ///           "MTLOG002": "warning"
+    ///         },
+    ///         "disableAll": false
+    ///       }
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// For backwards compatibility, it also supports reading from the "settings" field.
+    fn language_server_initialization_options(
+        &mut self,
+        language_server_id: &LanguageServerId,
+        worktree: &Worktree,
+    ) -> Result<Option<Value>> {
+        let lsp_settings = LspSettings::for_worktree(language_server_id.as_ref(), worktree)?;
+        
+        // Check for initialization_options first, then fall back to settings
+        if let Some(init_options) = lsp_settings.initialization_options.as_ref() {
+            // Use initialization_options directly if present
+            return Ok(Some(init_options.clone()));
+        }
+        
+        // Fall back to settings for backwards compatibility
+        let settings = lsp_settings.settings.unwrap_or_else(|| serde_json::json!({}));
+        
+        // Return configuration without the "mtlog" wrapper - just the direct settings
+        Ok(Some(serde_json::json!({
+            "suppressedCodes": settings.get("suppressedCodes").cloned().unwrap_or(serde_json::json!([])),
+            "severityOverrides": settings.get("severityOverrides").cloned().unwrap_or(serde_json::json!({})),
+            "disableAll": settings.get("disableAll").cloned().unwrap_or(serde_json::json!(false)),
+            "commonKeys": settings.get("commonKeys").cloned().unwrap_or(serde_json::json!([])),
+            "strictMode": settings.get("strictMode").cloned().unwrap_or(serde_json::json!(false)),
+            "ignoreDynamicTemplates": settings.get("ignoreDynamicTemplates").cloned().unwrap_or(serde_json::json!(false))
+        })))
+    }
+
 }
 
 // Register the extension with Zed's extension system.

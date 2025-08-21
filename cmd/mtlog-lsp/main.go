@@ -28,6 +28,18 @@ const (
 	editContextLength = 20
 )
 
+// WorkspaceConfiguration holds configuration options received from the client.
+type WorkspaceConfiguration struct {
+	Mtlog struct {
+		SuppressedCodes        []string          `json:"suppressedCodes"`
+		SeverityOverrides      map[string]string `json:"severityOverrides"`
+		DisableAll            bool              `json:"disableAll"`
+		CommonKeys            []string          `json:"commonKeys"`
+		StrictMode            bool              `json:"strictMode"`
+		IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+	} `json:"mtlog"`
+}
+
 // Server manages the LSP server state and caches.
 // It maintains separate caches for diagnostics and their associated code actions
 // to efficiently handle LSP requests without re-running the analyzer unnecessarily.
@@ -35,6 +47,7 @@ type Server struct {
 	rootPath     string
 	analyzerPath string
 	logger       *log.Logger
+	config       WorkspaceConfiguration // Workspace configuration from client
 	// Store diagnostics and their fixes separately
 	diagnosticsCache map[string][]Diagnostic // uri -> diagnostics
 	fixesCache       map[string]map[string][]CodeAction // uri -> diagnostic key -> fixes
@@ -48,6 +61,7 @@ type CodeAction struct {
 	Diagnostics []Diagnostic          `json:"diagnostics,omitempty"`
 	Edit        map[string]interface{} `json:"edit,omitempty"`
 }
+
 
 // JSONRPCMessage represents a JSON-RPC 2.0 message used in LSP communication.
 type JSONRPCMessage struct {
@@ -180,6 +194,9 @@ func main() {
 			// We'll analyze on save, not on change
 		case "textDocument/codeAction":
 			server.handleCodeAction(msg.ID, msg.Params)
+		case "workspace/didChangeConfiguration":
+			// Configuration changes are handled through restart with new initializationOptions
+			logger.Printf("Configuration changed - restart required")
 		case "shutdown":
 			// Clean up caches before shutdown
 			server.cleanup()
@@ -237,6 +254,7 @@ func findAnalyzer() string {
 // handleInitialize processes the LSP initialize request and responds with server capabilities.
 // It sets up the root path for analysis and advertises support for text synchronization and code actions.
 func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
+	
 	var initParams InitializeParams
 	_ = json.Unmarshal(params, &initParams)
 	
@@ -244,6 +262,38 @@ func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 		s.rootPath = initParams.RootPath
 	} else if initParams.RootURI != "" {
 		s.rootPath = strings.TrimPrefix(initParams.RootURI, "file://")
+	}
+	
+	// Check if Zed sends initializationOptions
+	var rawInit struct {
+		InitializationOptions json.RawMessage `json:"initializationOptions"`
+	}
+	if err := json.Unmarshal(params, &rawInit); err == nil && len(rawInit.InitializationOptions) > 0 {
+		s.logger.Printf("InitializationOptions: %s", string(rawInit.InitializationOptions))
+		
+		// Parse the configuration directly from initializationOptions (no "mtlog" wrapper)
+		var initConfig struct {
+			SuppressedCodes        []string          `json:"suppressedCodes"`
+			SeverityOverrides      map[string]string `json:"severityOverrides"`
+			DisableAll            bool              `json:"disableAll"`
+			CommonKeys            []string          `json:"commonKeys"`
+			StrictMode            bool              `json:"strictMode"`
+			IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+		}
+		if err := json.Unmarshal(rawInit.InitializationOptions, &initConfig); err == nil {
+			s.config.Mtlog.SuppressedCodes = initConfig.SuppressedCodes
+			s.config.Mtlog.SeverityOverrides = initConfig.SeverityOverrides
+			s.config.Mtlog.DisableAll = initConfig.DisableAll
+			s.config.Mtlog.CommonKeys = initConfig.CommonKeys
+			s.config.Mtlog.StrictMode = initConfig.StrictMode
+			s.config.Mtlog.IgnoreDynamicTemplates = initConfig.IgnoreDynamicTemplates
+			s.logger.Printf("Applied configuration from initializationOptions: suppressedCodes=%v, disableAll=%v", 
+				s.config.Mtlog.SuppressedCodes, s.config.Mtlog.DisableAll)
+		} else {
+			s.logger.Printf("Failed to parse initializationOptions as config: %v", err)
+		}
+	} else {
+		s.logger.Printf("No initializationOptions provided")
 	}
 	
 	s.logger.Printf("Initialized with root: %s", s.rootPath)
@@ -385,6 +435,24 @@ func (s *Server) handleCodeAction(id interface{}, params json.RawMessage) {
 	
 	s.logger.Printf("Returning %d code actions", len(actions))
 	sendResponse(id, actions)
+}
+
+// shouldSuppressDiagnostic determines if a diagnostic should be suppressed based on configuration.
+// It checks the global disable flag and the list of suppressed diagnostic codes.
+func (s *Server) shouldSuppressDiagnostic(code string) bool {
+	// Check global disable flag
+	if s.config.Mtlog.DisableAll {
+		return true
+	}
+	
+	// Check if this specific code is suppressed
+	for _, suppressedCode := range s.config.Mtlog.SuppressedCodes {
+		if code == suppressedCode {
+			return true
+		}
+	}
+	
+	return false
 }
 
 // byteOffsetToPosition converts a byte offset to LSP line/character position.
@@ -531,6 +599,14 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 					Source:   "mtlog-analyzer",
 					Message:  message,
 				}
+				
+				// Check if diagnostic should be suppressed
+				if s.shouldSuppressDiagnostic(code) {
+					s.logger.Printf("Suppressing diagnostic %s (suppressed codes: %v)", code, s.config.Mtlog.SuppressedCodes)
+					continue
+				}
+				s.logger.Printf("NOT suppressing diagnostic %s (suppressed codes: %v)", code, s.config.Mtlog.SuppressedCodes)
+				
 				diagnostics = append(diagnostics, diag)
 				
 				// Create a key for this diagnostic using full message
@@ -592,6 +668,46 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 						
 						fixesMap[diagKey] = append(fixesMap[diagKey], codeAction)
 					}
+				}
+				
+				// Add suppression code action if code is not empty and not already suppressed
+				if code != "" && !s.shouldSuppressDiagnostic(code) {
+					// Create edit to add suppression to .zed/settings.json
+					settingsPath := filepath.Join(s.rootPath, ".zed", "settings.json")
+					settingsURI := "file://" + settingsPath
+					
+					// Simple JSON addition - this is a basic implementation
+					// Use initialization_options format for Zed
+					newText := fmt.Sprintf(`{
+  "lsp": {
+    "mtlog-analyzer": {
+      "initialization_options": {
+        "suppressedCodes": ["%s"]
+      }
+    }
+  }
+}`, code)
+					
+					suppressAction := CodeAction{
+						Title: fmt.Sprintf("Suppress %s in workspace", code),
+						Kind:  "quickfix.suppress.workspace",
+						Diagnostics: []Diagnostic{diag},
+						Edit: map[string]interface{}{
+							"changes": map[string]interface{}{
+								settingsURI: []map[string]interface{}{
+									{
+										"range": map[string]interface{}{
+											"start": map[string]interface{}{"line": 0, "character": 0},
+											"end":   map[string]interface{}{"line": 999999, "character": 0},
+										},
+										"newText": newText,
+									},
+								},
+							},
+						},
+					}
+					
+					fixesMap[diagKey] = append(fixesMap[diagKey], suppressAction)
 				}
 			}
 		}
