@@ -158,3 +158,11 @@ jobs:
       run: |
         cd goland-plugin
         ./gradlew publishPlugin
+
+    - name: Update Zed Extension
+      continue-on-error: true  # Don't fail if PR creation fails
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Run the release script to update Zed extension
+        ./scripts/release-zed-extension.sh "${{ steps.version.outputs.version }}" "${{ github.sha }}"

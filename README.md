@@ -1043,6 +1043,23 @@ The plugin provides:
 
 See the [plugin README](./neovim-plugin/README.md) for detailed configuration and usage.
 
+#### Zed Extension
+
+For real-time validation in Zed editor, install the [mtlog-analyzer extension](./zed-extension/mtlog/README.md):
+
+1. Install mtlog-lsp (includes bundled analyzer):
+   ```bash
+   go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest
+   ```
+2. Install the extension from Zed's extension manager (search for "mtlog-analyzer")
+3. Get instant feedback on template errors as you type
+
+The extension provides:
+- 🔍 Real-time diagnostics for all MTLOG001-MTLOG013 issues
+- 🔧 Quick fixes via code actions for common issues
+- 🚀 Automatic binary detection in standard Go paths
+- ⚙️ Configurable analyzer flags and custom paths
+
 ## Advanced Usage
 
 ### Custom Sinks

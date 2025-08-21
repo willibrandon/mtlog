@@ -1,0 +1,12 @@
+id = "mtlog-analyzer"
+name = "mtlog-analyzer"
+version = "0.9.0"
+schema_version = 1
+authors = ["Brandon Williams"]
+description = "Static analysis for mtlog message templates in Go. Detects template/argument mismatches, format specifier errors, and suggests improvements."
+repository = "https://github.com/willibrandon/mtlog/tree/main/zed-extension/mtlog"
+license = "MIT"
+
+[language_servers.mtlog-analyzer]
+name = "mtlog-analyzer"
+languages = ["Go"]

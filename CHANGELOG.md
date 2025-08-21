@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Zed Extension** - Full editor support via Language Server Protocol (#56)
+  - New `mtlog-lsp` command providing LSP wrapper for mtlog-analyzer
+  - Native Zed extension using Rust/WASM (wasm32-wasip2 target)
+  - Real-time diagnostics for all MTLOG001-MTLOG013 issues
+  - Code actions with quick fixes for common problems
+  - Automatic binary detection in standard Go paths
+  - Configurable analyzer flags and custom paths
+  - Proper UTF-16 code unit handling for accurate text positioning
+  - Comprehensive CI/CD integration with GitHub Actions
+
 ## [0.9.0] - 2025-08-19
 
 ### Added

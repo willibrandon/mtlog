@@ -72,3 +72,12 @@ CLAUDE.local.md
 
 # MTLog specific files
 .mtlog.json
+
+# mtlog-lsp build artifacts
+cmd/mtlog-lsp/mtlog-lsp
+/mtlog-lsp
+
+# Zed extension
+zed-extension/mtlog/target/
+zed-extension/mtlog/extension.wasm
+zed-extension/mtlog/Cargo.lock

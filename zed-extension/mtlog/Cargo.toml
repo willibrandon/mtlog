@@ -1,0 +1,19 @@
+[package]
+name = "mtlog-analyzer"
+version = "0.9.0"
+edition = "2021"
+authors = ["Brandon Williams"]
+description = "Zed extension for mtlog-analyzer static analysis tool"
+repository = "https://github.com/willibrandon/mtlog"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.2.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
