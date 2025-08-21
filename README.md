@@ -1047,9 +1047,8 @@ See the [plugin README](./neovim-plugin/README.md) for detailed configuration an
 
 For real-time validation in Zed editor, install the [mtlog-analyzer extension](./zed-extension/mtlog/README.md):
 
-1. Install the required binaries:
+1. Install mtlog-lsp (includes bundled analyzer):
    ```bash
-   go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
    go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest
    ```
 2. Install the extension from Zed's extension manager (search for "mtlog-analyzer")

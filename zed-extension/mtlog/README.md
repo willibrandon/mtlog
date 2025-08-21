@@ -19,9 +19,8 @@ Static analysis for [mtlog](https://github.com/willibrandon/mtlog) message templ
 
 ### Prerequisites
 
-1. Install the required binaries:
+1. Install mtlog-lsp (includes bundled analyzer):
 ```bash
-go install github.com/willibrandon/mtlog/cmd/mtlog-analyzer@latest
 go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest
 ```
 
@@ -99,7 +98,6 @@ If the extension can't find mtlog-lsp:
 1. Verify installation:
 ```bash
 which mtlog-lsp
-which mtlog-analyzer
 ```
 
 2. Ensure Go bin directory is in PATH:

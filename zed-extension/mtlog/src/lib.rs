@@ -24,8 +24,8 @@ impl MtlogAnalyzerExtension {
     /// 5. HOME/go/bin (default Go installation)
     /// 6. /usr/local/bin fallback
     ///
-    /// Returns the first valid path found, or a fallback path if none are found.
-    fn find_mtlog_analyzer(&self, worktree: &Worktree) -> Option<String> {
+    /// Returns the first valid path found, or suggests installation command if not found.
+    fn find_mtlog_lsp(&self, worktree: &Worktree) -> Option<String> {
         // Check explicit path from settings first
         if let Ok(lsp_settings) = LspSettings::for_worktree("mtlog-analyzer", worktree) {
             if let Some(binary) = lsp_settings.binary.as_ref() {
@@ -36,7 +36,7 @@ impl MtlogAnalyzerExtension {
         }
 
         // Use Zed's which() to find the binary in PATH
-        // Now looking for mtlog-lsp instead of mtlog-analyzer
+        // Looking for mtlog-lsp (bundled analyzer and LSP)
         if let Some(path) = worktree.which("mtlog-lsp") {
             return Some(path);
         }
@@ -97,7 +97,7 @@ impl Extension for MtlogAnalyzerExtension {
         let binary_path = if let Some(ref path) = self.cached_binary_path {
             path.clone()
         } else {
-            let path = self.find_mtlog_analyzer(worktree)
+            let path = self.find_mtlog_lsp(worktree)
                 .ok_or_else(|| {
                     "mtlog-lsp not found. Please install it with: go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest"
                         .to_string()

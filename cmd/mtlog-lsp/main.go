@@ -1,10 +1,6 @@
-// Package main implements mtlog-lsp, a Language Server Protocol wrapper for mtlog-analyzer.
-//
-// mtlog-lsp bridges the gap between mtlog-analyzer's go vet-style output and the
-// Language Server Protocol, enabling rich IDE features like real-time diagnostics
-// and code actions in LSP-compatible editors such as Zed.
-//
-// The server wraps mtlog-analyzer, converting its analysis output to LSP diagnostics
+// mtlog-lsp provides a Language Server Protocol implementation for mtlog-analyzer.
+// This version bundles the analyzer directly, eliminating the need for a separate binary.
+// It wraps the mtlog-analyzer static analysis tool, converting its diagnostics
 // and suggested fixes to LSP code actions, while handling the JSON-RPC communication
 // protocol required by LSP.
 package main
@@ -13,14 +9,19 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"go/token"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	analyzer "github.com/willibrandon/mtlog/cmd/mtlog-analyzer/analyzer"
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/go/packages"
 )
 
 const (
@@ -38,6 +39,17 @@ type WorkspaceConfiguration struct {
 		StrictMode            bool              `json:"strictMode"`
 		IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
 	} `json:"mtlog"`
+	// Analyzer-specific configuration
+	Analyzer struct {
+		Strict                 bool     `json:"strict"`
+		CommonKeys             []string `json:"commonKeys"`
+		DisabledChecks         []string `json:"disabledChecks"`
+		IgnoreDynamicTemplates bool     `json:"ignoreDynamicTemplates"`
+		StrictLoggerTypes      bool     `json:"strictLoggerTypes"`
+		DowngradeErrors        bool     `json:"downgradeErrors"`
+		CheckReservedProps     bool     `json:"checkReservedProps"`
+		ReservedProps          []string `json:"reservedProps"`
+	} `json:"analyzerConfig"`
 }
 
 // Server manages the LSP server state and caches.
@@ -45,7 +57,6 @@ type WorkspaceConfiguration struct {
 // to efficiently handle LSP requests without re-running the analyzer unnecessarily.
 type Server struct {
 	rootPath     string
-	analyzerPath string
 	logger       *log.Logger
 	config       WorkspaceConfiguration // Workspace configuration from client
 	// Store diagnostics and their fixes separately
@@ -62,7 +73,6 @@ type CodeAction struct {
 	Edit        map[string]interface{} `json:"edit,omitempty"`
 }
 
-
 // JSONRPCMessage represents a JSON-RPC 2.0 message used in LSP communication.
 type JSONRPCMessage struct {
 	Jsonrpc string          `json:"jsonrpc"`
@@ -77,27 +87,7 @@ type InitializeParams struct {
 	RootURI  string `json:"rootUri,omitempty"`
 }
 
-// TextDocumentItem contains the full content and metadata of an opened text document.
-type TextDocumentItem struct {
-	URI        string `json:"uri"`
-	LanguageID string `json:"languageId"`
-	Version    int    `json:"version"`
-	Text       string `json:"text"`
-}
-
-// DidOpenTextDocumentParams contains the parameters for the textDocument/didOpen notification.
-type DidOpenTextDocumentParams struct {
-	TextDocument TextDocumentItem `json:"textDocument"`
-}
-
-// DidSaveTextDocumentParams contains the parameters for the textDocument/didSave notification.
-type DidSaveTextDocumentParams struct {
-	TextDocument struct {
-		URI string `json:"uri"`
-	} `json:"textDocument"`
-}
-
-// Diagnostic represents a problem found in the source code, such as a template/argument mismatch.
+// Diagnostic represents an LSP diagnostic with position, severity, and message.
 type Diagnostic struct {
 	Range    Range  `json:"range"`
 	Severity int    `json:"severity"`
@@ -106,13 +96,14 @@ type Diagnostic struct {
 	Message  string `json:"message"`
 }
 
-// Range defines a contiguous range between two positions in a text document.
+// Range represents a text range in a document using start and end positions.
 type Range struct {
 	Start Position `json:"start"`
 	End   Position `json:"end"`
 }
 
-// Position represents a zero-based position in a text document using line and character offsets.
+// Position represents a position in a text document using zero-based line and character indices.
+// The character index uses UTF-16 code units as per LSP specification.
 type Position struct {
 	Line      int `json:"line"`
 	Character int `json:"character"`
@@ -122,41 +113,37 @@ func main() {
 	// Set up logging to stderr (stdout is for LSP communication)
 	logger := log.New(os.Stderr, "[mtlog-lsp] ", log.LstdFlags)
 	
-	// Find mtlog-analyzer
-	analyzerPath := findAnalyzer()
-	if analyzerPath == "" {
-		logger.Fatal("mtlog-analyzer not found in PATH or standard locations")
-	}
-	logger.Printf("Using analyzer: %s", analyzerPath)
+	logger.Printf("Starting bundled mtlog-lsp with integrated analyzer")
 	
+	// Create server
 	server := &Server{
-		analyzerPath:     analyzerPath,
 		logger:           logger,
 		diagnosticsCache: make(map[string][]Diagnostic),
 		fixesCache:       make(map[string]map[string][]CodeAction),
 	}
 	
-	// Set up JSON-RPC communication
+	// Set up LSP communication
 	reader := bufio.NewReader(os.Stdin)
 	
 	for {
-		// Read Content-Length header
-		contentLengthLine, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
+		// Read LSP headers
+		var contentLength int
+		for {
+			header, err := reader.ReadString('\n')
+			if err != nil {
+				logger.Printf("Error reading header: %v", err)
+				os.Exit(1)
 			}
-			logger.Printf("Error reading header: %v", err)
-			continue
-		}
-		
-		// Skip empty line after Content-Length
-		_, _ = reader.ReadString('\n')
-		
-		// Parse Content-Length
-		contentLength := 0
-		if strings.HasPrefix(contentLengthLine, "Content-Length: ") {
-			_, _ = fmt.Sscanf(contentLengthLine, "Content-Length: %d", &contentLength)
+			
+			header = strings.TrimSpace(header)
+			if header == "" {
+				break // End of headers
+			}
+			
+			if strings.HasPrefix(header, "Content-Length:") {
+				contentLengthLine := strings.TrimSpace(header)
+				_, _ = fmt.Sscanf(contentLengthLine, "Content-Length: %d", &contentLength)
+			}
 		}
 		
 		if contentLength == 0 {
@@ -165,7 +152,7 @@ func main() {
 		
 		// Read the JSON-RPC message
 		msgBytes := make([]byte, contentLength)
-		_, err = io.ReadFull(reader, msgBytes)
+		_, err := io.ReadFull(reader, msgBytes)
 		if err != nil {
 			logger.Printf("Error reading message: %v", err)
 			continue
@@ -214,41 +201,37 @@ func main() {
 // It is called during both shutdown and exit to ensure proper resource cleanup.
 func (s *Server) cleanup() {
 	s.logger.Printf("Cleaning up caches")
-	s.diagnosticsCache = nil
-	s.fixesCache = nil
+	// Clear all caches
+	s.diagnosticsCache = make(map[string][]Diagnostic)
+	s.fixesCache = make(map[string]map[string][]CodeAction)
 }
 
-// findAnalyzer locates the mtlog-analyzer binary in standard Go installation paths.
-// It checks PATH, GOBIN, GOPATH/bin, ~/go/bin, and /usr/local/bin in order of preference.
-// Returns the path to the analyzer or an empty string if not found.
-func findAnalyzer() string {
-	// Check common locations
-	paths := []string{
-		"mtlog-analyzer", // In PATH
+// sendResponse sends a JSON-RPC response with the given ID and result.
+func sendResponse(id interface{}, result interface{}) {
+	response := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"result":  result,
 	}
 	
-	// Add Go bin directories
-	if gobin := os.Getenv("GOBIN"); gobin != "" {
-		paths = append(paths, filepath.Join(gobin, "mtlog-analyzer"))
-	}
-	if gopath := os.Getenv("GOPATH"); gopath != "" {
-		paths = append(paths, filepath.Join(gopath, "bin", "mtlog-analyzer"))
-	}
-	if home := os.Getenv("HOME"); home != "" {
-		paths = append(paths, filepath.Join(home, "go", "bin", "mtlog-analyzer"))
-	}
-	paths = append(paths, "/usr/local/bin/mtlog-analyzer")
-	
-	for _, path := range paths {
-		if _, err := exec.LookPath(path); err == nil {
-			return path
-		}
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
+	data, _ := json.Marshal(response)
+	fmt.Printf("Content-Length: %d\r\n\r\n%s", len(data), data)
+}
+
+// sendDiagnostics sends diagnostic notifications to the client for a specific file.
+// It publishes diagnostics immediately when analysis completes.
+func sendDiagnostics(uri string, diagnostics []Diagnostic) {
+	notification := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "textDocument/publishDiagnostics",
+		"params": map[string]interface{}{
+			"uri":         uri,
+			"diagnostics": diagnostics,
+		},
 	}
 	
-	return ""
+	data, _ := json.Marshal(notification)
+	fmt.Printf("Content-Length: %d\r\n\r\n%s", len(data), data)
 }
 
 // handleInitialize processes the LSP initialize request and responds with server capabilities.
@@ -279,6 +262,17 @@ func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 			CommonKeys            []string          `json:"commonKeys"`
 			StrictMode            bool              `json:"strictMode"`
 			IgnoreDynamicTemplates bool              `json:"ignoreDynamicTemplates"`
+			// Analyzer-specific config
+			AnalyzerConfig struct {
+				Strict                 bool     `json:"strict"`
+				CommonKeys             []string `json:"commonKeys"`
+				DisabledChecks         []string `json:"disabledChecks"`
+				IgnoreDynamicTemplates bool     `json:"ignoreDynamicTemplates"`
+				StrictLoggerTypes      bool     `json:"strictLoggerTypes"`
+				DowngradeErrors        bool     `json:"downgradeErrors"`
+				CheckReservedProps     bool     `json:"checkReservedProps"`
+				ReservedProps          []string `json:"reservedProps"`
+			} `json:"analyzerConfig,omitempty"`
 		}
 		if err := json.Unmarshal(rawInit.InitializationOptions, &initConfig); err == nil {
 			s.config.Mtlog.SuppressedCodes = initConfig.SuppressedCodes
@@ -287,6 +281,10 @@ func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 			s.config.Mtlog.CommonKeys = initConfig.CommonKeys
 			s.config.Mtlog.StrictMode = initConfig.StrictMode
 			s.config.Mtlog.IgnoreDynamicTemplates = initConfig.IgnoreDynamicTemplates
+			
+			// Also copy analyzer config
+			s.config.Analyzer = initConfig.AnalyzerConfig
+			
 			s.logger.Printf("Applied configuration from initializationOptions: suppressedCodes=%v, disableAll=%v", 
 				s.config.Mtlog.SuppressedCodes, s.config.Mtlog.DisableAll)
 		} else {
@@ -314,123 +312,114 @@ func (s *Server) handleInitialize(id interface{}, params json.RawMessage) {
 }
 
 // handleDidOpen processes the textDocument/didOpen notification when a file is opened.
-// It triggers analysis for Go files and publishes the resulting diagnostics.
+// It immediately analyzes the file and publishes any diagnostics found.
 func (s *Server) handleDidOpen(params json.RawMessage) {
-	var didOpen DidOpenTextDocumentParams
-	if err := json.Unmarshal(params, &didOpen); err != nil {
+	var openParams struct {
+		TextDocument struct {
+			URI string `json:"uri"`
+		} `json:"textDocument"`
+	}
+	
+	if err := json.Unmarshal(params, &openParams); err != nil {
 		s.logger.Printf("Error parsing didOpen params: %v", err)
 		return
 	}
 	
-	// Only analyze Go files
-	if didOpen.TextDocument.LanguageID != "go" {
-		return
+	uri := openParams.TextDocument.URI
+	path := uri
+	if len(path) > 7 && path[:7] == "file://" {
+		path = path[7:]
 	}
 	
-	uri := didOpen.TextDocument.URI
-	s.analyzAndPublish(uri)
+	// Analyze the file using bundled analyzer
+	diagnostics, fixes := s.runBundledAnalyzer(s.rootPath, path)
+	
+	// Cache the results
+	s.diagnosticsCache[uri] = diagnostics
+	s.fixesCache[uri] = fixes
+	
+	// Send diagnostics
+	sendDiagnostics(uri, diagnostics)
 }
 
 // handleDidSave processes the textDocument/didSave notification when a file is saved.
-// It re-runs the analyzer to detect any issues in the saved content.
+// It re-analyzes the file and updates diagnostics.
 func (s *Server) handleDidSave(params json.RawMessage) {
-	var didSave DidSaveTextDocumentParams
-	if err := json.Unmarshal(params, &didSave); err != nil {
+	var saveParams struct {
+		TextDocument struct {
+			URI string `json:"uri"`
+		} `json:"textDocument"`
+	}
+	
+	if err := json.Unmarshal(params, &saveParams); err != nil {
 		s.logger.Printf("Error parsing didSave params: %v", err)
 		return
 	}
 	
-	uri := didSave.TextDocument.URI
-	s.analyzAndPublish(uri)
-}
-
-// analyzAndPublish runs mtlog-analyzer on the specified file and publishes diagnostics.
-// It caches both diagnostics and their associated code actions for efficient retrieval.
-func (s *Server) analyzAndPublish(uri string) {
-	filePath := strings.TrimPrefix(uri, "file://")
-	
-	// Determine the directory to analyze
-	dir := filepath.Dir(filePath)
-	if s.rootPath != "" {
-		// Analyze from the root if we have it
-		dir = s.rootPath
+	uri := saveParams.TextDocument.URI
+	path := uri
+	if len(path) > 7 && path[:7] == "file://" {
+		path = path[7:]
 	}
 	
-	s.logger.Printf("Analyzing %s in directory %s", filePath, dir)
+	// Re-analyze the file
+	diagnostics, fixes := s.runBundledAnalyzer(s.rootPath, path)
 	
-	// Run mtlog-analyzer and get diagnostics with fixes
-	diagnostics, fixes := s.runAnalyzer(dir, filePath)
-	
-	// Store diagnostics and fixes separately
+	// Update caches
 	s.diagnosticsCache[uri] = diagnostics
 	s.fixesCache[uri] = fixes
 	
-	// Publish diagnostics WITHOUT the Data field
-	publishDiagnostics(uri, diagnostics)
+	// Send updated diagnostics
+	sendDiagnostics(uri, diagnostics)
 }
 
-// getMapKeys returns all keys from a map as a slice for debugging purposes.
-func getMapKeys(m map[string][]CodeAction) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// handleCodeAction processes the textDocument/codeAction request to provide fixes for diagnostics.
-// It retrieves cached code actions associated with the diagnostics in the requested range.
+// handleCodeAction processes the textDocument/codeAction request to provide code actions.
+// It returns cached code actions (suggested fixes) for diagnostics at the requested position.
 func (s *Server) handleCodeAction(id interface{}, params json.RawMessage) {
-	// Parse code action params
-	var codeActionParams struct {
+	var actionParams struct {
 		TextDocument struct {
 			URI string `json:"uri"`
 		} `json:"textDocument"`
-		Range   Range `json:"range"`
+		Range struct {
+			Start Position `json:"start"`
+			End   Position `json:"end"`
+		} `json:"range"`
 		Context struct {
 			Diagnostics []Diagnostic `json:"diagnostics"`
 		} `json:"context"`
 	}
 	
-	if err := json.Unmarshal(params, &codeActionParams); err != nil {
-		s.logger.Printf("Error parsing code action params: %v", err)
-		sendResponse(id, []interface{}{})
+	if err := json.Unmarshal(params, &actionParams); err != nil {
+		s.logger.Printf("Error parsing codeAction params: %v", err)
+		sendResponse(id, []CodeAction{})
 		return
 	}
 	
-	actions := []interface{}{}
+	uri := actionParams.TextDocument.URI
+	actions := []CodeAction{}
 	
-	// Get cached fixes for this file
-	if fixes, ok := s.fixesCache[codeActionParams.TextDocument.URI]; ok {
-		s.logger.Printf("Found fixes cache for URI, keys: %v", getMapKeys(fixes))
-		// For each diagnostic in the request context
-		for _, diag := range codeActionParams.Context.Diagnostics {
-			// Only handle our diagnostics
-			if diag.Source != "mtlog-analyzer" {
-				continue
-			}
-			
-			// Reconstruct the key - need to add back the code if present
+	// Get cached fixes for this URI
+	if fixesMap, ok := s.fixesCache[uri]; ok {
+		s.logger.Printf("Found fixes cache for URI, keys: %v", getMapKeys(fixesMap))
+		
+		// For each diagnostic in the request, find matching fixes
+		for _, diag := range actionParams.Context.Diagnostics {
+			// Create the same key format used when storing fixes
 			fullMessage := diag.Message
 			if diag.Code != "" {
 				fullMessage = fmt.Sprintf("[%s] %s", diag.Code, diag.Message)
 			}
 			diagKey := fmt.Sprintf("%d:%d-%s", diag.Range.Start.Line, diag.Range.Start.Character, fullMessage)
+			
 			s.logger.Printf("Looking for fixes with key: %s", diagKey)
 			
-			// Get the cached fixes for this diagnostic
-			if diagFixes, ok := fixes[diagKey]; ok {
-				s.logger.Printf("Found %d fixes for diagnostic", len(diagFixes))
-				for _, fix := range diagFixes {
-					s.logger.Printf("Adding action: %+v", fix)
-					actions = append(actions, fix)
-				}
-			} else {
-				s.logger.Printf("No fixes found for key: %s", diagKey)
+			if fixes, found := fixesMap[diagKey]; found {
+				s.logger.Printf("Found %d fixes for diagnostic", len(fixes))
+				actions = append(actions, fixes...)
 			}
 		}
 	} else {
-		s.logger.Printf("No fixes cache found for URI: %s", codeActionParams.TextDocument.URI)
+		s.logger.Printf("No fixes cache found for URI: %s", uri)
 	}
 	
 	s.logger.Printf("Returning %d code actions", len(actions))
@@ -486,101 +475,117 @@ func byteOffsetToPosition(content []byte, offset int) (line, character int) {
 	return line, character
 }
 
-// runAnalyzer executes mtlog-analyzer and converts its output to LSP diagnostics and code actions.
-// It parses the analyzer's JSON output, filters diagnostics for the target file,
-// and creates corresponding LSP structures with proper position conversion.
-func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[string][]CodeAction) {
-	// Read the file content for byte offset conversion
-	fileContent, err := os.ReadFile(targetFile)
-	if err != nil {
-		s.logger.Printf("Error reading file %s: %v", targetFile, err)
-		return nil, nil
-	}
-	
-	// Run mtlog-analyzer on the directory
-	cmd := exec.Command(s.analyzerPath, "-json", dir)
-	cmd.Dir = dir
-	
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		// Log the error but continue if we have output (analyzer returns non-zero for issues found)
-		s.logger.Printf("Analyzer returned error (may be normal if issues found): %v", err)
-		if len(output) == 0 {
-			// No output at all means a real error
-			s.logger.Printf("Analyzer failed with no output: %v", err)
-			return nil, nil
-		}
-	}
-	
-	// Skip the "Args:" debug line if present
-	outputStr := string(output)
-	if idx := strings.Index(outputStr, "{"); idx > 0 {
-		output = []byte(outputStr[idx:])
-	}
-	
-	// Parse the JSON output - it's a map of package -> diagnostics
-	var result map[string]map[string][]struct {
-		Posn           string `json:"posn"`
-		Message        string `json:"message"`
-		SuggestedFixes []struct {
-			Message string `json:"message"`
-			Edits   []struct {
-				Filename string `json:"filename"`
-				Start    int    `json:"start"`
-				End      int    `json:"end"`
-				New      string `json:"new"`
-			} `json:"edits"`
-		} `json:"suggested_fixes,omitempty"`
-	}
-	
-	if err := json.Unmarshal(output, &result); err != nil {
-		s.logger.Printf("Error parsing analyzer JSON: %v, output: %s", err, string(output))
-		return nil, nil
-	}
+// runBundledAnalyzer runs the analyzer directly on the specified file.
+// It uses the bundled analyzer package instead of executing an external binary.
+func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic, map[string][]CodeAction) {
+	s.logger.Printf("Running bundled analyzer on %s", targetFile)
 	
 	diagnostics := []Diagnostic{}
 	fixesMap := make(map[string][]CodeAction)
 	
-	// Iterate through all packages and their diagnostics
-	for _, pkg := range result {
-		if mtlogDiags, ok := pkg["mtlog"]; ok {
-			for _, issue := range mtlogDiags {
+	// Read the file content for position conversion
+	fileContent, err := os.ReadFile(targetFile)
+	if err != nil {
+		s.logger.Printf("Error reading file %s: %v", targetFile, err)
+		return diagnostics, fixesMap
+	}
+	
+	// Configure the analyzer based on our settings
+	analyzerInstance := analyzer.Analyzer
+	
+	// Set analyzer flags based on configuration
+	if s.config.Analyzer.Strict || s.config.Mtlog.StrictMode {
+		analyzerInstance.Flags.Set("strict", "true")
+	}
+	
+	if len(s.config.Analyzer.CommonKeys) > 0 {
+		analyzerInstance.Flags.Set("common-keys", strings.Join(s.config.Analyzer.CommonKeys, ","))
+	} else if len(s.config.Mtlog.CommonKeys) > 0 {
+		analyzerInstance.Flags.Set("common-keys", strings.Join(s.config.Mtlog.CommonKeys, ","))
+	}
+	
+	if len(s.config.Analyzer.DisabledChecks) > 0 {
+		analyzerInstance.Flags.Set("disable", strings.Join(s.config.Analyzer.DisabledChecks, ","))
+	}
+	
+	if s.config.Analyzer.IgnoreDynamicTemplates || s.config.Mtlog.IgnoreDynamicTemplates {
+		analyzerInstance.Flags.Set("ignore-dynamic-templates", "true")
+	}
+	
+	if s.config.Analyzer.StrictLoggerTypes {
+		analyzerInstance.Flags.Set("strict-logger-types", "true")
+	}
+	
+	if s.config.Analyzer.DowngradeErrors {
+		analyzerInstance.Flags.Set("downgrade-errors", "true")
+	}
+	
+	if s.config.Mtlog.DisableAll {
+		analyzerInstance.Flags.Set("disable-all", "true")
+	}
+	
+	// Add suppressed codes
+	if len(s.config.Mtlog.SuppressedCodes) > 0 {
+		analyzerInstance.Flags.Set("suppress", strings.Join(s.config.Mtlog.SuppressedCodes, ","))
+	}
+	
+	// Load the package containing the target file
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
+			packages.NeedImports | packages.NeedTypes | packages.NeedSyntax |
+			packages.NeedTypesInfo | packages.NeedTypesSizes,
+		Dir: dir,
+		Env: os.Environ(),
+		Tests: false,
+	}
+	
+	// Load packages for the target file's directory
+	pkgPath := filepath.Dir(targetFile)
+	pkgs, err := packages.Load(cfg, pkgPath)
+	if err != nil {
+		s.logger.Printf("Error loading packages: %v", err)
+		return diagnostics, fixesMap
+	}
+	
+	// Process each package
+	for _, pkg := range pkgs {
+		if len(pkg.Errors) > 0 {
+			for _, err := range pkg.Errors {
+				s.logger.Printf("Package error: %v", err)
+			}
+			continue
+		}
 		
-				// Parse position (format: "filename:line:col")
-				parts := strings.SplitN(issue.Posn, ":", 3)
-				if len(parts) < 3 {
-					continue
+		// Check if our target file is in this package
+		fileInPackage := false
+		for _, file := range pkg.CompiledGoFiles {
+			if file == targetFile {
+				fileInPackage = true
+				break
+			}
+		}
+		
+		if !fileInPackage {
+			continue
+		}
+		
+		// Create an analysis pass for this package
+		pass := &analysis.Pass{
+			Analyzer:  analyzerInstance,
+			Fset:      pkg.Fset,
+			Files:     pkg.Syntax,
+			Pkg:       pkg.Types,
+			TypesInfo: pkg.TypesInfo,
+			Report: func(d analysis.Diagnostic) {
+				// Only process diagnostics for our target file
+				pos := pkg.Fset.Position(d.Pos)
+				if pos.Filename != targetFile {
+					return
 				}
 				
-				// Check if this diagnostic is for our target file
-				issueFile := filepath.Clean(parts[0])
-				targetClean := filepath.Clean(targetFile)
-				
-				// Try exact match first, then base name match
-				if issueFile != targetClean && filepath.Base(issueFile) != filepath.Base(targetClean) {
-					// Also try if issueFile is relative and targetFile is absolute
-					if !strings.HasSuffix(targetClean, issueFile) {
-						continue
-					}
-				}
-				
-				lineNum, _ := strconv.Atoi(parts[1])
-				colNum, _ := strconv.Atoi(parts[2])
-				
-				// LSP uses 0-based indexing
-				lineNum = lineNum - 1
-				colNum = colNum - 1
-				
-				if lineNum < 0 {
-					lineNum = 0
-				}
-				if colNum < 0 {
-					colNum = 0
-				}
-				
-				// Extract diagnostic ID if present (e.g., "[MTLOG001] message")
+				// Extract diagnostic code from message if present
+				message := d.Message
 				code := ""
-				message := issue.Message
 				if strings.HasPrefix(message, "[MTLOG") {
 					if idx := strings.Index(message, "]"); idx > 0 {
 						code = message[1:idx]
@@ -588,96 +593,115 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 					}
 				}
 				
-				// Create the diagnostic WITHOUT Data field
+				// Check if this diagnostic should be suppressed
+				if code != "" && s.shouldSuppressDiagnostic(code) {
+					s.logger.Printf("Suppressing diagnostic %s", code)
+					return
+				}
+				
+				// Convert token positions to LSP positions
+				startLine, startChar := byteOffsetToPosition(fileContent, pos.Offset)
+				
+				// For end position, use the diagnostic's end if available
+				endPos := d.End
+				if endPos == token.NoPos {
+					// If no end position, use start + 1
+					endPos = d.Pos + 1
+				}
+				endPosInfo := pkg.Fset.Position(endPos)
+				endLine, endChar := byteOffsetToPosition(fileContent, endPosInfo.Offset)
+				
+				// Determine severity
+				severity := 2 // Warning by default
+				if strings.Contains(strings.ToLower(d.Message), "error") {
+					severity = 1 // Error
+				}
+				
+				// Apply severity overrides if configured
+				if code != "" {
+					if override, ok := s.config.Mtlog.SeverityOverrides[code]; ok {
+						switch strings.ToLower(override) {
+						case "error":
+							severity = 1
+						case "warning":
+							severity = 2
+						case "information", "info":
+							severity = 3
+						case "hint":
+							severity = 4
+						}
+					}
+				}
+				
 				diag := Diagnostic{
 					Range: Range{
-						Start: Position{Line: lineNum, Character: colNum},
-						End:   Position{Line: lineNum, Character: colNum + 1}, // Single character for now
+						Start: Position{Line: startLine, Character: startChar},
+						End:   Position{Line: endLine, Character: endChar},
 					},
-					Severity: 2, // Warning
+					Severity: severity,
 					Code:     code,
 					Source:   "mtlog-analyzer",
 					Message:  message,
 				}
 				
-				// Check if diagnostic should be suppressed
-				if s.shouldSuppressDiagnostic(code) {
-					s.logger.Printf("Suppressing diagnostic %s (suppressed codes: %v)", code, s.config.Mtlog.SuppressedCodes)
-					continue
-				}
-				s.logger.Printf("NOT suppressing diagnostic %s (suppressed codes: %v)", code, s.config.Mtlog.SuppressedCodes)
-				
 				diagnostics = append(diagnostics, diag)
 				
-				// Create a key for this diagnostic using full message
-				diagKey := fmt.Sprintf("%d:%d-%s", lineNum, colNum, issue.Message)
+				// Create diagnostic key for fixes lookup
+				fullMessage := message
+				if code != "" {
+					fullMessage = fmt.Sprintf("[%s] %s", code, message)
+				}
+				diagKey := fmt.Sprintf("%d:%d-%s", startLine, startChar, fullMessage)
 				
-				// Convert suggested fixes to code actions
-				if len(issue.SuggestedFixes) > 0 {
-					s.logger.Printf("Storing fixes for diagnostic key: %s", diagKey)
-					for _, fix := range issue.SuggestedFixes {
-						lspEdits := []map[string]interface{}{}
-						for _, edit := range fix.Edits {
-							// Convert byte offsets to line/character positions
-							startLine, startChar := byteOffsetToPosition(fileContent, edit.Start)
-							endLine, endChar := byteOffsetToPosition(fileContent, edit.End)
-							
-							// Debug: show the text around the edit position
-							contextStart := edit.Start - editContextLength
-							if contextStart < 0 {
-								contextStart = 0
-							}
-							contextEnd := edit.End + editContextLength
-							if contextEnd > len(fileContent) {
-								contextEnd = len(fileContent)
-							}
-							context := string(fileContent[contextStart:contextEnd])
-							
-							s.logger.Printf("Edit: start=%d->(%d,%d), end=%d->(%d,%d), new=%q, context=%q", 
-								edit.Start, startLine, startChar, edit.End, endLine, endChar, edit.New, context)
-							
-							lspEdits = append(lspEdits, map[string]interface{}{
-								"range": map[string]interface{}{
-									"start": map[string]interface{}{
-										"line":      startLine,
-										"character": startChar,
-									},
-									"end": map[string]interface{}{
-										"line":      endLine,
-										"character": endChar,
-									},
+				// Process suggested fixes
+				for _, fix := range d.SuggestedFixes {
+					codeAction := CodeAction{
+						Title:       fix.Message,
+						Kind:        "quickfix",
+						Diagnostics: []Diagnostic{diag},
+						Edit: map[string]interface{}{
+							"changes": map[string]interface{}{},
+						},
+					}
+					
+					// Convert text edits
+					edits := []map[string]interface{}{}
+					for _, edit := range fix.TextEdits {
+						startPos := pkg.Fset.Position(edit.Pos)
+						endPos := pkg.Fset.Position(edit.End)
+						
+						startLine, startChar := byteOffsetToPosition(fileContent, startPos.Offset)
+						endLine, endChar := byteOffsetToPosition(fileContent, endPos.Offset)
+						
+						edits = append(edits, map[string]interface{}{
+							"range": map[string]interface{}{
+								"start": map[string]interface{}{
+									"line":      startLine,
+									"character": startChar,
 								},
-								"newText": edit.New,
-							})
-						}
-						
-						// Log the actual edit we're creating
-						editURI := "file://" + targetFile
-						s.logger.Printf("Creating code action with URI: %s, edits: %v", editURI, lspEdits)
-						
-						codeAction := CodeAction{
-							Title: fix.Message,
-							Kind:  "quickfix",
-							Diagnostics: []Diagnostic{diag},
-							Edit: map[string]interface{}{
-								"changes": map[string]interface{}{
-									editURI: lspEdits,
+								"end": map[string]interface{}{
+									"line":      endLine,
+									"character": endChar,
 								},
 							},
+							"newText": string(edit.NewText),
+						})
+					}
+					
+					if len(edits) > 0 {
+						uri := "file://" + targetFile
+						if changesMap, ok := codeAction.Edit["changes"].(map[string]interface{}); ok {
+							changesMap[uri] = edits
 						}
-						
 						fixesMap[diagKey] = append(fixesMap[diagKey], codeAction)
 					}
 				}
 				
-				// Add suppression code action if code is not empty and not already suppressed
+				// Add suppression code action if code is not empty
 				if code != "" && !s.shouldSuppressDiagnostic(code) {
-					// Create edit to add suppression to .zed/settings.json
 					settingsPath := filepath.Join(s.rootPath, ".zed", "settings.json")
 					settingsURI := "file://" + settingsPath
 					
-					// Simple JSON addition - this is a basic implementation
-					// Use initialization_options format for Zed
 					newText := fmt.Sprintf(`{
   "lsp": {
     "mtlog-analyzer": {
@@ -709,7 +733,30 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 					
 					fixesMap[diagKey] = append(fixesMap[diagKey], suppressAction)
 				}
-			}
+			},
+		}
+		
+		// Add inspect pass result (required by analyzer)
+		_ = &analysis.Pass{
+			Analyzer:  inspect.Analyzer,
+			Fset:      pkg.Fset,
+			Files:     pkg.Syntax,
+			Pkg:       pkg.Types,
+			TypesInfo: pkg.TypesInfo,
+			Report:    func(d analysis.Diagnostic) {},
+			ResultOf:  make(map[*analysis.Analyzer]interface{}),
+		}
+		
+		// Run inspector
+		inspector := inspector.New(pkg.Syntax)
+		pass.ResultOf = map[*analysis.Analyzer]interface{}{
+			inspect.Analyzer: inspector,
+		}
+		
+		// Run the analyzer
+		_, err := analyzerInstance.Run(pass)
+		if err != nil {
+			s.logger.Printf("Analyzer error: %v", err)
 		}
 	}
 	
@@ -717,56 +764,12 @@ func (s *Server) runAnalyzer(dir string, targetFile string) ([]Diagnostic, map[s
 	return diagnostics, fixesMap
 }
 
-func publishDiagnostics(uri string, diagnostics []Diagnostic) {
-	notification := JSONRPCMessage{
-		Jsonrpc: "2.0",
-		Method:  "textDocument/publishDiagnostics",
-		Params: json.RawMessage(mustMarshal(map[string]interface{}{
-			"uri":         uri,
-			"diagnostics": diagnostics,
-		})),
+// getMapKeys returns all keys from a map as a slice.
+// Used for debugging to log available diagnostic keys in the fixes cache.
+func getMapKeys(m map[string][]CodeAction) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
 	}
-	
-	sendMessage(notification)
-}
-
-func sendResponse(id interface{}, result interface{}) {
-	response := JSONRPCMessage{
-		Jsonrpc: "2.0",
-		ID:      id,
-	}
-	
-	if result != nil {
-		response.Params = json.RawMessage(mustMarshal(map[string]interface{}{
-			"result": result,
-		}))
-		// Actually, for responses we need a different structure
-		responseMap := map[string]interface{}{
-			"jsonrpc": "2.0",
-			"id":      id,
-			"result":  result,
-		}
-		sendMessage(responseMap)
-		return
-	}
-	
-	sendMessage(response)
-}
-
-// sendMessage sends a JSON-RPC message to the client via stdout.
-// It prepends the required Content-Length header for LSP communication.
-func sendMessage(msg interface{}) {
-	msgBytes := mustMarshal(msg)
-	content := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(msgBytes), msgBytes)
-	os.Stdout.Write([]byte(content))
-}
-
-// mustMarshal marshals a value to JSON, panicking on error.
-// Used for internal structures that should always be marshalable.
-func mustMarshal(v interface{}) []byte {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
+	return keys
 }
