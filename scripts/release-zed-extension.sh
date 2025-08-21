@@ -35,11 +35,13 @@ if [ -d "$EXTENSIONS_DIR" ]; then
     git pull upstream main
 else
     echo "Cloning extensions repository..."
-    git clone https://github.com/${GITHUB_ACTOR:-$USER}/extensions.git "$EXTENSIONS_DIR" || {
+    if ! git clone https://github.com/${GITHUB_ACTOR:-$USER}/extensions.git "$EXTENSIONS_DIR" 2>/dev/null; then
         echo "Fork not found. Creating fork first..."
         gh repo fork zed-industries/extensions --clone=false
+        # Small delay to allow GitHub to process the fork
+        sleep 3
         git clone https://github.com/${GITHUB_ACTOR:-$USER}/extensions.git "$EXTENSIONS_DIR"
-    }
+    fi
     cd "$EXTENSIONS_DIR"
     git remote add upstream https://github.com/zed-industries/extensions || true
 fi
