@@ -498,6 +498,8 @@ func (s *Server) runBundledAnalyzer(dir string, targetFile string) ([]Diagnostic
 		analyzerInstance.Flags.Set("strict", "true")
 	}
 	
+	// Check Analyzer config first, then fall back to Mtlog config
+	// This allows flexible configuration through either the analyzer-specific or general settings
 	if len(s.config.Analyzer.CommonKeys) > 0 {
 		analyzerInstance.Flags.Set("common-keys", strings.Join(s.config.Analyzer.CommonKeys, ","))
 	} else if len(s.config.Mtlog.CommonKeys) > 0 {

@@ -66,8 +66,8 @@ impl MtlogAnalyzerExtension {
             return Some(binary_path);
         }
 
-        // Fallback to common locations
-        Some("/usr/local/bin/mtlog-lsp".to_string())
+        // No valid path found - let Zed handle the error gracefully
+        None
     }
 }
 
