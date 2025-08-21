@@ -981,6 +981,24 @@ log.With("userId", 123, "requestId", "abc").Info("Request processed")
 
 See [mtlog-analyzer README](./cmd/mtlog-analyzer/README.md) for detailed documentation and CI integration.
 
+### mtlog-lsp
+
+A Language Server Protocol implementation that bundles mtlog-analyzer for editor integrations:
+
+```bash
+# Install the LSP server
+go install github.com/willibrandon/mtlog/cmd/mtlog-lsp@latest
+```
+
+mtlog-lsp provides:
+- Zero-subprocess overhead with bundled analyzer
+- Real-time diagnostics for all MTLOG001-MTLOG013 issues
+- Code actions and quick fixes
+- Workspace configuration support
+- Performance optimized with package caching
+
+Primarily used by the [Zed extension](./zed-extension/mtlog/README.md). See [mtlog-lsp README](./cmd/mtlog-lsp/README.md) for detailed documentation.
+
 ### IDE Extensions
 
 #### VS Code Extension
