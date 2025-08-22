@@ -498,3 +498,208 @@ log.With("", "value")  // ❌ Empty key ignored
 - **VS Code**: Install [mtlog-analyzer extension](https://marketplace.visualstudio.com/items?itemName=mtlog.mtlog-analyzer)
 - **GoLand**: Install [mtlog-analyzer plugin](https://plugins.jetbrains.com/plugin/24877-mtlog-analyzer)
 - **Neovim**: Use [mtlog.nvim plugin](https://github.com/willibrandon/mtlog/tree/main/neovim-plugin)
+
+## HTTP Middleware
+
+### Basic Setup
+
+```go
+import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/adapters/middleware"
+)
+
+logger := mtlog.New(mtlog.WithConsole())
+
+// net/http
+mw := middleware.Middleware(middleware.DefaultOptions(logger))
+handler := mw(yourHandler)
+
+// Gin
+router.Use(middleware.Gin(logger))
+
+// Echo
+e.Use(middleware.Echo(logger))
+
+// Fiber
+app.Use(middleware.Fiber(logger))
+
+// Chi
+r.Use(middleware.Chi(logger))
+```
+
+### Configuration Options
+
+```go
+options := &middleware.Options{
+    Logger:            logger,
+    GenerateRequestID: true,
+    RequestIDHeader:   "X-Request-ID",
+    SkipPaths:         []string{"/health", "/metrics"},
+    RequestFields:     []string{"method", "path", "ip", "user_agent"},
+    LatencyField:      "duration_ms",
+    LatencyUnit:      "ms",
+    
+    // Body logging
+    LogRequestBody:   true,
+    LogResponseBody:  true,
+    MaxBodySize:      4096,
+    BodySanitizer:    middleware.DefaultBodySanitizer,
+    
+    // Sampling
+    Sampler: middleware.NewPathSamplerBuilder().
+        Never("/health").
+        Sometimes("/api/status", 0.1).
+        Always("*").
+        Build(),
+        
+    // Custom fields
+    CustomFields: []middleware.FieldExtractor{
+        middleware.UserIDFromHeader,
+        middleware.TraceIDFromContext,
+    },
+    
+    // Metrics
+    MetricsRecorder: myMetricsRecorder,
+}
+
+mw := middleware.Middleware(options)
+```
+
+### Sampling Strategies
+
+```go
+// Rate-based sampling (10% of requests)
+sampler := middleware.NewRateSampler(0.1)
+
+// Adaptive sampling (target 100 logs/second)
+sampler := middleware.NewAdaptiveSampler(100)
+
+// Path-based sampling with patterns
+sampler := middleware.NewPathSamplerBuilder().
+    Never("/health*").
+    Sometimes("/api/status", 0.1).
+    Always("/api/*/debug").
+    Sometimes("*", 0.5).
+    Build()
+
+// Composite sampling (AND/OR logic)
+sampler := middleware.NewCompositeSampler(
+    middleware.CompositeAND,
+    middleware.NewRateSampler(0.5),
+    middleware.NewPathSampler(rules),
+)
+```
+
+### Body Sanitization
+
+```go
+// Default sanitizer (redacts passwords, tokens, etc.)
+options.BodySanitizer = middleware.DefaultBodySanitizer
+
+// Custom regex sanitizer
+options.BodySanitizer = middleware.RegexBodySanitizer(
+    regexp.MustCompile(`"credit_card":\s*"[^"]+"`),
+    regexp.MustCompile(`"ssn":\s*"[^"]+"`),
+)
+
+// Function-based sanitizer
+options.BodySanitizer = func(body []byte, contentType string) []byte {
+    // Custom sanitization logic
+    return sanitizedBody
+}
+```
+
+### Request Logger Helper
+
+```go
+func handler(w http.ResponseWriter, r *http.Request) {
+    reqLogger := middleware.GetRequestLogger(r).
+        WithUser("user-123").
+        WithOperation("CreateOrder").
+        WithResource("Order", "ord-456")
+    
+    reqLogger.Information("Processing order creation")
+    
+    if err := processOrder(); err != nil {
+        reqLogger.WithError(err).Error("Order creation failed")
+    }
+}
+```
+
+### Context Helpers
+
+```go
+func handler(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
+    
+    // Simple logging
+    middleware.InfoContext(ctx, "Processing request")
+    middleware.ErrorContext(ctx, "Failed to process: {Error}", err)
+    
+    // Add fields to context logger
+    ctx = middleware.WithFieldsContext(ctx, map[string]any{
+        "UserId": "user-123",
+        "Action": "UpdateProfile",
+    })
+    
+    middleware.InfoContext(ctx, "User action completed")
+}
+```
+
+### Health Check Handlers
+
+```go
+// Basic health check handler
+healthHandler := middleware.NewHealthCheckHandler(logger).
+    WithVersion("1.0.0").
+    WithEnvironment("production").
+    WithMetrics(true)
+
+// Add custom checks
+healthHandler.AddCheck("database", func() middleware.Check {
+    if err := db.Ping(); err != nil {
+        return middleware.Check{
+            Status: "unhealthy",
+            Error:  err.Error(),
+        }
+    }
+    return middleware.Check{Status: "healthy"}
+})
+
+// Use as HTTP handler
+http.Handle("/health", healthHandler)
+
+// Simple liveness/readiness handlers
+http.HandleFunc("/liveness", middleware.LivenessHandler())
+http.HandleFunc("/readiness", middleware.ReadinessHandler(
+    middleware.DatabaseHealthChecker("postgres", db.Ping),
+    middleware.HTTPHealthChecker("api", "http://api:8080/health", 5*time.Second),
+))
+```
+
+### Performance with Object Pooling
+
+```go
+// Pooling is enabled by default, can be controlled globally
+middleware.EnablePooling = true
+
+// Get pool statistics
+stats := middleware.GetPoolStats()
+fmt.Printf("Error pool hits: %d\n", stats.ErrorPoolHits)
+
+// Reset statistics
+middleware.ResetPoolStats()
+
+// Batch metrics for high-throughput
+batchRecorder := middleware.NewBatchMetricsRecorder(
+    func(metrics []middleware.RequestMetric) {
+        // Flush to your metrics backend
+    },
+    5*time.Second, // Flush interval
+    1000,          // Batch size
+)
+defer batchRecorder.Close()
+
+options.MetricsRecorder = batchRecorder
+```
