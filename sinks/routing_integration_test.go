@@ -57,16 +57,16 @@ func TestRoutingSinksIntegration(t *testing.T) {
 		}
 		
 		contentStr := string(content)
-		if !contains(contentStr, "Database down") {
+		if !strings.Contains(contentStr, "Database down") {
 			t.Error("Alert file should contain 'Database down'")
 		}
-		if !contains(contentStr, "System critical") {
+		if !strings.Contains(contentStr, "System critical") {
 			t.Error("Alert file should contain 'System critical'")
 		}
-		if contains(contentStr, "Normal operation") {
+		if strings.Contains(contentStr, "Normal operation") {
 			t.Error("Alert file should not contain 'Normal operation'")
 		}
-		if contains(contentStr, "Connection failed") {
+		if strings.Contains(contentStr, "Connection failed") {
 			t.Error("Alert file should not contain 'Connection failed' (no Alert property)")
 		}
 	})
@@ -126,28 +126,28 @@ func TestRoutingSinksIntegration(t *testing.T) {
 		infoContent, _ := os.ReadFile(infoFile)
 		
 		// Errors should only be in error file
-		if !contains(string(errorContent), "Database timeout") {
+		if !strings.Contains(string(errorContent), "Database timeout") {
 			t.Error("Error file should contain 'Database timeout'")
 		}
-		if !contains(string(errorContent), "Out of memory") {
+		if !strings.Contains(string(errorContent), "Out of memory") {
 			t.Error("Error file should contain 'Out of memory'")
 		}
 		
 		// Warnings should only be in warning file
-		if !contains(string(warningContent), "Cache miss") {
+		if !strings.Contains(string(warningContent), "Cache miss") {
 			t.Error("Warning file should contain 'Cache miss'")
 		}
 		
 		// Info should only be in info file
-		if !contains(string(infoContent), "App started") {
+		if !strings.Contains(string(infoContent), "App started") {
 			t.Error("Info file should contain 'App started'")
 		}
 		
 		// Verify FirstMatch behavior - errors shouldn't be in warning/info files
-		if contains(string(warningContent), "Database timeout") {
+		if strings.Contains(string(warningContent), "Database timeout") {
 			t.Error("Warning file should not contain error events (FirstMatch)")
 		}
-		if contains(string(infoContent), "Database timeout") {
+		if strings.Contains(string(infoContent), "Database timeout") {
 			t.Error("Info file should not contain error events (FirstMatch)")
 		}
 	})
