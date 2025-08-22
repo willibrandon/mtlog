@@ -132,6 +132,7 @@
                         <li><a href="#context-logging" class="nav-link text-gray-400 hover:text-white">Context Logging</a></li>
                         <li><a href="#logcontext" class="nav-link text-gray-400 hover:text-white">LogContext</a></li>
                         <li><a href="#dynamic-levels" class="nav-link text-gray-400 hover:text-white">Dynamic Levels</a></li>
+                        <li><a href="#http-middleware" class="nav-link text-gray-400 hover:text-white">HTTP Middleware</a></li>
                         <li><a href="#ecosystem" class="nav-link text-gray-400 hover:text-white">Ecosystem</a></li>
                         <li><a href="#static-analysis" class="nav-link text-gray-400 hover:text-white">Static Analysis</a></li>
                         <li><a href="#ide-extensions" class="nav-link text-gray-400 hover:text-white">IDE Extensions</a></li>
@@ -564,6 +565,114 @@ if levelSwitch.IsEnabled(core.VerboseLevel) {
                         </div>
                     </section>
 
+                    <!-- HTTP Middleware -->
+                    <section id="http-middleware" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">HTTP Middleware</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Basic Setup</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/adapters/middleware"
+)
+
+logger := mtlog.New(mtlog.WithConsole())
+
+// net/http
+mw := middleware.Middleware(middleware.DefaultOptions(logger))
+handler := mw(yourHandler)
+
+// Gin
+router.Use(middleware.Gin(logger))
+
+// Echo
+e.Use(middleware.Echo(logger))
+
+// Fiber
+app.Use(middleware.Fiber(logger))
+
+// Chi
+r.Use(middleware.Chi(logger))</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Configuration</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">options := &middleware.Options{
+    Logger:            logger,
+    GenerateRequestID: true,
+    RequestIDHeader:   "X-Request-ID",
+    SkipPaths:         []string{"/health", "/metrics"},
+    RequestFields:     []string{"method", "path", "ip", "user_agent"},
+    LatencyField:      "duration_ms",
+    LatencyUnit:      "ms",
+    
+    // Body logging with sanitization
+    LogRequestBody:   true,
+    LogResponseBody:  true,
+    MaxBodySize:      4096,
+    BodySanitizer:    middleware.DefaultBodySanitizer,
+    
+    // Sampling strategies
+    Sampler: middleware.NewPathSamplerBuilder().
+        Never("/health").
+        Sometimes("/api/status", 0.1).
+        Always("*").
+        Build(),
+}</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Request Logger Helper</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">func handler(w http.ResponseWriter, r *http.Request) {
+    reqLogger := middleware.GetRequestLogger(r).
+        WithUser("user-123").
+        WithOperation("CreateOrder").
+        WithResource("Order", "ord-456")
+    
+    reqLogger.Information("Processing order creation")
+    
+    if err := processOrder(); err != nil {
+        reqLogger.WithError(err).Error("Order creation failed")
+    }
+}</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Health Checks</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Basic health handler
+healthHandler := middleware.NewHealthCheckHandler(logger).
+    WithVersion("1.0.0").
+    WithEnvironment("production").
+    WithMetrics(true)
+
+// Add custom checks
+healthHandler.AddCheck("database", func() middleware.Check {
+    if err := db.Ping(); err != nil {
+        return middleware.Check{Status: "unhealthy", Error: err.Error()}
+    }
+    return middleware.Check{Status: "healthy"}
+})
+
+http.Handle("/health", healthHandler)
+
+// Simple handlers
+http.HandleFunc("/liveness", middleware.LivenessHandler())
+http.HandleFunc("/readiness", middleware.ReadinessHandler(
+    middleware.DatabaseHealthChecker("postgres", db.Ping),
+))</code></pre>
+                        </div>
+
+                        <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4">
+                            <p class="text-blue-200 mb-2">
+                                <strong>📖 Complete Guide:</strong>
+                            </p>
+                            <p class="text-blue-100">
+                                For detailed documentation, advanced features, and configuration options, see the 
+                                <a href="../adapters/middleware/README.md" class="text-blue-300 hover:text-blue-200 underline">HTTP Middleware Guide</a>.
+                            </p>
+                        </div>
+                    </section>
+
                     <!-- Ecosystem -->
                     <section id="ecosystem" class="mb-12">
                         <h2 class="text-2xl font-bold mb-4">Ecosystem Compatibility</h2>
@@ -705,9 +814,6 @@ log.With("", "value")  // ❌ Empty key ignored</code></pre>
     <!-- Footer -->
     <footer class="border-t border-gray-800 py-8 px-4 mt-16">
         <div class="container mx-auto text-center text-gray-500 text-sm">
-            <p>
-                Built with ❤️ by <a href="https://github.com/willibrandon" class="text-blue-400 hover:underline">willibrandon</a>
-            </p>
             <p class="mt-2">
                 <a href="/" class="hover:text-gray-400">Home</a> •
                 <a href="/blog" class="hover:text-gray-400 ml-4">Blog</a> •

@@ -24,6 +24,16 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Standard library compatibility** via slog.Handler adapter (Go 1.21+)
 - **Kubernetes ecosystem** support via logr.LogSink adapter
 
+### HTTP Middleware
+- **Multi-framework support** for net/http, Gin, Echo, Fiber, and Chi
+- **High-performance request/response logging** with minimal overhead (~2.3μs per request)
+- **Object pooling** for zero-allocation paths in high-throughput scenarios
+- **Advanced sampling strategies** (rate, adaptive, path-based) for log volume control
+- **Request body logging** with automatic sanitization of sensitive data
+- **Distributed tracing** with W3C Trace Context, B3, and X-Ray format support
+- **Health check handlers** with configurable metrics and liveness/readiness probes
+- **Panic recovery** with detailed stack traces and custom error handling
+
 ### Sinks & Output
 - **Console sink** with customizable themes (dark, light, ANSI, Literate)
 - **File sink** with rolling policies (size, time-based)
@@ -792,8 +802,44 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Dynamic levels](./examples/dynamic-levels/main.go)
 - [Configuration](./examples/configuration/main.go)
 - [Generics usage](./examples/generics/main.go)
+- [HTTP middleware](./adapters/middleware/examples/) - net/http, Gin, Echo, Fiber, Chi
 
 ## Ecosystem Compatibility
+
+### HTTP Middleware
+
+mtlog provides HTTP middleware adapters for popular Go web frameworks:
+
+```go
+import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/adapters/middleware"
+)
+
+logger := mtlog.New(mtlog.WithConsole())
+
+// net/http
+mw := middleware.Middleware(middleware.DefaultOptions(logger))
+handler := mw(yourHandler)
+
+// Gin
+router := gin.New()
+router.Use(middleware.Gin(logger))
+
+// Echo
+e := echo.New()
+e.Use(middleware.Echo(logger))
+
+// Fiber
+app := fiber.New()
+app.Use(middleware.Fiber(logger))
+
+// Chi
+r := chi.NewRouter()
+r.Use(middleware.Chi(logger))
+```
+
+Features include request/response logging, body capture with sanitization, distributed tracing, health checks, and object pooling for high-performance scenarios. See the [HTTP Middleware Guide](./adapters/middleware/README.md) for detailed documentation.
 
 ### Standard Library (slog)
 
