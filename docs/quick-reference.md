@@ -181,6 +181,50 @@ mtlog.WithAsync(mtlog.WithFileSink("app.log"))         // Async wrapper
 mtlog.WithDurable(mtlog.WithSeq("http://localhost:5341"))  // Durable buffering
 ```
 
+### Event Routing
+```go
+// Conditional sink - zero overhead for non-matching events
+alertSink := sinks.NewConditionalSink(
+    func(e *core.LogEvent) bool { 
+        return e.Level >= core.ErrorLevel && e.Properties["Alert"] != nil 
+    },
+    sinks.NewFileSink("alerts.log"),
+)
+
+// Built-in predicates
+sinks.LevelPredicate(core.ErrorLevel)                    // Level filtering
+sinks.PropertyPredicate("Audit")                         // Property exists
+sinks.PropertyValuePredicate("Environment", "production") // Property value
+sinks.AndPredicate(pred1, pred2, pred3)                  // All must match
+sinks.OrPredicate(pred1, pred2)                          // Any matches
+sinks.NotPredicate(pred)                                 // Invert predicate
+
+// Router sink - FirstMatch mode (exclusive routing)
+router := sinks.NewRouterSink(sinks.FirstMatch,
+    sinks.ErrorRoute("errors", errorSink),
+    sinks.AuditRoute("audit", auditSink),
+)
+
+// Router sink - AllMatch mode (broadcast routing)  
+router := sinks.NewRouterSink(sinks.AllMatch,
+    sinks.MetricRoute("metrics", metricsSink),
+    sinks.AuditRoute("audit", auditSink),
+)
+
+// Dynamic route management
+router.AddRoute(sinks.Route{
+    Name:      "debug",
+    Predicate: func(e *core.LogEvent) bool { return e.Level <= core.DebugLevel },
+    Sink:      debugSink,
+})
+router.RemoveRoute("debug")
+
+// Fluent route builder
+route := sinks.NewRoute("special").
+    When(func(e *core.LogEvent) bool { return e.Properties["Special"] != nil }).
+    To(specialSink)
+```
+
 ## Enrichers
 
 ```go

@@ -132,6 +132,25 @@ Configure output destinations:
 - `dataStreams`: Use data streams instead of indices (true/false)
 - `pipeline`: Ingest pipeline name
 
+**Conditional** (filters events based on predicates)
+- `name`: Optional name for debugging
+- `when`: Predicate type ("level", "property", "propertyValue")
+- `minimumLevel`: Minimum level when using "level" predicate
+- `property`: Property name for "property" or "propertyValue" predicates
+- `value`: Expected value for "propertyValue" predicate
+- `writeTo`: Nested sink configuration for matching events
+
+**Router** (routes events to multiple sinks)
+- `mode`: "FirstMatch" (exclusive) or "AllMatch" (broadcast)
+- `routes`: Array of route configurations
+  - `name`: Route name
+  - `when`: Predicate type ("level", "property", "propertyValue", "error", "audit", "metric")
+  - `minimumLevel`: Minimum level for "level" predicate
+  - `property`: Property name for property-based predicates
+  - `value`: Expected value for "propertyValue" predicate
+  - `writeTo`: Nested sink configuration
+- `defaultSink`: Optional sink for non-matching events
+
 ### Enrichers
 
 Add contextual properties to all events:

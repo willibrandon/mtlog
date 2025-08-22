@@ -41,6 +41,8 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Elasticsearch sink** for centralized log storage and search
 - **Splunk sink** with HEC (HTTP Event Collector) support
 - **OpenTelemetry (OTLP) sink** with gRPC/HTTP transport, batching, and trace correlation
+- **Conditional sink** for predicate-based routing with zero overhead
+- **Router sink** for multi-destination routing with FirstMatch/AllMatch modes
 - **Async sink wrapper** for high-throughput scenarios
 - **Durable buffering** with persistent storage for reliability
 
@@ -656,6 +658,108 @@ mtlog.WithDurable(
 )
 ```
 
+### Event Routing with Conditional and Router Sinks
+
+Route log events to different destinations based on their properties:
+
+#### Conditional Sink
+
+Filter events based on predicates with zero overhead for non-matching events:
+
+```go
+// Create a conditional sink for critical alerts
+alertSink, _ := sinks.NewFileSink("alerts.log")
+criticalAlertSink := sinks.NewConditionalSink(
+    func(event *core.LogEvent) bool {
+        return event.Level >= core.ErrorLevel && 
+               event.Properties["Alert"] != nil
+    },
+    alertSink,
+)
+
+// Use built-in predicates
+auditSink := sinks.NewConditionalSink(
+    sinks.PropertyPredicate("Audit"),
+    auditFileSink,
+)
+
+// Combine predicates
+complexFilter := sinks.NewConditionalSink(
+    sinks.AndPredicate(
+        sinks.LevelPredicate(core.ErrorLevel),
+        sinks.PropertyPredicate("Critical"),
+        sinks.PropertyValuePredicate("Environment", "production"),
+    ),
+    targetSink,
+)
+
+logger := mtlog.New(
+    mtlog.WithSink(sinks.NewConsoleSink()),
+    mtlog.WithSink(criticalAlertSink),
+    mtlog.WithSink(auditSink),
+)
+
+// Only critical errors with Alert property go to alerts.log
+logger.With("Alert", true).Error("Database connection lost")
+```
+
+#### Router Sink
+
+Advanced routing with multiple destinations and routing modes:
+
+```go
+// FirstMatch mode - exclusive routing (stops at first match)
+router := sinks.NewRouterSink(sinks.FirstMatch,
+    sinks.Route{
+        Name:      "errors",
+        Predicate: sinks.LevelPredicate(core.ErrorLevel),
+        Sink:      errorSink,
+    },
+    sinks.Route{
+        Name:      "warnings",
+        Predicate: sinks.LevelPredicate(core.WarningLevel),
+        Sink:      warningSink,
+    },
+)
+
+// AllMatch mode - broadcast to all matching routes
+router := sinks.NewRouterSink(sinks.AllMatch,
+    sinks.MetricRoute("metrics", metricsSink),
+    sinks.AuditRoute("audit", auditSink),
+    sinks.ErrorRoute("errors", errorSink),
+)
+
+// With default sink for non-matching events
+router := sinks.NewRouterSinkWithDefault(
+    sinks.FirstMatch,
+    defaultSink,
+    routes...,
+)
+
+// Dynamic route management at runtime
+router.AddRoute(sinks.Route{
+    Name:      "debug",
+    Predicate: func(e *core.LogEvent) bool { 
+        return e.Level <= core.DebugLevel 
+    },
+    Sink:      debugSink,
+})
+router.RemoveRoute("debug")
+
+// Fluent route builder API
+route := sinks.NewRoute("special-events").
+    When(func(e *core.LogEvent) bool {
+        category, _ := e.Properties["Category"].(string)
+        return category == "Special"
+    }).
+    To(specialSink)
+
+logger := mtlog.New(
+    mtlog.WithSink(router),
+    mtlog.WithSink(sinks.NewConsoleSink()),
+)
+```
+
 ## Dynamic Level Control
 
 Control logging levels at runtime without restarting your application:
@@ -1177,6 +1281,7 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 - **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
 - **[Template Syntax](./docs/template-syntax.md)** - Guide to message template syntaxes
 - **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
+- **[Routing Patterns](./docs/routing-patterns.md)** - Advanced event routing patterns and best practices
 - **[Dynamic Level Control](./docs/dynamic-levels.md)** - Runtime level management
 - **[Type-Safe Generics](./docs/generics.md)** - Compile-time safe logging methods
 - **[Configuration](./docs/configuration.md)** - JSON-based configuration

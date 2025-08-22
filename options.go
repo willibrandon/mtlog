@@ -2,6 +2,7 @@ package mtlog
 
 import (
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/sinks"
 )
 
 // config holds the configuration for building a logger.
@@ -76,4 +77,38 @@ func WithProperties(properties map[string]any) Option {
 			c.properties[k] = v
 		}
 	}
+}
+
+// WithConditional adds a conditional sink that only forwards events matching the predicate.
+func WithConditional(predicate func(*core.LogEvent) bool, sink core.LogEventSink) Option {
+	return func(c *config) {
+		conditionalSink := sinks.NewConditionalSink(predicate, sink)
+		c.sinks = append(c.sinks, conditionalSink)
+	}
+}
+
+// WithRouter adds a router sink for sophisticated event routing.
+func WithRouter(routes ...sinks.Route) Option {
+	return WithRouterMode(sinks.FirstMatch, routes...)
+}
+
+// WithRouterMode adds a router sink with a specific routing mode.
+func WithRouterMode(mode sinks.RoutingMode, routes ...sinks.Route) Option {
+	return func(c *config) {
+		routerSink := sinks.NewRouterSink(mode, routes...)
+		c.sinks = append(c.sinks, routerSink)
+	}
+}
+
+// WithRouterDefault adds a router sink with a default fallback sink.
+func WithRouterDefault(mode sinks.RoutingMode, defaultSink core.LogEventSink, routes ...sinks.Route) Option {
+	return func(c *config) {
+		routerSink := sinks.NewRouterSinkWithDefault(mode, defaultSink, routes...)
+		c.sinks = append(c.sinks, routerSink)
+	}
+}
+
+// Route creates a new route builder for fluent route configuration.
+func Route(name string) *sinks.RouteBuilder {
+	return sinks.NewRoute(name)
 }
