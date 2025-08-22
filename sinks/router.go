@@ -110,7 +110,8 @@ func (r *RouterSink) Emit(event *core.LogEvent) {
 	}
 	
 	r.mu.RLock()
-	routes := r.routes
+	routes := make([]Route, len(r.routes))
+	copy(routes, r.routes)
 	defaultSink := r.defaultSink
 	mode := r.mode
 	r.mu.RUnlock()
@@ -306,7 +307,8 @@ func (r *RouterSink) TestEvent(event *core.LogEvent) []string {
 	}
 	
 	r.mu.RLock()
-	routes := r.routes
+	routes := make([]Route, len(r.routes))
+	copy(routes, r.routes)
 	mode := r.mode
 	defaultSink := r.defaultSink
 	r.mu.RUnlock()
