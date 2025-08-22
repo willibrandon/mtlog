@@ -31,13 +31,13 @@ type Route struct {
 type RouterSink struct {
 	routes      []Route
 	mode        RoutingMode
-	defaultSink core.LogEventSink // Optional fallback sink
-	mu          sync.RWMutex      // Protects routes during runtime updates
-	stats       *RouterStats      // Statistics tracking
+	defaultSink core.LogEventSink      // Optional fallback sink
+	mu          sync.RWMutex           // Protects routes during runtime updates
+	stats       *routerStatsInternal   // Statistics tracking
 }
 
-// RouterStats tracks routing statistics.
-type RouterStats struct {
+// routerStatsInternal tracks routing statistics with concurrency control.
+type routerStatsInternal struct {
 	RouteHits    map[string]uint64 // Hit count per route
 	DefaultHits  uint64            // Events sent to default sink
 	TotalEvents  uint64            // Total events processed
@@ -45,9 +45,17 @@ type RouterStats struct {
 	mu           sync.RWMutex
 }
 
+// RouterStats contains routing statistics (safe to copy).
+type RouterStats struct {
+	RouteHits    map[string]uint64 // Hit count per route
+	DefaultHits  uint64            // Events sent to default sink
+	TotalEvents  uint64            // Total events processed
+	DroppedEvents uint64           // Events that matched no routes (no default sink)
+}
+
 // NewRouterSink creates a new router sink with the specified routing mode.
 func NewRouterSink(mode RoutingMode, routes ...Route) *RouterSink {
-	stats := &RouterStats{
+	stats := &routerStatsInternal{
 		RouteHits: make(map[string]uint64),
 	}
 	// Sort routes by priority (lower = higher priority)
@@ -68,7 +76,7 @@ func NewRouterSink(mode RoutingMode, routes ...Route) *RouterSink {
 
 // NewRouterSinkWithDefault creates a router with a default sink for non-matching events.
 func NewRouterSinkWithDefault(mode RoutingMode, defaultSink core.LogEventSink, routes ...Route) *RouterSink {
-	stats := &RouterStats{
+	stats := &routerStatsInternal{
 		RouteHits: make(map[string]uint64),
 	}
 	// Sort routes by priority (lower = higher priority)
