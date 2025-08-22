@@ -4,6 +4,7 @@ package sinks_test
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 	
@@ -200,37 +201,33 @@ func TestRoutingSinksIntegration(t *testing.T) {
 		allContent, _ := os.ReadFile(allFile)
 		
 		// Audit file should have audit events
-		if !contains(string(auditContent), "User 123 logged in") {
+		if !strings.Contains(string(auditContent), "User 123 logged in") {
 			t.Error("Audit file should contain login event")
 		}
-		if !contains(string(auditContent), "Slow authentication") {
+		if !strings.Contains(string(auditContent), "Slow authentication") {
 			t.Error("Audit file should contain slow auth event")
 		}
 		
 		// Metrics file should have metric events
-		if !contains(string(metricsContent), "Response time 45ms") {
+		if !strings.Contains(string(metricsContent), "Response time 45ms") {
 			t.Error("Metrics file should contain response time")
 		}
-		if !contains(string(metricsContent), "Slow authentication") {
+		if !strings.Contains(string(metricsContent), "Slow authentication") {
 			t.Error("Metrics file should contain slow auth event")
 		}
 		
 		// All file should have everything
-		if !contains(string(allContent), "Regular event") {
+		if !strings.Contains(string(allContent), "Regular event") {
 			t.Error("All file should contain regular event")
 		}
-		if !contains(string(allContent), "User 123 logged in") {
+		if !strings.Contains(string(allContent), "User 123 logged in") {
 			t.Error("All file should contain login event")
 		}
-		if !contains(string(allContent), "Response time 45ms") {
+		if !strings.Contains(string(allContent), "Response time 45ms") {
 			t.Error("All file should contain response time")
 		}
-		if !contains(string(allContent), "Slow authentication") {
+		if !strings.Contains(string(allContent), "Slow authentication") {
 			t.Error("All file should contain slow auth event")
 		}
 	})
-}
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || (len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr))))
 }

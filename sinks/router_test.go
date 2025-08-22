@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -421,7 +422,7 @@ func TestRouterSinkConcurrency(t *testing.T) {
 			go func(n int) {
 				defer wg.Done()
 				router.AddRoute(Route{
-					Name:      string(rune('a' + n)),
+					Name:      fmt.Sprintf("route%d", n),
 					Predicate: func(e *core.LogEvent) bool { return false },
 					Sink:      NewMemorySink(),
 				})
@@ -434,7 +435,7 @@ func TestRouterSinkConcurrency(t *testing.T) {
 			go func(n int) {
 				defer wg.Done()
 				time.Sleep(time.Millisecond) // Let adds happen first
-				router.RemoveRoute(string(rune('a' + n)))
+				router.RemoveRoute(fmt.Sprintf("route%d", n))
 			}(i)
 		}
 		

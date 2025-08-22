@@ -3,6 +3,7 @@ package sinks
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	
 	"github.com/willibrandon/mtlog/core"
@@ -465,7 +466,7 @@ func (r *RouterSink) RemoveRouteGroup(groupName string) int {
 	newRoutes := make([]Route, 0, len(r.routes))
 	
 	for _, route := range r.routes {
-		if len(route.Name) > len(prefix) && route.Name[:len(prefix)] == prefix {
+		if strings.HasPrefix(route.Name, prefix) {
 			// This route belongs to the group - close and skip it
 			if closer, ok := route.Sink.(interface{ Close() error }); ok {
 				if err := closer.Close(); err != nil {
