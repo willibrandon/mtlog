@@ -298,6 +298,178 @@ log := mtlog.New(
 - **Buffer management**: Automatic cleanup of old buffer files
 - **Crash recovery**: Resume sending after application restart
 
+## Event Routing Sinks
+
+Route log events to different destinations based on their properties and levels.
+
+### Conditional Sink
+
+Filter events based on predicates with zero overhead for non-matching events.
+
+#### Basic Usage
+
+```go
+// Route only errors to a dedicated error file
+alertSink, _ := sinks.NewFileSink("alerts.log")
+criticalAlertSink := sinks.NewConditionalSink(
+    func(event *core.LogEvent) bool {
+        return event.Level >= core.ErrorLevel && 
+               event.Properties["Alert"] != nil
+    },
+    alertSink,
+)
+
+log := mtlog.New(
+    mtlog.WithSink(sinks.NewConsoleSink()),     // All events
+    mtlog.WithSink(criticalAlertSink),          // Only critical alerts
+)
+```
+
+#### Built-in Predicates
+
+```go
+// Level-based filtering
+errorSink := sinks.NewConditionalSink(
+    sinks.LevelPredicate(core.ErrorLevel),
+    targetSink,
+)
+
+// Property existence
+auditSink := sinks.NewConditionalSink(
+    sinks.PropertyPredicate("Audit"),
+    auditFileSink,
+)
+
+// Property value matching
+prodSink := sinks.NewConditionalSink(
+    sinks.PropertyValuePredicate("Environment", "production"),
+    productionSink,
+)
+```
+
+#### Combining Predicates
+
+```go
+// AND logic - all conditions must match
+complexFilter := sinks.NewConditionalSink(
+    sinks.AndPredicate(
+        sinks.LevelPredicate(core.ErrorLevel),
+        sinks.PropertyPredicate("Critical"),
+        sinks.PropertyValuePredicate("Environment", "production"),
+    ),
+    alertSink,
+)
+
+// OR logic - any condition matches
+broadFilter := sinks.NewConditionalSink(
+    sinks.OrPredicate(
+        sinks.LevelPredicate(core.FatalLevel),
+        sinks.PropertyPredicate("SecurityAlert"),
+    ),
+    securitySink,
+)
+
+// NOT logic - invert condition
+excludeFilter := sinks.NewConditionalSink(
+    sinks.NotPredicate(sinks.PropertyPredicate("SkipLogging")),
+    targetSink,
+)
+```
+
+#### Performance
+
+Conditional sinks have near-zero overhead when predicates return false:
+- **Predicate returns false**: ~3.7ns/op, 0 allocations
+- **Predicate returns true**: ~164ns/op, 1 allocation
+
+### Router Sink
+
+Advanced routing with multiple destinations and configurable routing modes.
+
+#### Routing Modes
+
+```go
+// FirstMatch: Stop at first matching route (exclusive routing)
+router := sinks.NewRouterSink(sinks.FirstMatch,
+    sinks.Route{
+        Name:      "errors",
+        Predicate: sinks.LevelPredicate(core.ErrorLevel),
+        Sink:      errorSink,
+    },
+    sinks.Route{
+        Name:      "warnings",
+        Predicate: sinks.LevelPredicate(core.WarningLevel),
+        Sink:      warningSink,
+    },
+)
+
+// AllMatch: Send to all matching routes (broadcast routing)
+router := sinks.NewRouterSink(sinks.AllMatch,
+    sinks.MetricRoute("metrics", metricsSink),
+    sinks.AuditRoute("audit", auditSink),
+    sinks.ErrorRoute("errors", errorSink),
+)
+```
+
+#### Default Sink
+
+Handle non-matching events with a default sink:
+
+```go
+router := sinks.NewRouterSinkWithDefault(
+    sinks.FirstMatch,
+    defaultSink, // Receives events that don't match any route
+    routes...,
+)
+```
+
+#### Dynamic Route Management
+
+Add and remove routes at runtime:
+
+```go
+// Add a route dynamically
+router.AddRoute(sinks.Route{
+    Name:      "debug",
+    Predicate: func(e *core.LogEvent) bool {
+        return e.Level <= core.DebugLevel
+    },
+    Sink:      debugSink,
+})
+
+// Remove a route by name
+router.RemoveRoute("debug")
+```
+
+#### Fluent Route Builder
+
+```go
+// Build routes with fluent API
+route := sinks.NewRoute("special-events").
+    When(func(e *core.LogEvent) bool {
+        category, _ := e.Properties["Category"].(string)
+        return category == "Special"
+    }).
+    To(specialSink)
+
+router.AddRoute(route)
+```
+
+#### Pre-built Routes
+
+```go
+// Common route patterns
+errorRoute := sinks.ErrorRoute("errors", errorSink)
+auditRoute := sinks.AuditRoute("audit", auditSink)
+metricRoute := sinks.MetricRoute("metrics", metricsSink)
+```
+
+#### Performance Characteristics
+
+- **FirstMatch mode**: ~136ns/op with 3 routes
+- **AllMatch mode**: ~403ns/op with 3 routes (all matching)
+- Thread-safe route management with minimal lock contention
+
 ## Multiple Sinks
 
 Combine multiple sinks for comprehensive logging:
