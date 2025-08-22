@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -528,20 +529,17 @@ func getLatencyValue(latency time.Duration, unit string) float64 {
 func getClientIP(r *http.Request) string {
 	// Check X-Forwarded-For header
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the first IP in the list
-		if idx := len(xff) - 1; idx >= 0 {
-			for i := idx; i >= 0; i-- {
-				if xff[i] == ',' || xff[i] == ' ' {
-					return xff[i+1:]
-				}
-			}
-			return xff
+		// Take the first IP in the comma-separated list
+		// X-Forwarded-For: client, proxy1, proxy2
+		if idx := strings.IndexByte(xff, ','); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
 		}
+		return strings.TrimSpace(xff)
 	}
 	
 	// Check X-Real-IP header
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+		return strings.TrimSpace(xri)
 	}
 	
 	// Fall back to RemoteAddr

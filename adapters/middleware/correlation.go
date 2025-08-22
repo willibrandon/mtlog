@@ -27,6 +27,9 @@ const (
 	
 	// CorrelationIDContextKey is the context key for correlation ID
 	CorrelationIDContextKey correlationKey = "correlation-id"
+	
+	// TraceContextKey is the context key for the full TraceContext
+	TraceContextKey correlationKey = "trace-context"
 )
 
 // Common trace headers
@@ -176,6 +179,8 @@ func PropagateTraceContext(next http.Handler, opts ...CorrelationOptions) http.H
 		if traceCtx.CorrelationID != "" {
 			ctx = context.WithValue(ctx, CorrelationIDContextKey, traceCtx.CorrelationID)
 		}
+		// Store the full TraceContext for access to baggage
+		ctx = context.WithValue(ctx, TraceContextKey, traceCtx)
 		
 		// Add to logger if provided
 		if options.Logger != nil {
@@ -434,6 +439,12 @@ func generateSpanID() string {
 
 // GetTraceContext retrieves the trace context from the request context
 func GetTraceContext(ctx context.Context) *TraceContext {
+	// First check if we have the full TraceContext stored
+	if tc, ok := ctx.Value(TraceContextKey).(*TraceContext); ok {
+		return tc
+	}
+	
+	// Otherwise, reconstruct from individual values (for backward compatibility)
 	tc := &TraceContext{
 		Baggage: make(map[string]string),
 	}

@@ -189,7 +189,7 @@ var (
 		},
 	}
 	
-	// APIVersionFromPath extracts API version from URL path (e.g., /v1/users)
+	// APIVersionFromPath extracts API version from URL path (e.g., /v1/users, /v2.1/items)
 	APIVersionFromPath = FieldExtractor{
 		Name: "ApiVersion",
 		Extract: func(r *http.Request) any {
@@ -197,7 +197,39 @@ var (
 			if strings.HasPrefix(path, "/v") {
 				parts := strings.Split(path[1:], "/")
 				if len(parts) > 0 && strings.HasPrefix(parts[0], "v") {
-					return parts[0]
+					version := parts[0]
+					// Validate that it's a proper version format: v followed by numbers and optional dots
+					// Examples: v1, v2, v1.0, v2.1, v1.0.0
+					if len(version) > 1 {
+						versionNum := version[1:] // Remove 'v' prefix
+						isValid := true
+						hasDigit := false
+						
+						for i, ch := range versionNum {
+							if ch >= '0' && ch <= '9' {
+								hasDigit = true
+							} else if ch == '.' {
+								// Dots are allowed but not at the start or end
+								if i == 0 || i == len(versionNum)-1 {
+									isValid = false
+									break
+								}
+								// No consecutive dots
+								if i > 0 && versionNum[i-1] == '.' {
+									isValid = false
+									break
+								}
+							} else {
+								// Invalid character
+								isValid = false
+								break
+							}
+						}
+						
+						if isValid && hasDigit {
+							return version
+						}
+					}
 				}
 			}
 			return nil

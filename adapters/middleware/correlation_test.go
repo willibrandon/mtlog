@@ -179,24 +179,37 @@ func TestBaggageExtraction(t *testing.T) {
 		ctx := r.Context()
 		traceCtx := GetTraceContext(ctx)
 		
-		// Note: The current implementation may not extract baggage into TraceContext
-		// This test verifies that the middleware processes baggage headers
-		// In a full implementation, baggage would be available via context values
-		if len(traceCtx.Baggage) == 0 {
-			// Check if baggage is available in context instead
-			if userID := ctx.Value("baggage.user-id"); userID != "123" {
-				t.Logf("Baggage not found in TraceContext.Baggage map (this may be expected)")
-			}
+		// Verify that baggage was extracted into TraceContext.Baggage
+		if len(traceCtx.Baggage) != 2 {
+			t.Errorf("Expected 2 baggage items, got %d", len(traceCtx.Baggage))
+		}
+		
+		// Check specific baggage values
+		if userID, ok := traceCtx.Baggage["User-Id"]; !ok || userID != "123" {
+			t.Errorf("Expected User-Id baggage to be '123', got '%s' (exists: %v)", userID, ok)
+		}
+		
+		if sessionID, ok := traceCtx.Baggage["Session-Id"]; !ok || sessionID != "abc" {
+			t.Errorf("Expected Session-Id baggage to be 'abc', got '%s' (exists: %v)", sessionID, ok)
+		}
+		
+		// Verify baggage is propagated in response headers
+		if w.Header().Get("X-Baggage-User-Id") != "123" {
+			t.Error("User-Id baggage not propagated in response headers")
+		}
+		if w.Header().Get("X-Baggage-Session-Id") != "abc" {
+			t.Error("Session-Id baggage not propagated in response headers")
 		}
 		
 		w.WriteHeader(http.StatusOK)
 	})
 
 	middleware := PropagateTraceContext(handler, CorrelationOptions{
-		GenerateTraceID: true,
-		GenerateSpanID:  true,
-		ExtractBaggage:  true,
-		BaggagePrefix:   "X-Baggage-",
+		GenerateTraceID:     true,
+		GenerateSpanID:      true,
+		ExtractBaggage:      true,
+		BaggagePrefix:       "X-Baggage-",
+		PropagateDownstream: true,
 	})
 
 	req := httptest.NewRequest("GET", "/test", nil)

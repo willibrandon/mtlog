@@ -368,11 +368,11 @@ func TestFieldExtractors(t *testing.T) {
 			t.Errorf("Expected nil for no version, got %v", value3)
 		}
 		
-		// Test non-version path starting with v - this will return "videos" because it starts with "v"
+		// Test non-version path starting with v - should NOT be treated as a version
 		req4 := httptest.NewRequest("GET", "/videos/123", nil)
 		value4 := APIVersionFromPath.Extract(req4)
-		if value4 != "videos" {
-			t.Errorf("Expected 'videos' for /videos path, got %v", value4)
+		if value4 != nil {
+			t.Errorf("Expected nil for /videos path (not a valid version format), got %v", value4)
 		}
 		
 		// Test path that doesn't start with /v
