@@ -1281,6 +1281,7 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 - **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
 - **[Template Syntax](./docs/template-syntax.md)** - Guide to message template syntaxes
 - **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
+- **[Routing Patterns](./docs/routing-patterns.md)** - Advanced event routing patterns and best practices
 - **[Dynamic Level Control](./docs/dynamic-levels.md)** - Runtime level management
 - **[Type-Safe Generics](./docs/generics.md)** - Compile-time safe logging methods
 - **[Configuration](./docs/configuration.md)** - JSON-based configuration
