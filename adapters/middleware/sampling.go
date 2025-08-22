@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	crypto_rand "crypto/rand"
+	"encoding/binary"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -40,6 +42,7 @@ type RateSampler struct {
 
 // NewRateSampler creates a sampler that logs a percentage of requests
 // rate should be between 0.0 and 1.0 (e.g., 0.1 for 10%)
+// The random number generator uses a cryptographically secure seed for unpredictability.
 func NewRateSampler(rate float64) *RateSampler {
 	if rate < 0 {
 		rate = 0
@@ -47,9 +50,16 @@ func NewRateSampler(rate float64) *RateSampler {
 		rate = 1
 	}
 	
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &RateSampler{
 		rate: rate,
-		rng:  rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:  rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -94,15 +104,24 @@ type AdaptiveSampler struct {
 	requests    uint64
 	windowStart time.Time
 	currentRate float64
+	rng         *rand.Rand // Thread-safe random source
 }
 
 // NewAdaptiveSampler creates a sampler that aims for a target logging rate
 func NewAdaptiveSampler(targetPerSecond float64) *AdaptiveSampler {
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &AdaptiveSampler{
 		targetPerSecond: targetPerSecond,
 		window:          time.Second,
 		windowStart:     time.Now(),
 		currentRate:     1.0,
+		rng:             rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -140,7 +159,7 @@ func (s *AdaptiveSampler) ShouldSample(r *http.Request) bool {
 		return true
 	}
 	
-	return rand.Float64() < s.currentRate
+	return s.rng.Float64() < s.currentRate
 }
 
 // PathSampler samples based on path patterns
@@ -149,6 +168,8 @@ type PathSampler struct {
 	caseSensitive bool
 	allowEscapes  bool
 	defaultSample bool // What to do when no rules match
+	rng           *rand.Rand
+	mu            sync.Mutex // Protects rng
 }
 
 // PathSamplingRule defines sampling behavior for specific paths
@@ -160,21 +181,37 @@ type PathSamplingRule struct {
 
 // NewPathSampler creates a sampler with path-specific rules (defaults to allowing non-matching paths)
 func NewPathSampler(rules []PathSamplingRule) *PathSampler {
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &PathSampler{
 		rules:         rules,
 		caseSensitive: true,
 		allowEscapes:  false,
 		defaultSample: true, // Default to logging (most common use case)
+		rng:           rand.New(rand.NewSource(seed)),
 	}
 }
 
 // NewExplicitPathSampler creates a sampler that only logs paths matching explicit rules
 func NewExplicitPathSampler(rules []PathSamplingRule) *PathSampler {
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &PathSampler{
 		rules:         rules,
 		caseSensitive: true,
 		allowEscapes:  false,
 		defaultSample: false, // Only log paths that match rules
+		rng:           rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -206,7 +243,9 @@ func (s *PathSampler) ShouldSample(r *http.Request) bool {
 			if rule.Rate <= 0.0 {
 				return false
 			}
-			return rand.Float64() < rule.Rate
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			return s.rng.Float64() < rule.Rate
 		}
 	}
 	
@@ -438,11 +477,19 @@ func (b *PathSamplerBuilder) WithSegments(pattern string, rate float64) *PathSam
 
 // Build creates the configured PathSampler
 func (b *PathSamplerBuilder) Build() *PathSampler {
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &PathSampler{
 		rules:         b.rules,
 		caseSensitive: b.caseSensitive,
 		allowEscapes:  b.allowEscapes,
 		defaultSample: b.defaultSample,
+		rng:           rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -454,15 +501,25 @@ type DynamicPathSampler struct {
 	allowEscapes  bool
 	defaultSample bool
 	onChange      func(oldRules, newRules []PathSamplingRule)
+	rng           *rand.Rand // Random source
+	rngMu         sync.Mutex // Protects rng
 }
 
 // NewDynamicPathSampler creates a new dynamic path sampler
 func NewDynamicPathSampler(rules []PathSamplingRule) *DynamicPathSampler {
+	// Use crypto/rand for unpredictable seeding
+	var seed int64
+	if err := binary.Read(crypto_rand.Reader, binary.BigEndian, &seed); err != nil {
+		// Fallback to time-based seed if crypto/rand fails
+		seed = time.Now().UnixNano()
+	}
+	
 	return &DynamicPathSampler{
 		rules:         rules,
 		caseSensitive: true,
 		allowEscapes:  false,
 		defaultSample: true, // Default to allowing non-matching paths
+		rng:           rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -498,7 +555,11 @@ func (s *DynamicPathSampler) ShouldSample(r *http.Request) bool {
 			if rule.Rate <= 0.0 {
 				return false
 			}
-			return rand.Float64() < rule.Rate
+			// Use local RNG for thread-safe random numbers
+			s.rngMu.Lock()
+			result := s.rng.Float64() < rule.Rate
+			s.rngMu.Unlock()
+			return result
 		}
 	}
 	
