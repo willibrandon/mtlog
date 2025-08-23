@@ -21,6 +21,31 @@ type SamplingStats struct {
 	Skipped uint64 // Number of events that were skipped
 }
 
+// SamplingMetrics provides detailed metrics about sampling cache performance.
+// This helps operators tune cache limits and understand sampling behavior.
+type SamplingMetrics struct {
+	// Group sampling cache metrics
+	GroupCacheHits     uint64 // Number of cache hits for group sampling
+	GroupCacheMisses   uint64 // Number of cache misses for group sampling
+	GroupCacheSize     int    // Current size of group cache
+	GroupCacheEvictions uint64 // Number of evictions from group cache
+	
+	// Backoff sampling cache metrics
+	BackoffCacheHits   uint64 // Number of cache hits for backoff sampling
+	BackoffCacheMisses uint64 // Number of cache misses for backoff sampling
+	BackoffCacheSize   int    // Current size of backoff cache
+	BackoffCacheEvictions uint64 // Number of evictions from backoff cache
+	
+	// Adaptive sampling metrics
+	AdaptiveCacheHits  uint64 // Number of cache hits for adaptive sampling
+	AdaptiveCacheMisses uint64 // Number of cache misses for adaptive sampling
+	AdaptiveCacheSize  int    // Current size of adaptive cache
+	
+	// Overall sampling decisions
+	TotalSampled uint64 // Total events sampled across all strategies
+	TotalSkipped uint64 // Total events skipped across all strategies
+}
+
 // CompositeSamplingPolicy combines multiple policies with AND/OR logic.
 type CompositeSamplingPolicy interface {
 	SamplingPolicy

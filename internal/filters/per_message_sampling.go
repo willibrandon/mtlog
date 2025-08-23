@@ -7,6 +7,7 @@ import (
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/cache"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // Default constants for sampling configurations
@@ -17,6 +18,9 @@ const (
 	// DefaultBackoffFactor is the default multiplication factor for exponential backoff when invalid values are provided
 	DefaultBackoffFactor = 2.0
 )
+
+// SamplingDebugEnabled controls whether sampling decisions are logged for debugging
+var SamplingDebugEnabled bool
 
 // PerMessageSamplingFilter provides per-message sampling capabilities.
 type PerMessageSamplingFilter struct {
@@ -293,24 +297,43 @@ func NewBackoffSamplingFilter(key string, factor float64, state *BackoffState) *
 // IsEnabled determines if the event should be logged based on the sampling mode.
 func (f *PerMessageSamplingFilter) IsEnabled(event *core.LogEvent) bool {
 	var shouldSample bool
+	var modeString string
 	
 	switch f.mode {
 	case ModeCounter:
 		shouldSample = f.shouldSampleCounter()
+		modeString = "Counter"
 	case ModeRate:
 		shouldSample = f.shouldSampleRate()
+		modeString = "Rate"
 	case ModeDuration:
 		shouldSample = f.shouldSampleDuration()
+		modeString = "Duration"
 	case ModeFirst:
 		shouldSample = f.shouldSampleFirst()
+		modeString = "First"
 	case ModeGroup:
 		shouldSample = f.shouldSampleGroup()
+		modeString = "Group"
 	case ModeConditional:
 		shouldSample = f.shouldSampleConditional()
+		modeString = "Conditional"
 	case ModeBackoff:
 		shouldSample = f.shouldSampleBackoff()
+		modeString = "Backoff"
 	default:
 		shouldSample = true
+		modeString = "Default"
+	}
+	
+	// Log sampling decision if debug is enabled
+	if SamplingDebugEnabled && selflog.IsEnabled() {
+		template := event.MessageTemplate
+		decision := "SKIP"
+		if shouldSample {
+			decision = "SAMPLE"
+		}
+		selflog.Printf("[Sampling] Mode=%s Decision=%s Template=%q", modeString, decision, template)
 	}
 	
 	// Track statistics

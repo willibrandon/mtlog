@@ -259,6 +259,18 @@ func (r *profileRegistry) getProfileNames() []string {
 	return names
 }
 
+// getProfileDescriptions returns a map of profile names to their descriptions
+func (r *profileRegistry) getProfileDescriptions() map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	descriptions := make(map[string]string, len(r.profiles))
+	for name, profile := range r.profiles {
+		descriptions[name] = profile.description
+	}
+	return descriptions
+}
+
 // parseVersion parses a semantic version string into major.minor.patch components
 func parseVersion(version string) (major, minor, patch int, err error) {
 	parts := strings.Split(version, ".")
@@ -544,6 +556,12 @@ func GetProfileDescription(profileName string) (string, bool) {
 		return "", false
 	}
 	return profile.description, true
+}
+
+// GetAvailableProfileDescriptions returns a map of profile names to their descriptions.
+// This is useful for runtime configuration and discovery of available profiles.
+func GetAvailableProfileDescriptions() map[string]string {
+	return globalProfileRegistry.getProfileDescriptions()
 }
 
 // GetProfileWithVersion returns a specific version of a profile

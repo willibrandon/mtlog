@@ -195,3 +195,27 @@ type samplingPolicyFilter struct {
 func (f *samplingPolicyFilter) IsEnabled(event *core.LogEvent) bool {
 	return f.policy.ShouldSample(event)
 }
+
+// samplingDebugEnabled controls whether sampling decisions are logged
+var samplingDebugEnabled bool
+
+// EnableSamplingDebug enables logging of sampling decisions to selflog for debugging.
+// This helps understand why certain events are being sampled or skipped.
+// The debug output includes the template, the sampling decision, and the filter that made it.
+func EnableSamplingDebug() {
+	samplingDebugEnabled = true
+	// Also enable it in the filters package
+	filters.SamplingDebugEnabled = true
+}
+
+// DisableSamplingDebug disables logging of sampling decisions.
+func DisableSamplingDebug() {
+	samplingDebugEnabled = false
+	// Also disable it in the filters package
+	filters.SamplingDebugEnabled = false
+}
+
+// IsSamplingDebugEnabled returns whether sampling debug logging is enabled.
+func IsSamplingDebugEnabled() bool {
+	return samplingDebugEnabled
+}

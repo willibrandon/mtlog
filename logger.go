@@ -716,6 +716,25 @@ func (l *logger) GetSamplingStats() (sampled uint64, skipped uint64) {
 	return 0, 0
 }
 
+// GetSamplingMetrics returns detailed metrics about sampling cache performance.
+// This helps operators tune cache limits and understand sampling behavior.
+func (l *logger) GetSamplingMetrics() core.SamplingMetrics {
+	metrics := core.SamplingMetrics{}
+	
+	// Get overall sampling stats if we have a sampling filter
+	if l.samplingFilter != nil {
+		stats := l.samplingFilter.GetStats()
+		metrics.TotalSampled = stats.Sampled
+		metrics.TotalSkipped = stats.Skipped
+		
+		// TODO: Collect cache metrics from individual filters
+		// This would require extending the filter interfaces to expose cache stats
+		// For now, return basic stats
+	}
+	
+	return metrics
+}
+
 // emitSamplingSummariesWithContext periodically emits sampling summary events with context support
 func (l *logger) emitSamplingSummariesWithContext(ctx context.Context, period time.Duration) {
 	ticker := time.NewTicker(period)
