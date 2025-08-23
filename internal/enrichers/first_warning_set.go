@@ -54,24 +54,6 @@ func (s *firstWarningSet) markWarned(ctx context.Context) bool {
 	return true // First warning
 }
 
-// hasWarned checks if a context has already received its first warning.
-func (s *firstWarningSet) hasWarned(ctx context.Context) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	
-	_, exists := s.items[ctx]
-	return exists
-}
-
-// clear removes all entries from the set.
-func (s *firstWarningSet) clear() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	
-	s.items = make(map[context.Context]*list.Element)
-	s.lruList = list.New()
-}
-
 // size returns the current number of contexts tracked.
 func (s *firstWarningSet) size() int {
 	s.mu.RLock()

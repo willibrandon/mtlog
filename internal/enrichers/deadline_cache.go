@@ -94,13 +94,6 @@ func (c *deadlineLRUCache) getOrCreate(ctx context.Context) *deadlineInfo {
 	return shard.getOrCreate(ctx)
 }
 
-// clear removes all entries from the cache.
-func (c *deadlineLRUCache) clear() {
-	for _, shard := range c.shards {
-		shard.clear()
-	}
-}
-
 // Shard methods
 
 func (s *deadlineLRUCacheShard) get(ctx context.Context) *deadlineInfo {
@@ -210,16 +203,6 @@ func (s *deadlineLRUCacheShard) getOrCreate(ctx context.Context) *deadlineInfo {
 	s.size++
 
 	return info
-}
-
-func (s *deadlineLRUCacheShard) clear() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.items = make(map[context.Context]*deadlineCacheEntry)
-	s.head = nil
-	s.tail = nil
-	s.size = 0
 }
 
 // moveToFront moves an entry to the front of the LRU list.

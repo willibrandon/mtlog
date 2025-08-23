@@ -188,10 +188,8 @@ func (e *DeadlineEnricher) Enrich(event *core.LogEvent, factory core.LogEventPro
 					shouldWarn = true
 				}
 			}
-		} else {
-			// We don't have the exact start time, so we can't do percentage-based warnings accurately
-			// This is a limitation of detecting context midway through its lifetime
-			// We could estimate, but that would be inaccurate
+			// Note: If we don't have the exact start time, we can't do percentage-based warnings accurately.
+			// This is a limitation of detecting context midway through its lifetime.
 		}
 	}
 

@@ -260,11 +260,6 @@ func (l *logger) writeWithContext(ctx context.Context, level core.LogEventLevel,
 	contextLogger.Write(level, messageTemplate, args...)
 }
 
-// hasDeadlineAwareness checks if deadline awareness is configured for this logger.
-func (l *logger) hasDeadlineAwareness() bool {
-	return l.deadlineEnricher != nil
-}
-
 // ForContext creates a logger that enriches events with the specified property.
 func (l *logger) ForContext(propertyName string, value any) core.Logger {
 	// This is essentially With() with a single key-value pair
