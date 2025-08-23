@@ -2,9 +2,10 @@ package enrichers
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"sync"
 	"time"
-	"unsafe"
 )
 
 // deadlineCacheEntry represents an entry in the deadline LRU cache.
@@ -69,10 +70,13 @@ func newDeadlineLRUCache(maxSize int, ttl time.Duration) *deadlineLRUCache {
 
 // getShard returns the shard for the given context.
 func (c *deadlineLRUCache) getShard(ctx context.Context) *deadlineLRUCacheShard {
-	// Use pointer address for sharding
-	// This provides good distribution across shards
-	ptr := uintptr(unsafe.Pointer(&ctx))
-	index := int(ptr % uintptr(c.numShards))
+	// Use FNV-1a hash for sharding to avoid unsafe pointer usage
+	// Hash the context's pointer address as a string for consistent distribution
+	h := fnv.New32a()
+	// Use fmt.Sprintf to get a stable string representation of the context pointer
+	// This avoids unsafe operations while maintaining good distribution
+	h.Write([]byte(fmt.Sprintf("%p", ctx)))
+	index := int(h.Sum32() % uint32(c.numShards))
 	return c.shards[index]
 }
 

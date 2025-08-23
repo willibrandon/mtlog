@@ -8,6 +8,10 @@ import (
 	"github.com/willibrandon/mtlog/selflog"
 )
 
+// internalContextKey is the internal key used to pass context through event properties.
+// This key is removed before the event is processed by sinks.
+const internalContextKey = "__context__"
+
 // DeadlineOption configures deadline enricher behavior.
 type DeadlineOption func(*DeadlineEnricher)
 
@@ -130,14 +134,14 @@ func WithDeadlineCacheTTL(ttl time.Duration) DeadlineOption {
 // Enrich adds deadline information to the log event if context has a deadline.
 func (e *DeadlineEnricher) Enrich(event *core.LogEvent, factory core.LogEventPropertyFactory) {
 	// Extract context from event if available
-	ctx, ok := event.Properties["__context__"].(context.Context)
+	ctx, ok := event.Properties[internalContextKey].(context.Context)
 	if !ok {
 		// No context available, nothing to do
 		return
 	}
 
 	// Remove internal context property
-	delete(event.Properties, "__context__")
+	delete(event.Properties, internalContextKey)
 
 	// Check for deadline
 	deadline, hasDeadline := ctx.Deadline()
@@ -272,7 +276,7 @@ func (e *DeadlineEnricher) handleDeadlineExceeded(event *core.LogEvent, factory 
 // This is used when context is passed explicitly to logging methods.
 func (e *DeadlineEnricher) EnrichWithContext(ctx context.Context, event *core.LogEvent, factory core.LogEventPropertyFactory) {
 	// Store context temporarily in event properties for Enrich method
-	event.Properties["__context__"] = ctx
+	event.Properties[internalContextKey] = ctx
 	e.Enrich(event, factory)
 }
 
