@@ -19,8 +19,18 @@ const (
 	DefaultBackoffFactor = 2.0
 )
 
-// SamplingDebugEnabled controls whether sampling decisions are logged for debugging
-var SamplingDebugEnabled bool
+// samplingDebugEnabled controls whether sampling decisions are logged for debugging
+var samplingDebugEnabled atomic.Bool
+
+// SetSamplingDebugEnabled sets the sampling debug flag in a thread-safe manner
+func SetSamplingDebugEnabled(enabled bool) {
+	samplingDebugEnabled.Store(enabled)
+}
+
+// IsSamplingDebugEnabled returns whether sampling debug is enabled
+func IsSamplingDebugEnabled() bool {
+	return samplingDebugEnabled.Load()
+}
 
 // PerMessageSamplingFilter provides per-message sampling capabilities.
 type PerMessageSamplingFilter struct {
@@ -327,7 +337,7 @@ func (f *PerMessageSamplingFilter) IsEnabled(event *core.LogEvent) bool {
 	}
 	
 	// Log sampling decision if debug is enabled
-	if SamplingDebugEnabled && selflog.IsEnabled() {
+	if IsSamplingDebugEnabled() && selflog.IsEnabled() {
 		template := event.MessageTemplate
 		decision := "SKIP"
 		if shouldSample {

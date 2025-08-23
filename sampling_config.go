@@ -1,6 +1,7 @@
 package mtlog
 
 import (
+	"sync/atomic"
 	"time"
 	
 	"github.com/willibrandon/mtlog/core"
@@ -197,25 +198,25 @@ func (f *samplingPolicyFilter) IsEnabled(event *core.LogEvent) bool {
 }
 
 // samplingDebugEnabled controls whether sampling decisions are logged
-var samplingDebugEnabled bool
+var samplingDebugEnabled atomic.Bool
 
 // EnableSamplingDebug enables logging of sampling decisions to selflog for debugging.
 // This helps understand why certain events are being sampled or skipped.
 // The debug output includes the template, the sampling decision, and the filter that made it.
 func EnableSamplingDebug() {
-	samplingDebugEnabled = true
+	samplingDebugEnabled.Store(true)
 	// Also enable it in the filters package
-	filters.SamplingDebugEnabled = true
+	filters.SetSamplingDebugEnabled(true)
 }
 
 // DisableSamplingDebug disables logging of sampling decisions.
 func DisableSamplingDebug() {
-	samplingDebugEnabled = false
+	samplingDebugEnabled.Store(false)
 	// Also disable it in the filters package
-	filters.SamplingDebugEnabled = false
+	filters.SetSamplingDebugEnabled(false)
 }
 
 // IsSamplingDebugEnabled returns whether sampling debug logging is enabled.
 func IsSamplingDebugEnabled() bool {
-	return samplingDebugEnabled
+	return samplingDebugEnabled.Load()
 }
