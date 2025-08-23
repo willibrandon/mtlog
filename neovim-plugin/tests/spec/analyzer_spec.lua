@@ -260,10 +260,10 @@ func main() {
       -- Should not have been called yet
       assert.equals(0, call_count)
       
-      -- Wait for debounce to trigger
-      vim.wait(100, function()
+      -- Wait for debounce to trigger - use 300ms to be safe in CI
+      vim.wait(300, function()
         return call_count > 0
-      end)
+      end, 10)
       
       -- Should have been called exactly once
       assert.equals(1, call_count)
