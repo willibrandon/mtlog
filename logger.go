@@ -8,6 +8,7 @@ import (
 
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/internal/enrichers"
+	"github.com/willibrandon/mtlog/internal/filters"
 	"github.com/willibrandon/mtlog/internal/parser"
 	"github.com/willibrandon/mtlog/selflog"
 )
@@ -31,6 +32,9 @@ type logger struct {
 	// Fallback to map only for very large numbers of properties (>64)
 	// This is rare in practice
 	properties map[string]any
+	
+	// Sampling state (per-logger instance)
+	samplingFilter *filters.PerMessageSamplingFilter
 	
 	mu sync.RWMutex
 }
@@ -580,4 +584,186 @@ func (l *logger) GetLevelSwitch() *LoggingLevelSwitch {
 // IsEnabled returns true if events at the specified level would be processed.
 func (l *logger) IsEnabled(level core.LogEventLevel) bool {
 	return level >= l.GetMinimumLevel()
+}
+
+// Global managers for sampling state with LRU eviction
+var (
+	globalSamplingGroupManager = filters.NewSamplingGroupManager(10000)
+	globalBackoffState         = filters.NewBackoffState(10000)
+)
+
+// cloneWithSamplingFilter creates a new logger with a sampling filter
+func (l *logger) cloneWithSamplingFilter(filter *filters.PerMessageSamplingFilter) core.Logger {
+	// Create new pipeline with the sampling filter
+	var newFilters []core.LogEventFilter
+	if filter != nil {
+		// Add the sampling filter first in the pipeline for efficiency
+		newFilters = make([]core.LogEventFilter, len(l.pipeline.filters)+1)
+		newFilters[0] = filter
+		copy(newFilters[1:], l.pipeline.filters)
+	} else {
+		newFilters = l.pipeline.filters
+	}
+
+	p := newPipeline(l.pipeline.enrichers, newFilters, l.pipeline.capturer, l.pipeline.sinks)
+
+	// Create new logger with sampling filter
+	return &logger{
+		minimumLevel:   l.minimumLevel,
+		levelSwitch:    l.levelSwitch,
+		pipeline:       p,
+		fields:         l.fields,
+		properties:     l.properties,
+		samplingFilter: filter,
+	}
+}
+
+// Sample creates a logger that samples every nth message.
+func (l *logger) Sample(n uint64) core.Logger {
+	filter := filters.NewCounterSamplingFilter(n)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleDuration creates a logger that samples at most once per duration.
+func (l *logger) SampleDuration(duration time.Duration) core.Logger {
+	filter := filters.NewDurationSamplingFilter(duration)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleRate creates a logger that samples a percentage of messages (0.0 to 1.0).
+func (l *logger) SampleRate(rate float32) core.Logger {
+	filter := filters.NewRateSamplingFilter(rate)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleFirst creates a logger that logs only the first n occurrences.
+// If n is 0, no messages will be logged.
+func (l *logger) SampleFirst(n uint64) core.Logger {
+	if n == 0 && selflog.IsEnabled() {
+		selflog.Printf("SampleFirst(0) will not log any messages - use a positive value to log the first N occurrences")
+	}
+	filter := filters.NewFirstNSamplingFilter(n)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleGroup creates a logger that samples messages within a named group.
+func (l *logger) SampleGroup(groupName string, n uint64) core.Logger {
+	filter := filters.NewGroupSamplingFilter(groupName, n, globalSamplingGroupManager)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleWhen creates a logger that samples conditionally based on a predicate.
+func (l *logger) SampleWhen(predicate func() bool, n uint64) core.Logger {
+	filter := filters.NewConditionalSamplingFilter(predicate, n)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+// SampleBackoff creates a logger that samples with exponential backoff.
+func (l *logger) SampleBackoff(key string, factor float64) core.Logger {
+	factor = validateBackoffFactor(factor)
+	filter := filters.NewBackoffSamplingFilter(key, factor, globalBackoffState)
+	return l.cloneWithSamplingFilter(filter)
+}
+
+
+// ResetSampling resets all sampling counters for this logger.
+func (l *logger) ResetSampling() {
+	if l.samplingFilter != nil {
+		l.samplingFilter.Reset()
+	}
+}
+
+// ResetSamplingGroup resets the sampling counter for a specific group.
+func (l *logger) ResetSamplingGroup(groupName string) {
+	globalSamplingGroupManager.ResetGroup(groupName)
+}
+
+// EnableSamplingSummary enables periodic emission of sampling summary events.
+// Note: This starts a goroutine that runs indefinitely. Consider using EnableSamplingSummaryWithCleanup 
+// for better lifecycle management.
+func (l *logger) EnableSamplingSummary(period time.Duration) core.Logger {
+	if l.samplingFilter != nil {
+		// Start a goroutine to emit summaries periodically
+		ctx, cancel := context.WithCancel(context.Background())
+		go l.emitSamplingSummariesWithContext(ctx, period)
+		
+		// Store cancel function in logger for potential cleanup (though interface doesn't expose it)
+		// This is not ideal but maintains backward compatibility
+		_ = cancel // Mark as used to avoid compiler warnings
+	}
+	return l
+}
+
+// EnableSamplingSummaryWithCleanup enables periodic emission of sampling summary events
+// and returns a cleanup function to stop the background goroutine.
+func (l *logger) EnableSamplingSummaryWithCleanup(period time.Duration) (core.Logger, func()) {
+	if l.samplingFilter == nil {
+		return l, func() {} // No-op cleanup
+	}
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	go l.emitSamplingSummariesWithContext(ctx, period)
+	
+	return l, cancel
+}
+
+// GetSamplingStats returns current sampling statistics.
+func (l *logger) GetSamplingStats() (sampled uint64, skipped uint64) {
+	if l.samplingFilter != nil {
+		stats := l.samplingFilter.GetStats()
+		return stats.Sampled, stats.Skipped
+	}
+	return 0, 0
+}
+
+// GetSamplingMetrics returns detailed metrics about sampling cache performance.
+// This helps operators tune cache limits and understand sampling behavior.
+func (l *logger) GetSamplingMetrics() core.SamplingMetrics {
+	metrics := core.SamplingMetrics{}
+	
+	// Get overall sampling stats if we have a sampling filter
+	if l.samplingFilter != nil {
+		stats := l.samplingFilter.GetStats()
+		metrics.TotalSampled = stats.Sampled
+		metrics.TotalSkipped = stats.Skipped
+		
+		// TODO: Collect cache metrics from individual filters
+		// This would require extending the filter interfaces to expose cache stats
+		// For now, return basic stats
+	}
+	
+	return metrics
+}
+
+// emitSamplingSummariesWithContext periodically emits sampling summary events with context support
+func (l *logger) emitSamplingSummariesWithContext(ctx context.Context, period time.Duration) {
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+	
+	var lastSampled, lastSkipped uint64
+	
+	for {
+		select {
+		case <-ctx.Done():
+			// Context cancelled, clean exit
+			return
+		case <-ticker.C:
+			if l.samplingFilter == nil {
+				return
+			}
+			
+			stats := l.samplingFilter.GetStats()
+			sampled := stats.Sampled - lastSampled
+			skipped := stats.Skipped - lastSkipped
+			
+			if sampled > 0 || skipped > 0 {
+				// Emit a dedicated summary event
+				l.Information("Sampling summary for last {Period}: {Sampled} messages logged, {Skipped} messages skipped",
+					period.String(), sampled, skipped)
+			}
+			
+			lastSampled = stats.Sampled
+			lastSkipped = stats.Skipped
+		}
+	}
 }

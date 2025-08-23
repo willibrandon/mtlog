@@ -288,6 +288,40 @@ orderLogger := mtlog.ForType[OrderService](log)
 orderLogger.Information("Processing order") // SourceContext: "OrderService"
 ```
 
+## Per-Message Sampling
+
+Efficient log volume management through intelligent per-message sampling. mtlog provides comprehensive sampling capabilities to help control log volume in production while preserving important events.
+
+### Quick Examples
+
+```go
+// Basic sampling methods
+logger.Sample(10).Info("Every 10th message")
+logger.SampleRate(0.2).Info("20% of messages")
+logger.SampleDuration(time.Second).Info("Once per second")
+logger.SampleFirst(100).Info("First 100 only")
+
+// Adaptive sampling - maintains target events/second
+logger.SampleAdaptive(100).Info("Auto-adjusting rate")
+
+// Use predefined profiles
+logger.SampleProfile("HighTrafficAPI").Info("API call")
+logger.SampleProfile("ProductionErrors").Error("Error occurred")
+```
+
+### Key Features
+
+- **Multiple Strategies**: Counter, rate, time-based, first-N, group, conditional, and exponential backoff sampling
+- **Adaptive Sampling**: Automatically adjusts rates to maintain target throughput with hysteresis and dampening
+- **Predefined Profiles**: Ready-to-use configurations for common scenarios
+- **Custom Profiles**: Define and register your own reusable sampling configurations
+- **Version Management**: Support for versioned profiles with auto-migration
+- **Zero Allocations**: Optimized for minimal performance impact
+
+### Learn More
+
+For comprehensive documentation including advanced strategies, configuration options, and best practices, see the [**Sampling Guide**](docs/sampling-guide.md).
+
 ## Structured Fields with With()
 
 The `With()` method provides a convenient way to add structured fields to log events, following the slog convention of accepting variadic key-value pairs:
@@ -888,6 +922,13 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Type-based logging](./examples/fortype/main.go)
 - [LogContext scoped properties](./examples/logcontext/main.go)
 - [Advanced filtering](./examples/filtering/main.go)
+- [Conditional logging](./examples/conditional/main.go)
+- [Sampling basics](./examples/sampling/main.go)
+- [Advanced sampling](./examples/sampling-advanced/main.go)
+- [Sampling monitoring](./examples/sampling-monitoring/main.go)
+- [Sampling debug](./examples/sampling-debug/main.go)
+- [Sampling profiles](./examples/sampling-profiles/main.go)
+- [Router sinks](./examples/router/main.go)
 - [Capturing](./examples/capturing/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
 - [Console themes](./examples/themes/main.go)
@@ -906,6 +947,8 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Dynamic levels](./examples/dynamic-levels/main.go)
 - [Configuration](./examples/configuration/main.go)
 - [Generics usage](./examples/generics/main.go)
+- [With properties](./examples/with/main.go)
+- [Showcase](./examples/showcase/main.go)
 - [HTTP middleware](./adapters/middleware/examples/) - net/http, Gin, Echo, Fiber, Chi
 
 ## Ecosystem Compatibility
@@ -1280,6 +1323,7 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 
 - **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
 - **[Template Syntax](./docs/template-syntax.md)** - Guide to message template syntaxes
+- **[Sampling Guide](./docs/sampling-guide.md)** - Comprehensive per-message sampling documentation
 - **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
 - **[Routing Patterns](./docs/routing-patterns.md)** - Advanced event routing patterns and best practices
 - **[Dynamic Level Control](./docs/dynamic-levels.md)** - Runtime level management

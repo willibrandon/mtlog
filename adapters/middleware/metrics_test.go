@@ -469,8 +469,10 @@ func TestMetricsMiddleware(t *testing.T) {
 		}
 		
 		// Duration should be reasonable (not too much overhead)
-		if duration > sleepDuration+10*time.Millisecond {
-			t.Errorf("Duration seems too long: %v (expected ~%v)", duration, sleepDuration)
+		// Allow more tolerance on CI systems which may have timing variations
+		maxOverhead := 20 * time.Millisecond
+		if duration > sleepDuration+maxOverhead {
+			t.Errorf("Duration seems too long: %v (expected ~%v with max %v overhead)", duration, sleepDuration, maxOverhead)
 		}
 	})
 }

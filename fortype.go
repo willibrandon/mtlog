@@ -1,7 +1,6 @@
 package mtlog
 
 import (
-	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/selflog"
 )
 
 // TypeNameOptions controls how type names are extracted and formatted for SourceContext.
@@ -115,13 +115,14 @@ var debugLogger interface {
 	Debug(messageTemplate string, args ...any)
 }
 
-// logDebug logs debug messages using structured logging if available, otherwise falls back to log.Printf.
-func logDebug(messageTemplate string, args ...any) {
+// logDebug logs debug messages using structured logging if available, otherwise uses selflog.
+func logDebug(message string) {
 	if debugLogger != nil {
-		debugLogger.Debug(messageTemplate, args...)
-	} else {
-		// Fallback to standard log for cases where mtlog logger isn't available
-		log.Printf("[mtlog] "+messageTemplate, args...)
+		debugLogger.Debug(message)
+	} else if selflog.IsEnabled() {
+		// Use selflog for diagnostic messages
+		// Note: selflog only provides Printf, not Print
+		selflog.Printf("%s", message)
 	}
 }
 
@@ -213,7 +214,7 @@ func extractTypeNameWithKey[T any](typ reflect.Type, options TypeNameOptions, ca
 		}
 		// Log warning for Unknown type names to help with debugging (if enabled)
 		if options.WarnOnUnknown {
-			logDebug("Warning: Unable to determine type name, returning 'Unknown'. This may indicate an interface{{}} or unresolvable type.")
+			logDebug("Warning: Unable to determine type name, returning 'Unknown'. This may indicate an interface{} or unresolvable type.")
 		}
 		return result
 	}
@@ -261,7 +262,7 @@ func extractTypeNameWithKey[T any](typ reflect.Type, options TypeNameOptions, ca
 			name = typ.String()
 			// Log warning for interface types which result in "Unknown" (if enabled)
 			if options.WarnOnUnknown && (name == "" || typ.Kind() == reflect.Interface) {
-				logDebug("Warning: Type {Type} resolved to empty or interface type, using type string representation: {TypeString}", typ, name)
+				logDebug("Warning: Type resolved to empty or interface type")
 			}
 		}
 	}

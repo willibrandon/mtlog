@@ -87,6 +87,24 @@ func (m *mockLogger) Warn(template string, args ...any) {
 	m.Warning(template, args...)
 }
 
+// Sampling methods - all return self for testing
+func (m *mockLogger) Sample(n uint64) core.Logger                          { return m }
+func (m *mockLogger) SampleDuration(duration time.Duration) core.Logger    { return m }
+func (m *mockLogger) SampleRate(rate float32) core.Logger                  { return m }
+func (m *mockLogger) SampleFirst(n uint64) core.Logger                     { return m }
+func (m *mockLogger) SampleGroup(groupName string, n uint64) core.Logger   { return m }
+func (m *mockLogger) SampleWhen(predicate func() bool, n uint64) core.Logger { return m }
+func (m *mockLogger) SampleBackoff(key string, factor float64) core.Logger { return m }
+func (m *mockLogger) ResetSampling()                                       {}
+func (m *mockLogger) ResetSamplingGroup(groupName string)                  {}
+func (m *mockLogger) EnableSamplingSummary(period time.Duration) core.Logger { return m }
+func (m *mockLogger) GetSamplingStats() (sampled uint64, skipped uint64)   { return 0, 0 }
+func (m *mockLogger) SampleProfile(profileName string) core.Logger         { return m }
+func (m *mockLogger) SampleAdaptive(targetEventsPerSecond uint64) core.Logger { return m }
+func (m *mockLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) core.Logger {
+	return m
+}
+
 func TestBridge(t *testing.T) {
 	// Create a mock logger
 	logger := &mockLogger{level: core.InformationLevel}

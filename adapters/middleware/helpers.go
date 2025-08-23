@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 	
 	"github.com/willibrandon/mtlog/core"
 )
@@ -343,3 +344,21 @@ func (n *noOpLogger) I(template string, args ...any) {}
 func (n *noOpLogger) W(template string, args ...any) {}
 func (n *noOpLogger) E(template string, args ...any) {}
 func (n *noOpLogger) F(template string, args ...any) {}
+
+// Sampling methods - all return self for no-op
+func (n *noOpLogger) Sample(num uint64) core.Logger                          { return n }
+func (n *noOpLogger) SampleDuration(duration time.Duration) core.Logger      { return n }
+func (n *noOpLogger) SampleRate(rate float32) core.Logger                    { return n }
+func (n *noOpLogger) SampleFirst(num uint64) core.Logger                     { return n }
+func (n *noOpLogger) SampleGroup(groupName string, num uint64) core.Logger   { return n }
+func (n *noOpLogger) SampleWhen(predicate func() bool, num uint64) core.Logger { return n }
+func (n *noOpLogger) SampleBackoff(key string, factor float64) core.Logger   { return n }
+func (n *noOpLogger) ResetSampling()                                         {}
+func (n *noOpLogger) ResetSamplingGroup(groupName string)                    {}
+func (n *noOpLogger) EnableSamplingSummary(period time.Duration) core.Logger { return n }
+func (n *noOpLogger) GetSamplingStats() (sampled uint64, skipped uint64)     { return 0, 0 }
+func (n *noOpLogger) SampleProfile(profileName string) core.Logger           { return n }
+func (n *noOpLogger) SampleAdaptive(targetEventsPerSecond uint64) core.Logger { return n }
+func (n *noOpLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) core.Logger {
+	return n
+}

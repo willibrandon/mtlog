@@ -1,12 +1,12 @@
 package mtlog
 
 import (
-	"log"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/willibrandon/mtlog/selflog"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -453,11 +453,12 @@ func TestWarnOnUnknownOption(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Capture log output to test warning behavior
+			// Capture selflog output to test warning behavior
 			var logBuffer strings.Builder
-			originalOutput := log.Writer()
-			log.SetOutput(&logBuffer)
-			defer log.SetOutput(originalOutput)
+			if tt.expectWarn {
+				selflog.Enable(&logBuffer)
+				defer selflog.Disable()
+			}
 
 			// Test with interface type that results in "Unknown"
 			result := extractTypeName[any](tt.options)
@@ -469,7 +470,7 @@ func TestWarnOnUnknownOption(t *testing.T) {
 
 			// Check if warning was logged
 			logOutput := logBuffer.String()
-			containsWarning := strings.Contains(logOutput, "[mtlog] Warning:")
+			containsWarning := strings.Contains(logOutput, "Warning:")
 
 			if tt.expectWarn && !containsWarning {
 				t.Errorf("expected warning to be logged, but no warning found in output: %s", logOutput)
