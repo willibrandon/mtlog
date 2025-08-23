@@ -287,3 +287,21 @@ func (m *mockFuzzLogger) WithContext(ctx context.Context) core.Logger { return m
 func (m *mockFuzzLogger) With(args ...any) core.Logger { return m }
 func (m *mockFuzzLogger) Info(template string, args ...any) {}
 func (m *mockFuzzLogger) Warn(template string, args ...any) {}
+
+// Sampling methods - all return self for testing
+func (m *mockFuzzLogger) Sample(n uint64) core.Logger                          { return m }
+func (m *mockFuzzLogger) SampleDuration(duration time.Duration) core.Logger    { return m }
+func (m *mockFuzzLogger) SampleRate(rate float32) core.Logger                  { return m }
+func (m *mockFuzzLogger) SampleFirst(n uint64) core.Logger                     { return m }
+func (m *mockFuzzLogger) SampleGroup(groupName string, n uint64) core.Logger   { return m }
+func (m *mockFuzzLogger) SampleWhen(predicate func() bool, n uint64) core.Logger { return m }
+func (m *mockFuzzLogger) SampleBackoff(key string, factor float64) core.Logger { return m }
+func (m *mockFuzzLogger) ResetSampling()                                       {}
+func (m *mockFuzzLogger) ResetSamplingGroup(groupName string)                  {}
+func (m *mockFuzzLogger) EnableSamplingSummary(period time.Duration) core.Logger { return m }
+func (m *mockFuzzLogger) GetSamplingStats() (sampled uint64, skipped uint64)   { return 0, 0 }
+func (m *mockFuzzLogger) SampleProfile(profileName string) core.Logger         { return m }
+func (m *mockFuzzLogger) SampleAdaptive(targetEventsPerSecond uint64) core.Logger { return m }
+func (m *mockFuzzLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) core.Logger {
+	return m
+}

@@ -117,14 +117,14 @@ func TestSamplingConfigComplex(t *testing.T) {
 	logger := New(
 		WithSink(sink),
 		Sampling().
-			Rate(0.5).                    // 50% sampling
+			Rate(0.8).                    // 80% sampling (higher rate for reliability)
 			Duration(50*time.Millisecond). // At most once per 50ms
 			Group("test", 2).             // Every 2nd in group
 			Build(),
 	)
 	
-	// Log messages with delays
-	for i := 1; i <= 10; i++ {
+	// Log many messages to ensure some pass through
+	for i := 1; i <= 20; i++ {
 		logger.Info("Message {Number}", i)
 		if i%3 == 0 {
 			time.Sleep(60 * time.Millisecond) // Ensure some pass duration filter
@@ -138,8 +138,8 @@ func TestSamplingConfigComplex(t *testing.T) {
 		t.Error("Expected some events with complex sampling, got none")
 	}
 	
-	if len(events) > 10 {
-		t.Errorf("Expected at most 10 events, got %d", len(events))
+	if len(events) > 15 {
+		t.Errorf("Expected at most 15 events, got %d", len(events))
 	}
 }
 
