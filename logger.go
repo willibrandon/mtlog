@@ -590,9 +590,6 @@ func (l *logger) IsEnabled(level core.LogEventLevel) bool {
 var (
 	globalSamplingGroupManager = filters.NewSamplingGroupManager(10000)
 	globalBackoffState         = filters.NewBackoffState(10000)
-	
-	// Global configuration for sampling memory limits
-	globalSamplingMemoryLimit int = 10000
 )
 
 // cloneWithSamplingFilter creates a new logger with a sampling filter
@@ -720,12 +717,6 @@ func (l *logger) GetSamplingStats() (sampled uint64, skipped uint64) {
 		return stats.Sampled, stats.Skipped
 	}
 	return 0, 0
-}
-
-// emitSamplingSummaries periodically emits sampling summary events
-// Deprecated: Use emitSamplingSummariesWithContext for better lifecycle management
-func (l *logger) emitSamplingSummaries(period time.Duration) {
-	l.emitSamplingSummariesWithContext(context.Background(), period)
 }
 
 // emitSamplingSummariesWithContext periodically emits sampling summary events with context support

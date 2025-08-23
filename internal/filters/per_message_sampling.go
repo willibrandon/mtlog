@@ -2,7 +2,6 @@ package filters
 
 import (
 	"math/rand"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -78,7 +77,6 @@ const (
 // SamplingGroupManager manages shared counters for sampling groups with LRU eviction.
 type SamplingGroupManager struct {
 	cache *cache.LRUCache
-	mu    sync.RWMutex
 	// Cache metrics for monitoring
 	cacheHits   atomic.Uint64
 	cacheMisses atomic.Uint64
@@ -148,7 +146,6 @@ func (m *SamplingGroupManager) CacheStats() (hits, misses uint64) {
 // BackoffState manages exponential backoff sampling state with LRU eviction.
 type BackoffState struct {
 	cache *cache.LRUCache
-	mu    sync.RWMutex
 }
 
 // BackoffCounter tracks state for exponential backoff sampling.

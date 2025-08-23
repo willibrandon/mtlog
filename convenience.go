@@ -249,9 +249,6 @@ func WithSamplingMemoryLimit(maxKeys int) Option {
 			maxKeys = 10000 // Default limit
 		}
 		
-		// Update global sampling memory limit
-		globalSamplingMemoryLimit = maxKeys
-		
 		// Recreate managers with new capacity
 		globalSamplingGroupManager = filters.NewSamplingGroupManager(maxKeys)
 		globalBackoffState = filters.NewBackoffState(maxKeys)

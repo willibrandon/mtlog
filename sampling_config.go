@@ -81,9 +81,7 @@ func (s *SamplingConfigBuilder) Backoff(key string, factor float64) *SamplingCon
 func (s *SamplingConfigBuilder) Build() Option {
 	return func(c *config) {
 		// Add all sampling filters to the configuration
-		for _, filter := range s.filters {
-			c.filters = append(c.filters, filter)
-		}
+		c.filters = append(c.filters, s.filters...)
 	}
 }
 
