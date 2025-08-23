@@ -133,6 +133,38 @@ func GetInt(args map[string]any, key string, defaultValue int) int {
 	return defaultValue
 }
 
+// GetFloat gets a float64 value from configuration args.
+func GetFloat(args map[string]any, key string, defaultValue float64) float64 {
+	if v, ok := args[key]; ok {
+		switch val := v.(type) {
+		case float64:
+			return val
+		case float32:
+			return float64(val)
+		case int:
+			return float64(val)
+		case int64:
+			return float64(val)
+		case string:
+			// Try to parse string as float64
+			var f float64
+			if _, err := fmt.Sscanf(val, "%f", &f); err == nil {
+				return f
+			}
+			// Warn about parse failure
+			if selflog.IsEnabled() {
+				selflog.Printf("[configuration] failed to parse '%s' as float for '%s', using default %f", val, key, defaultValue)
+			}
+		default:
+			// Warn about type mismatch
+			if selflog.IsEnabled() {
+				selflog.Printf("[configuration] expected numeric value for '%s', got %T, using default %f", key, v, defaultValue)
+			}
+		}
+	}
+	return defaultValue
+}
+
 // GetInt64 gets an int64 value from configuration args.
 func GetInt64(args map[string]any, key string, defaultValue int64) int64 {
 	if v, ok := args[key]; ok {

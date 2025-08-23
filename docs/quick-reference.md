@@ -282,6 +282,304 @@ loggerOption, levelSwitch, controller := mtlog.WithSeqLevelControl(
 defer controller.Close()
 ```
 
+## Per-Message Sampling
+
+### Basic Sampling
+```go
+// Sample every Nth message
+sampledLogger := logger.Sample(10)  // Every 10th message
+
+// Time-based sampling
+sampledLogger := logger.SampleDuration(time.Second)  // At most once per second
+
+// Rate-based sampling (percentage)
+sampledLogger := logger.SampleRate(0.1)  // 10% of messages
+
+// First N occurrences
+sampledLogger := logger.SampleFirst(100)  // First 100 messages only
+```
+
+### Advanced Sampling
+```go
+// Group sampling - share counter across loggers
+dbLogger := logger.SampleGroup("database", 10)
+cacheLogger := logger.SampleGroup("database", 10)  // Same counter
+
+// Conditional sampling
+var highLoad atomic.Bool
+sampledLogger := logger.SampleWhen(func() bool {
+    return highLoad.Load()
+}, 5)  // Every 5th when condition true
+
+// Exponential backoff
+errorLogger := logger.SampleBackoff("connection-error", 2.0)
+// Logs at: 1st, 2nd, 4th, 8th, 16th, 32nd...
+```
+
+### Configuration
+```go
+// Default sampling for all messages
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithDefaultSampling(100),  // Every 100th by default
+)
+
+// Reset sampling counters
+sampledLogger.ResetSampling()
+logger.ResetSamplingGroup("database")
+
+// Sampling statistics
+sampledLogger.EnableSamplingSummary(5 * time.Minute)
+sampled, skipped := sampledLogger.GetSamplingStats()
+
+// Cache warmup (at startup)
+mtlog.WarmupSamplingGroups([]string{"database", "api"})
+mtlog.WarmupSamplingBackoff([]string{"error", "timeout"}, 2.0)
+```
+
+### Advanced Sampling Configuration
+
+#### Predefined Sampling Profiles
+
+Ready-to-use sampling profiles for common production scenarios:
+
+```go
+// High-traffic API endpoints (1% sampling)
+apiLogger := logger.SampleProfile("HighTrafficAPI")
+
+// Background workers (10% sampling)
+workerLogger := logger.SampleProfile("BackgroundWorker")
+
+// Error logging with exponential backoff
+errorLogger := logger.SampleProfile("ErrorReporting")
+
+// Debug mode with higher sampling (25%)
+debugLogger := logger.SampleProfile("DebugVerbose")
+
+// Interactive user actions (50% sampling)
+userLogger := logger.SampleProfile("UserInteractive")
+
+// Database operations (every 5th message)
+dbLogger := logger.SampleProfile("DatabaseOps")
+
+// Analytics events (5% sampling)
+analyticsLogger := logger.SampleProfile("Analytics")
+
+// System health monitoring (time-based, once per second)
+healthLogger := logger.SampleProfile("SystemHealth")
+```
+
+#### Adaptive Sampling
+
+Automatically adjusts sampling rates to maintain target throughput:
+
+```go
+// Target 100 events per second - automatically adjusts sampling rate
+adaptiveLogger := logger.SampleAdaptive(100)
+
+// Advanced adaptive sampling with bounds
+adaptiveLogger := logger.SampleAdaptiveWithOptions(
+    250,                    // Target: 250 events/second
+    0.01,                   // Minimum rate: 1%
+    1.0,                    // Maximum rate: 100%
+    30*time.Second,         // Check interval
+)
+
+// Advanced adaptive sampling with hysteresis for stability
+hysteresisLogger := logger.SampleAdaptiveWithHysteresis(
+    200,                    // Target: 200 events/second
+    0.005,                  // Minimum rate: 0.5%
+    0.8,                    // Maximum rate: 80%
+    15*time.Second,         // Check interval
+    0.15,                   // Hysteresis: 15% (prevents oscillation)
+    0.7,                    // Aggressiveness: 70% (smoother adjustments)
+)
+
+// Ultimate adaptive sampling with dampening for extreme load
+dampenedLogger := logger.SampleAdaptiveWithDampening(
+    200,                    // Target: 200 events/second
+    0.005,                  // Minimum rate: 0.5%
+    0.8,                    // Maximum rate: 80%
+    15*time.Second,         // Check interval
+    0.15,                   // Hysteresis: 15% (prevents oscillation)
+    0.7,                    // Aggressiveness: 70% (smoother adjustments)
+    0.4,                    // Dampening: 40% (reduces oscillation)
+)
+
+// Simplified adaptive sampling with dampening presets
+conservativeLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningConservative)
+moderateLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningModerate)
+aggressiveLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningAggressive)
+ultraStableLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningUltraStable)
+responsiveLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningResponsive)
+
+// Custom rate limits with presets
+customLogger := logger.SampleAdaptiveWithPresetCustom(150, mtlog.DampeningAggressive, 0.05, 0.8)
+
+// Adaptive sampling automatically:
+// - Measures actual event rate
+// - Increases sampling when below target
+// - Decreases sampling when above target
+// - Uses hysteresis to prevent rate oscillation
+// - Applies exponential smoothing for stability
+// - Stays within configured min/max bounds
+```
+
+#### Fluent Sampling Configuration Builder
+
+For complex scenarios, combine multiple sampling strategies:
+
+```go
+// Pipeline-style sampling (filters applied in sequence)
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.Sampling().
+        Every(10).       // First: sample every 10th message
+        Rate(0.5).       // Then: 50% of those that pass
+        First(100).      // Finally: only first 100 that make it through
+        Build(),         // Apply as sequential pipeline
+)
+
+// Composite AND sampling (all conditions must match)
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.Sampling().
+        Every(2).        // Must be every 2nd message
+        First(10).       // Must be within first 10 evaluations
+        CombineAND(),    // Both conditions must be true
+)
+
+// Composite OR sampling (any condition can match)
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.Sampling().
+        Every(5).        // Either every 5th message
+        First(3).        // Or first 3 messages
+        CombineOR(),     // Either condition allows logging
+)
+```
+
+#### Custom Sampling Profiles
+
+Create application-specific sampling profiles:
+
+```go
+// Define custom profiles for your application
+customProfiles := map[string]mtlog.SamplingProfile{
+    "PaymentProcessing": {
+        Description: "Critical payment operations - log all errors, sample others",
+        Config: func() mtlog.Option {
+            return mtlog.Sampling().
+                When(func() bool { return getCurrentErrorRate() > 0.01 }, 1). // All errors
+                Rate(0.1).                                                     // 10% normal ops
+                CombineOR()
+        },
+    },
+    "UserAnalytics": {
+        Description: "User behavior tracking",
+        Config: func() mtlog.Option {
+            return mtlog.Sampling().
+                First(1000).     // First 1000 events per user
+                Rate(0.05).      // Then 5% sampling
+                Build()
+        },
+    },
+}
+
+// Register and use custom profiles
+mtlog.RegisterSamplingProfiles(customProfiles)
+
+// Bulk register multiple profiles with error handling
+if err := mtlog.RegisterCustomProfiles(customProfiles); err != nil {
+    log.Fatal("Failed to register sampling profiles:", err)
+}
+
+// Freeze profile registry after registration (recommended for production)
+mtlog.FreezeProfiles()
+
+// Use custom profiles
+paymentLogger := logger.SampleProfile("PaymentProcessing")
+
+// Profile versioning for backward compatibility
+mtlog.AddCustomProfileWithVersion("PaymentV2", "Enhanced payment processing", "2.0", false, "", 
+    func() core.LogEventFilter { return mtlog.Sampling().Rate(0.05).Build() })
+
+// Use specific version
+legacyPayment := logger.SampleProfileWithVersion("PaymentV2", "1.0")
+modernPayment := logger.SampleProfileWithVersion("PaymentV2", "2.0")
+
+// Version management
+versions := mtlog.GetProfileVersions("PaymentV2")
+isDeprecated, replacement := mtlog.IsProfileDeprecated("PaymentV2")
+
+// Profile version auto-migration
+mtlog.SetMigrationPolicy(mtlog.MigrationPolicy{
+    Consent:            mtlog.MigrationAuto,  // Auto-migrate without prompting
+    PreferStable:       true,                // Skip deprecated versions
+    MaxVersionDistance: 1,                   // Allow migration within 1 major version
+})
+
+// Request version that might not exist - auto-migrates to compatible version
+profile, actualVersion, found := mtlog.GetProfileWithMigration("PaymentV2", "1.5")
+migratedLogger := logger.SampleProfileWithVersion("PaymentV2", "1.3") // Auto-migrates if needed
+```
+
+#### Custom Sampling Policies
+
+```go
+// Implement SamplingPolicy interface for complex logic
+type UserBasedSamplingPolicy struct {
+    adminRate   float32
+    premiumRate float32  
+    basicRate   float32
+}
+
+func (p *UserBasedSamplingPolicy) ShouldSample(event *core.LogEvent) bool {
+    userTier, _ := event.Properties["UserTier"].(string)
+    switch userTier {
+    case "admin":   return true
+    case "premium": return rand.Float32() < p.premiumRate
+    case "basic":   return rand.Float32() < p.basicRate
+    default:        return false
+    }
+}
+
+// Use the custom policy
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithSamplingPolicy(&UserBasedSamplingPolicy{
+        adminRate: 1.0, premiumRate: 0.5, basicRate: 0.1,
+    }),
+)
+```
+
+#### Pipeline vs Composite Behavior
+
+```go
+// Pipeline (Build): Filters applied sequentially
+// Each filter only sees events that passed the previous filter
+mtlog.Sampling().Every(2).First(5).Build()
+
+// Composite (CombineAND): Each filter evaluates all events independently
+// Results combined with logical AND/OR
+mtlog.Sampling().Every(2).First(5).CombineAND()
+```
+
+### Production Pattern
+```go
+// Different sampling for different endpoints
+healthLogger := logger.
+    ForContext("Endpoint", "/health").
+    SampleDuration(10 * time.Second)  // Once per 10 seconds
+
+apiLogger := logger.
+    ForContext("Endpoint", "/api/users").
+    SampleRate(0.01)  // 1% sampling
+
+errorLogger := logger.
+    SampleBackoff("api-error", 2.0)  // Exponential backoff
+```
+
 ## Context Logging
 
 ### With() Method (Structured Fields)

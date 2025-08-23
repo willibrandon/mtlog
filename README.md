@@ -288,6 +288,533 @@ orderLogger := mtlog.ForType[OrderService](log)
 orderLogger.Information("Processing order") // SourceContext: "OrderService"
 ```
 
+## Per-Message Sampling
+
+mtlog provides fine-grained per-message sampling to manage log volume for high-frequency events while preserving important logs. This feature allows different sampling strategies for different log statements, giving you precise control over what gets logged in production.
+
+### Basic Sampling Methods
+
+#### Sample Every Nth Message
+```go
+// Log every 10th message
+sampledLogger := logger.Sample(10)
+for i := 1; i <= 100; i++ {
+    sampledLogger.Info("Processing item {Number}", i)
+}
+// Logs messages: 1, 11, 21, 31, 41, 51, 61, 71, 81, 91
+```
+
+#### Time-Based Sampling
+```go
+// Log at most once per second
+sampledLogger := logger.SampleDuration(time.Second)
+for i := 0; i < 1000; i++ {
+    sampledLogger.Info("Rapid event {Number}", i)
+    time.Sleep(10 * time.Millisecond)
+}
+// Logs first message, then one message per second
+```
+
+#### Rate-Based Sampling
+```go
+// Log 10% of messages
+sampledLogger := logger.SampleRate(0.1)
+for i := 1; i <= 1000; i++ {
+    sampledLogger.Info("High volume event {EventId}", i)
+}
+// Logs approximately 100 messages (10% of 1000)
+```
+
+#### First N Occurrences
+```go
+// Log only the first 5 occurrences
+sampledLogger := logger.SampleFirst(5)
+for i := 1; i <= 100; i++ {
+    sampledLogger.Warning("Initialization warning {Step}", i)
+}
+// Logs only messages 1, 2, 3, 4, 5
+```
+
+### Advanced Sampling
+
+#### Group Sampling
+Share sampling counters across multiple loggers:
+
+```go
+// Multiple loggers share the same sampling counter
+dbLogger := logger.SampleGroup("database", 10)
+cacheLogger := logger.SampleGroup("database", 10)
+
+// Both loggers contribute to the same counter
+for i := 1; i <= 20; i++ {
+    dbLogger.Info("DB query {Id}", i)      // Messages 1, 11
+    cacheLogger.Info("Cache hit {Id}", i)  // Messages 6, 16
+}
+```
+
+#### Conditional Sampling
+Sample only when specific conditions are met:
+
+```go
+var highLoad atomic.Bool
+
+// Sample every 5th message only during high load
+sampledLogger := logger.SampleWhen(func() bool {
+    return highLoad.Load()
+}, 5)
+
+// Normal load - no messages logged
+sampledLogger.Info("Normal operation")
+
+// High load - sampling active
+highLoad.Store(true)
+for i := 1; i <= 20; i++ {
+    sampledLogger.Info("High load event {Number}", i)
+}
+// Logs messages: 1, 6, 11, 16 (every 5th during high load)
+```
+
+#### Exponential Backoff Sampling
+Reduce frequency of repeated messages exponentially:
+
+```go
+// Log with exponential backoff (factor 2.0)
+errorLogger := logger.SampleBackoff("connection-error", 2.0)
+
+for i := 1; i <= 100; i++ {
+    errorLogger.Error("Connection failed, attempt {Attempt}", i)
+}
+// Logs attempts: 1, 2, 4, 8, 16, 32, 64
+```
+
+### Production Example
+
+Different sampling strategies for different scenarios:
+
+```go
+baseLogger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithMinimumLevel(core.InformationLevel),
+)
+
+// Health check endpoint - heavily rate limited
+healthLogger := baseLogger.
+    ForContext("Endpoint", "/health").
+    SampleDuration(10 * time.Second) // At most once per 10 seconds
+
+// High-traffic read endpoint - sample percentage
+apiLogger := baseLogger.
+    ForContext("Endpoint", "/api/users").
+    SampleRate(0.01) // 1% of requests
+
+// Debug logs - conditional sampling
+debugLogger := baseLogger.
+    SampleWhen(func() bool {
+        return os.Getenv("DEBUG_SAMPLING") == "true"
+    }, 100) // Every 100th when debugging enabled
+
+// Error logging with backoff
+errorLogger := baseLogger.
+    SampleBackoff("api-error", 2.0) // Exponential backoff
+```
+
+### Configuration Options
+
+#### Global Default Sampling
+Set default sampling for all messages:
+
+```go
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithDefaultSampling(100), // Sample every 100th message by default
+)
+```
+
+#### Reset Sampling Counters
+Reset sampling state when needed:
+
+```go
+// Reset all sampling counters for a logger
+sampledLogger.ResetSampling()
+
+// Reset specific group counter
+logger.ResetSamplingGroup("database")
+```
+
+#### Sampling Statistics & Summaries
+Monitor sampling effectiveness:
+
+```go
+// Enable periodic summary events
+sampledLogger := logger.Sample(10).EnableSamplingSummary(5 * time.Minute)
+// Emits: "Sampling summary for last 5m: 1000 messages logged, 9000 messages skipped"
+
+// Get current statistics
+sampled, skipped := sampledLogger.GetSamplingStats()
+fmt.Printf("Sampled: %d, Skipped: %d\n", sampled, skipped)
+```
+
+#### Cache Warmup
+Pre-populate caches to avoid cold-start spikes:
+
+```go
+// Warmup common group names at startup
+mtlog.WarmupSamplingGroups([]string{"database", "cache", "api", "auth"})
+
+// Warmup common error keys
+mtlog.WarmupSamplingBackoff([]string{"connection-error", "timeout", "rate-limit"}, 2.0)
+```
+
+### Performance
+
+Per-message sampling adds minimal overhead:
+- Counter sampling: ~4ns per decision, 0 allocations
+- Rate sampling: ~4ns per decision, 0 allocations (per-filter random source)
+- Duration sampling: ~35ns per decision, 0 allocations
+- All sampling decisions use lock-free atomic operations
+- LRU cache prevents unbounded memory growth (default 10,000 keys)
+- Cache warmup available to prevent cold-start allocation spikes
+
+### Use Cases
+
+- **Database Query Logging**: Sample queries in production without overwhelming logs
+- **HTTP Request Logging**: Log percentage of high-traffic endpoints
+- **Heartbeat/Health Checks**: Time-based sampling to reduce noise
+- **Error Logging**: Exponential backoff for repeated errors
+- **Debug Logging**: Conditional sampling based on environment or load
+- **Initialization**: Log first N occurrences during startup
+
+### Advanced Sampling Configuration
+
+#### Fluent Sampling Configuration Builder
+
+For complex scenarios, use the fluent sampling configuration API to combine multiple strategies:
+
+```go
+// Pipeline-style sampling (filters applied in sequence)
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.Sampling().
+        Every(10).           // First: sample every 10th message
+        Rate(0.5).           // Then: 50% of those that pass
+        First(100).          // Finally: only first 100 that make it through
+        Build(),             // Apply as sequential pipeline
+)
+
+// Composite AND sampling (all conditions must match)
+logger := mtlog.New(
+    mtlog.WithConsole(), 
+    mtlog.Sampling().
+        Every(2).            // Must be every 2nd message
+        First(10).           // Must be within first 10 evaluations
+        CombineAND(),        // Both conditions must be true
+)
+
+// Composite OR sampling (any condition can match)
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.Sampling().
+        Every(5).            // Either every 5th message
+        First(3).            // Or first 3 messages  
+        CombineOR(),         // Either condition allows logging
+)
+```
+
+#### Custom Sampling Policies
+
+Implement the `SamplingPolicy` interface for complex custom sampling logic:
+
+```go
+// Custom policy that samples based on user properties
+type UserBasedSamplingPolicy struct {
+    adminRate   float32 // Always log admin users
+    premiumRate float32 // Higher rate for premium users
+    basicRate   float32 // Lower rate for basic users
+}
+
+func (p *UserBasedSamplingPolicy) ShouldSample(event *core.LogEvent) bool {
+    userTier, _ := event.Properties["UserTier"].(string)
+    switch userTier {
+    case "admin":
+        return true // Always log admin
+    case "premium": 
+        return rand.Float32() < p.premiumRate
+    case "basic":
+        return rand.Float32() < p.basicRate
+    default:
+        return false
+    }
+}
+
+func (p *UserBasedSamplingPolicy) Reset() { /* reset counters */ }
+func (p *UserBasedSamplingPolicy) Stats() core.SamplingStats { /* return stats */ }
+
+// Use the custom policy
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithSamplingPolicy(&UserBasedSamplingPolicy{
+        adminRate:   1.0,   // 100% for admins
+        premiumRate: 0.5,   // 50% for premium
+        basicRate:   0.1,   // 10% for basic
+    }),
+)
+```
+
+#### Pipeline vs Composite Behavior
+
+Understanding the difference between `Build()` and `CombineAND()`/`CombineOR()`:
+
+- **Pipeline (`Build()`)**: Filters are applied sequentially. Each filter only sees events that passed the previous filter.
+- **Composite (`CombineAND()`/`CombineOR()`)**: Each filter evaluates all events independently, then the results are combined with logical AND/OR.
+
+```go
+// Pipeline: Every(2) → First(5) → Result
+// First(5) only sees odd events from Every(2)
+mtlog.Sampling().Every(2).First(5).Build()
+
+// Composite: Every(2) AND First(5) → Result  
+// Both filters evaluate all events, results combined with AND logic
+mtlog.Sampling().Every(2).First(5).CombineAND()
+```
+
+### Predefined Sampling Profiles
+
+For common scenarios, use predefined sampling profiles:
+
+```go
+// High-traffic API endpoints (1% sampling)
+apiLogger := logger.SampleProfile("HighTrafficAPI")
+
+// Background workers (every 10th message)
+workerLogger := logger.SampleProfile("BackgroundWorker") 
+
+// Development debug mode (first 100 then 10% sampling)
+debugLogger := logger.SampleProfile("DebugVerbose")
+
+// Production error logging (exponential backoff)
+errorLogger := logger.SampleProfile("ProductionErrors")
+
+// Health checks (time-based, once per minute)
+healthLogger := logger.SampleProfile("HealthChecks")
+
+// Critical alerts (first 50 then exponential backoff)
+alertLogger := logger.SampleProfile("CriticalAlerts")
+
+// Get available profiles
+profiles := mtlog.GetAvailableProfiles()
+fmt.Printf("Available profiles: %v\n", profiles)
+
+// Get profile description
+if desc, ok := mtlog.GetProfileDescription("HighTrafficAPI"); ok {
+    fmt.Printf("Profile description: %s\n", desc)
+}
+```
+
+### Adaptive Sampling
+
+Automatically adjust sampling rates based on target events per second:
+
+```go
+// Target 100 events per second - automatically adjusts sampling rate
+adaptiveLogger := logger.SampleAdaptive(100)
+
+// Custom adaptive sampling with bounds and adjustment interval
+adaptiveLogger := logger.SampleAdaptiveWithOptions(
+    50,           // target events/second
+    0.001,        // minimum rate (0.1%)
+    0.5,          // maximum rate (50%)
+    2*time.Second, // adjustment interval
+)
+
+// Advanced adaptive sampling with hysteresis for stability
+hysteresisLogger := logger.SampleAdaptiveWithHysteresis(
+    100,        // target events/second
+    0.001,      // minimum rate (0.1%)
+    0.3,        // maximum rate (30%)
+    2*time.Second, // adjustment interval
+    0.1,        // hysteresis threshold (10%) - prevents oscillation
+    0.8,        // aggressiveness factor (0.0-1.0) - controls adjustment speed
+)
+
+// Ultimate adaptive sampling with dampening for extreme load variations
+dampenedLogger := logger.SampleAdaptiveWithDampening(
+    100,        // target events/second
+    0.001,      // minimum rate (0.1%)
+    0.3,        // maximum rate (30%)
+    2*time.Second, // adjustment interval
+    0.1,        // hysteresis threshold (10%) - prevents oscillation
+    0.8,        // aggressiveness factor (0.0-1.0) - controls adjustment speed
+    0.4,        // dampening factor (0.1-1.0) - reduces oscillation under extreme load
+)
+
+// Get current adaptive sampling statistics
+stats := adaptiveLogger.GetAdaptiveStats()
+fmt.Printf("Current rate: %.2f%%, Target: %d events/sec\n", 
+    stats.CurrentRate*100, stats.TargetEventsPerSecond)
+```
+
+### Adaptive Sampling with Dampening Presets
+
+For simplified configuration, use predefined dampening presets optimized for different environments:
+
+```go
+// Conservative: Heavy dampening for stable production (25% hysteresis, 15% aggressiveness)
+conservativeLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningConservative)
+
+// Moderate: Balanced for general production use (15% hysteresis, 30% aggressiveness)
+moderateLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningModerate)
+
+// Aggressive: Light dampening for dynamic environments (8% hysteresis, 60% aggressiveness)
+aggressiveLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningAggressive)
+
+// Ultra Stable: Maximum stability for critical systems (40% hysteresis, 5% aggressiveness)
+ultraStableLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningUltraStable)
+
+// Responsive: Minimal dampening for development (5% hysteresis, 80% aggressiveness)
+responsiveLogger := logger.SampleAdaptiveWithPreset(100, mtlog.DampeningResponsive)
+
+// Custom rate limits with presets
+customLogger := logger.SampleAdaptiveWithPresetCustom(
+    150,                      // target events/second
+    mtlog.DampeningAggressive, // preset configuration
+    0.05,                     // minimum rate (5%)
+    0.8,                      // maximum rate (80%)
+)
+```
+
+**Available Presets:**
+- **Conservative**: For stable, predictable production environments (3s intervals, heavy dampening)
+- **Moderate**: Balanced configuration suitable for most production environments (1s intervals)
+- **Aggressive**: Quick response for dynamic environments (500ms intervals, light dampening)
+- **Ultra Stable**: Maximum stability for critical systems (5s intervals, maximum dampening)
+- **Responsive**: For development or testing environments (200ms intervals, minimal dampening)
+
+### Custom Sampling Profiles
+
+Add your own custom profiles for reuse across your application:
+
+```go
+// Add a custom profile
+mtlog.AddCustomProfile("DatabaseQueries", 
+    "Heavy sampling for database query logs",
+    func() core.LogEventFilter {
+        return filters.NewRateSamplingFilter(0.05) // 5% sampling
+    })
+
+// Bulk register multiple custom profiles
+customProfiles := map[string]mtlog.SamplingProfile{
+    "CacheOperations": {
+        Name:        "Cache Operations",
+        Description: "Lightweight sampling for cache operations",
+        Factory: func() core.LogEventFilter {
+            return filters.NewCounterSamplingFilter(50) // Every 50th operation
+        },
+    },
+    "SecurityAudits": {
+        Name:        "Security Audits", 
+        Description: "Complete logging for security-related events",
+        Factory: func() core.LogEventFilter {
+            return filters.NewRateSamplingFilter(1.0) // 100% sampling
+        },
+    },
+}
+mtlog.RegisterCustomProfiles(customProfiles)
+
+// Freeze profile registry to prevent further modifications (recommended for production)
+mtlog.FreezeProfiles()
+
+// Use the custom profile
+dbLogger := logger.SampleProfile("DatabaseQueries")
+
+// Add versioned profiles for backward compatibility
+mtlog.AddCustomProfileWithVersion("APIGateway", 
+    "API Gateway sampling with improved algorithm", 
+    "2.1",          // version
+    false,          // not deprecated
+    "",             // no replacement needed
+    func() core.LogEventFilter {
+        return filters.NewRateSamplingFilter(0.02) // 2% sampling
+    })
+
+// Mark old version as deprecated
+mtlog.AddCustomProfileWithVersion("APIGateway", 
+    "Legacy API Gateway sampling", 
+    "1.0",          // old version
+    true,           // deprecated
+    "2.1",          // suggest replacement
+    func() core.LogEventFilter {
+        return filters.NewCounterSamplingFilter(50) // Every 50th message
+    })
+
+// Use specific version of a profile
+legacyLogger := logger.SampleProfileWithVersion("APIGateway", "1.0")
+modernLogger := logger.SampleProfileWithVersion("APIGateway", "2.1")
+
+// Check profile versioning information
+version, exists := mtlog.GetProfileVersion("APIGateway")
+versions := mtlog.GetProfileVersions("APIGateway")
+isDeprecated, replacement := mtlog.IsProfileDeprecated("APIGateway")
+```
+
+### Profile Version Auto-Migration
+
+When using versioned profiles, mtlog can automatically migrate to compatible versions when the requested version is not available:
+
+```go
+// Configure migration policy
+mtlog.SetMigrationPolicy(mtlog.MigrationPolicy{
+    Consent:            mtlog.MigrationAuto,  // Auto-migrate without prompting
+    PreferStable:       true,                // Skip deprecated versions
+    MaxVersionDistance: 1,                   // Allow migration within 1 major version
+})
+
+// Request a specific version that might not exist
+// If version "1.5" doesn't exist, auto-migrates to best compatible version
+profile, actualVersion, found := mtlog.GetProfileWithMigration("APIGateway", "1.5")
+if found {
+    fmt.Printf("Using version %s (requested %s)\n", actualVersion, "1.5")
+}
+
+// Use with logger - automatically handles migration
+logger := mtlog.New(mtlog.WithConsole())
+migratedLogger := logger.SampleProfileWithVersion("APIGateway", "1.3")
+// Logs warning if migration occurs: "Auto-migrated profile 'APIGateway' from version '1.3' to version '1.5'"
+```
+
+**Migration Consent Modes:**
+- **`MigrationDeny`**: Strict mode - fail if exact version not found
+- **`MigrationPrompt`**: Log warning and migrate to best available version (default)
+- **`MigrationAuto`**: Silent automatic migration to compatible versions
+
+**Migration Selection:**
+- Prefers **stable** (non-deprecated) versions when `PreferStable: true`
+- Respects **version distance** constraints to avoid major breaking changes
+- Selects **newest compatible** version within constraints
+- Falls back to **latest available** version if no constraints are met
+
+```go
+// Different migration policies for different environments
+
+// Production: Conservative migration with warnings
+mtlog.SetMigrationPolicy(mtlog.MigrationPolicy{
+    Consent:            mtlog.MigrationPrompt, // Log warnings
+    PreferStable:       true,                 // Avoid deprecated versions
+    MaxVersionDistance: 0,                    // Same major version only
+})
+
+// Development: Flexible migration
+mtlog.SetMigrationPolicy(mtlog.MigrationPolicy{
+    Consent:            mtlog.MigrationAuto,  // Silent migration
+    PreferStable:       false,                // Allow deprecated for testing
+    MaxVersionDistance: 2,                    // Allow broader migration
+})
+
+// Critical systems: No migration
+mtlog.SetMigrationPolicy(mtlog.MigrationPolicy{
+    Consent:            mtlog.MigrationDeny,  // Fail on version mismatch
+})
+```
+
 ## Structured Fields with With()
 
 The `With()` method provides a convenient way to add structured fields to log events, following the slog convention of accepting variadic key-value pairs:

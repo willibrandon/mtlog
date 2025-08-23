@@ -75,6 +75,28 @@ func NewLoggerBuilder() *LoggerBuilder {
 		}
 		return filters.MinimumLevelFilter(level), nil
 	})
+	
+	// Register sampling filters
+	lb.RegisterFilter("Sample", func(args map[string]any) (core.LogEventFilter, error) {
+		n := GetInt(args, "n", 10)
+		return filters.NewCounterSamplingFilter(uint64(n)), nil
+	})
+	
+	lb.RegisterFilter("SampleRate", func(args map[string]any) (core.LogEventFilter, error) {
+		rate := GetFloat(args, "rate", 0.1)
+		return filters.NewRateSamplingFilter(float32(rate)), nil
+	})
+	
+	lb.RegisterFilter("SampleDuration", func(args map[string]any) (core.LogEventFilter, error) {
+		seconds := GetFloat(args, "seconds", 1.0)
+		duration := time.Duration(seconds * float64(time.Second))
+		return filters.NewDurationSamplingFilter(duration), nil
+	})
+	
+	lb.RegisterFilter("SampleFirst", func(args map[string]any) (core.LogEventFilter, error) {
+		n := GetInt(args, "n", 100)
+		return filters.NewFirstNSamplingFilter(uint64(n)), nil
+	})
 
 	return lb
 }

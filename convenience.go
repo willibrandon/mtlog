@@ -5,6 +5,7 @@ import (
 	"github.com/willibrandon/mtlog/internal/capture"
 	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/internal/filters"
+	"github.com/willibrandon/mtlog/selflog"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -233,9 +234,49 @@ func WithRateLimit(maxEvents int, windowNanos int64) Option {
 	return WithFilter(filters.NewRateLimitFilter(maxEvents, windowNanos))
 }
 
+// WithDefaultSampling sets a default sampling rate for all messages.
+// This can be overridden by per-message sampling methods.
+func WithDefaultSampling(n uint64) Option {
+	return WithFilter(filters.NewCounterSamplingFilter(n))
+}
+
+// WithSamplingMemoryLimit sets a maximum number of sampling keys to track.
+// This helps prevent unbounded memory growth from dynamic sampling keys.
+// The limit applies to both group sampling and backoff sampling caches.
+func WithSamplingMemoryLimit(maxKeys int) Option {
+	return func(c *config) {
+		if maxKeys <= 0 {
+			maxKeys = 10000 // Default limit
+		}
+		
+		// Update global sampling memory limit
+		globalSamplingMemoryLimit = maxKeys
+		
+		// Recreate managers with new capacity
+		globalSamplingGroupManager = filters.NewSamplingGroupManager(maxKeys)
+		globalBackoffState = filters.NewBackoffState(maxKeys)
+		
+		if selflog.IsEnabled() {
+			selflog.Printf("Set sampling memory limit to %d keys", maxKeys)
+		}
+	}
+}
+
 // WithMinimumLevelOverrides adds source context-based level filtering.
 func WithMinimumLevelOverrides(defaultLevel core.LogEventLevel, overrides map[string]core.LogEventLevel) Option {
 	return WithFilter(filters.NewSourceContextLevelFilter(defaultLevel, overrides))
+}
+
+// WarmupSamplingGroups pre-populates the sampling group cache with common group names.
+// This helps avoid cold-start allocation spikes in high-traffic applications.
+func WarmupSamplingGroups(groupNames []string) {
+	globalSamplingGroupManager.Warmup(groupNames)
+}
+
+// WarmupSamplingBackoff pre-populates the backoff sampling cache with common keys.
+// This helps avoid cold-start allocation spikes in high-traffic applications.
+func WarmupSamplingBackoff(keys []string, defaultFactor float64) {
+	globalBackoffState.Warmup(keys, defaultFactor)
 }
 
 // Capturing options
