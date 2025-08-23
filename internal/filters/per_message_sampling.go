@@ -343,9 +343,7 @@ func (f *PerMessageSamplingFilter) shouldSampleRate() bool {
 	}
 
 	// Use per-filter random source to avoid contention
-	if f.randSource == nil {
-		f.randSource = rand.New(rand.NewSource(time.Now().UnixNano()))
-	}
+	// randSource is always initialized in NewRateSamplingFilter
 	return f.randSource.Float32() < f.rate
 }
 

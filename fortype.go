@@ -121,6 +121,7 @@ func logDebug(message string) {
 		debugLogger.Debug(message)
 	} else if selflog.IsEnabled() {
 		// Use selflog for diagnostic messages
+		// Note: selflog only provides Printf, not Print
 		selflog.Printf("%s", message)
 	}
 }

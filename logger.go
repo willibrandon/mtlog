@@ -660,10 +660,7 @@ func (l *logger) SampleWhen(predicate func() bool, n uint64) core.Logger {
 
 // SampleBackoff creates a logger that samples with exponential backoff.
 func (l *logger) SampleBackoff(key string, factor float64) core.Logger {
-	// Validate factor - must be > 1.0 for exponential backoff to work
-	if factor <= 1.0 {
-		factor = filters.DefaultBackoffFactor
-	}
+	factor = validateBackoffFactor(factor)
 	filter := filters.NewBackoffSamplingFilter(key, factor, globalBackoffState)
 	return l.cloneWithSamplingFilter(filter)
 }

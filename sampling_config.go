@@ -19,6 +19,15 @@ func Sampling() *SamplingConfigBuilder {
 	}
 }
 
+// validateBackoffFactor ensures the backoff factor is valid (> 1.0).
+// Returns DefaultBackoffFactor if the provided factor is invalid.
+func validateBackoffFactor(factor float64) float64 {
+	if factor <= 1.0 {
+		return filters.DefaultBackoffFactor
+	}
+	return factor
+}
+
 // Every samples every Nth message.
 func (s *SamplingConfigBuilder) Every(n uint64) *SamplingConfigBuilder {
 	s.filters = append(s.filters, filters.NewCounterSamplingFilter(n))
@@ -57,10 +66,7 @@ func (s *SamplingConfigBuilder) When(predicate func() bool, n uint64) *SamplingC
 
 // Backoff samples with exponential backoff.
 func (s *SamplingConfigBuilder) Backoff(key string, factor float64) *SamplingConfigBuilder {
-	// Validate factor - must be > 1.0 for exponential backoff to work
-	if factor <= 1.0 {
-		factor = filters.DefaultBackoffFactor
-	}
+	factor = validateBackoffFactor(factor)
 	s.filters = append(s.filters, filters.NewBackoffSamplingFilter(key, factor, globalBackoffState))
 	return s
 }

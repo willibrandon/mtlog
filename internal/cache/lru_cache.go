@@ -43,19 +43,9 @@ func NewLRUCache(capacity int) *LRUCache {
 
 // Get retrieves a value from the cache.
 func (c *LRUCache) Get(key string) (interface{}, bool) {
-	c.mu.RLock()
-	_, exists := c.items[key]
-	c.mu.RUnlock()
-	
-	if !exists {
-		c.misses.Add(1)
-		return nil, false
-	}
-	
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	
-	// Check if still exists (could have been evicted)
 	elem, exists := c.items[key]
 	if !exists {
 		c.misses.Add(1)
