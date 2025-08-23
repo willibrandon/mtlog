@@ -469,6 +469,11 @@ func (f *AdaptiveSamplingFilter) hashEvent(event *core.LogEvent) uint32 {
 	
 	// Hash timestamp
 	tsBytes := uint64(event.Timestamp.UnixNano())
+	// If timestamp is zero (uninitialized), use current time
+	if tsBytes == 0 {
+		tsBytes = uint64(time.Now().UnixNano())
+	}
+	
 	for i := 0; i < 8; i++ {
 		hash ^= uint32(tsBytes & 0xFF)
 		hash *= 16777619 // FNV-1a prime
@@ -482,6 +487,12 @@ func (f *AdaptiveSamplingFilter) hashEvent(event *core.LogEvent) uint32 {
 			hash *= 16777619
 		}
 	}
+	
+	// Add event counter to ensure different hashes for rapid successive events
+	// This helps on systems with low timestamp resolution
+	counter := f.eventCount.Load()
+	hash ^= uint32(counter)
+	hash *= 16777619
 	
 	return hash
 }
