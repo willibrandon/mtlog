@@ -52,6 +52,26 @@ type Logger interface {
 	// Warn writes a warning-level log event (alias for Warning).
 	Warn(messageTemplate string, args ...any)
 
+	// Context-aware logging methods (following Go idioms like slog)
+
+	// VerboseContext writes a verbose-level log event with context awareness.
+	VerboseContext(ctx context.Context, messageTemplate string, args ...any)
+
+	// DebugContext writes a debug-level log event with context awareness.
+	DebugContext(ctx context.Context, messageTemplate string, args ...any)
+
+	// InfoContext writes an information-level log event with context awareness.
+	InfoContext(ctx context.Context, messageTemplate string, args ...any)
+
+	// WarnContext writes a warning-level log event with context awareness.
+	WarnContext(ctx context.Context, messageTemplate string, args ...any)
+
+	// ErrorContext writes an error-level log event with context awareness.
+	ErrorContext(ctx context.Context, messageTemplate string, args ...any)
+
+	// FatalContext writes a fatal-level log event with context awareness.
+	FatalContext(ctx context.Context, messageTemplate string, args ...any)
+
 	// Sampling methods for per-message control
 
 	// Sample creates a logger that samples every nth message.
@@ -95,4 +115,12 @@ type Logger interface {
 	
 	// SampleAdaptiveWithOptions creates a logger with adaptive sampling and custom parameters.
 	SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) Logger
+	
+	// DeadlineStats returns deadline tracking statistics if deadline awareness is enabled.
+	// Returns nil if deadline awareness is not configured.
+	DeadlineStats() interface{}
+	
+	// WithDeadlineWarning creates a logger with modified deadline warning threshold.
+	// This allows creating derived loggers with different deadline configurations.
+	WithDeadlineWarning(threshold time.Duration, opts ...interface{}) Logger
 }

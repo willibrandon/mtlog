@@ -36,6 +36,9 @@ type logger struct {
 	// Sampling state (per-logger instance)
 	samplingFilter *filters.PerMessageSamplingFilter
 	
+	// Deadline awareness
+	deadlineEnricher *enrichers.DeadlineEnricher
+	
 	mu sync.RWMutex
 }
 
@@ -86,10 +89,11 @@ func Build(opts ...Option) (*logger, error) {
 	p := newPipeline(cfg.enrichers, cfg.filters, cfg.capturer, cfg.sinks)
 
 	return &logger{
-		minimumLevel: cfg.minimumLevel,
-		levelSwitch:  cfg.levelSwitch,
-		pipeline:     p,
-		properties:   cfg.properties,
+		minimumLevel:     cfg.minimumLevel,
+		levelSwitch:      cfg.levelSwitch,
+		pipeline:         p,
+		properties:       cfg.properties,
+		deadlineEnricher: cfg.deadlineEnricher,
 	}, nil
 }
 
@@ -131,6 +135,36 @@ func (l *logger) Info(messageTemplate string, args ...any) {
 // Warn writes a warning-level log event (alias for Warning).
 func (l *logger) Warn(messageTemplate string, args ...any) {
 	l.Write(core.WarningLevel, messageTemplate, args...)
+}
+
+// VerboseContext writes a verbose-level log event with context awareness.
+func (l *logger) VerboseContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.VerboseLevel, messageTemplate, args...)
+}
+
+// DebugContext writes a debug-level log event with context awareness.
+func (l *logger) DebugContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.DebugLevel, messageTemplate, args...)
+}
+
+// InfoContext writes an information-level log event with context awareness.
+func (l *logger) InfoContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.InformationLevel, messageTemplate, args...)
+}
+
+// WarnContext writes a warning-level log event with context awareness.
+func (l *logger) WarnContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.WarningLevel, messageTemplate, args...)
+}
+
+// ErrorContext writes an error-level log event with context awareness.
+func (l *logger) ErrorContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.ErrorLevel, messageTemplate, args...)
+}
+
+// FatalContext writes a fatal-level log event with context awareness.
+func (l *logger) FatalContext(ctx context.Context, messageTemplate string, args ...any) {
+	l.writeWithContext(ctx, core.FatalLevel, messageTemplate, args...)
 }
 
 // Write writes a log event at the specified level.
@@ -201,6 +235,29 @@ func (l *logger) Write(level core.LogEventLevel, messageTemplate string, args ..
 	// Process through pipeline
 	factory := &propertyFactory{}
 	l.pipeline.process(event, factory)
+}
+
+// writeWithContext writes a log event at the specified level with context awareness.
+// This is the internal implementation for all context-aware logging methods.
+func (l *logger) writeWithContext(ctx context.Context, level core.LogEventLevel, messageTemplate string, args ...any) {
+	// If context is nil, fall back to Write
+	if ctx == nil {
+		l.Write(level, messageTemplate, args...)
+		return
+	}
+
+	// Create a logger with context enrichers
+	// The deadline enricher (if configured) is already in the pipeline
+	contextLogger := l.WithContext(ctx)
+	
+	// If we have a deadline enricher, we need to pass the context to it
+	// We'll do this by temporarily adding it to the event properties
+	if l.deadlineEnricher != nil {
+		// The deadline enricher will look for this special property
+		contextLogger = contextLogger.ForContext("__context__", ctx)
+	}
+	
+	contextLogger.Write(level, messageTemplate, args...)
 }
 
 // ForContext creates a logger that enriches events with the specified property.
@@ -293,11 +350,12 @@ func (l *logger) WithContext(ctx context.Context) core.Logger {
 	}
 
 	return &logger{
-		minimumLevel: l.minimumLevel,
-		levelSwitch:  l.levelSwitch,
-		pipeline:     p,
-		fields:       fields,
-		properties:   newConfig.properties,
+		minimumLevel:     l.minimumLevel,
+		levelSwitch:      l.levelSwitch,
+		pipeline:         p,
+		fields:           fields,
+		properties:       newConfig.properties,
+		deadlineEnricher: l.deadlineEnricher,
 	}
 }
 
@@ -410,10 +468,11 @@ func (l *logger) With(args ...any) core.Logger {
 		
 		// Create new logger with the single allocation for fields
 		return &logger{
-			minimumLevel: l.minimumLevel,
-			levelSwitch:  l.levelSwitch,
-			pipeline:     l.pipeline,
-			fields:       newFields,
+			minimumLevel:     l.minimumLevel,
+			levelSwitch:      l.levelSwitch,
+			pipeline:         l.pipeline,
+			fields:           newFields,
+			deadlineEnricher: l.deadlineEnricher,
 		}
 	}
 
@@ -425,10 +484,11 @@ func (l *logger) With(args ...any) core.Logger {
 // withMap creates a logger using map for large numbers of properties
 func (l *logger) withMap(args []any, numPairs, capacity int) core.Logger {
 	newLogger := &logger{
-		minimumLevel: l.minimumLevel,
-		levelSwitch:  l.levelSwitch,
-		pipeline:     l.pipeline,
-		properties:   make(map[string]any, capacity),
+		minimumLevel:     l.minimumLevel,
+		levelSwitch:      l.levelSwitch,
+		pipeline:         l.pipeline,
+		properties:       make(map[string]any, capacity),
+		deadlineEnricher: l.deadlineEnricher,
 	}
 
 	// Copy from fields array to map
@@ -733,6 +793,51 @@ func (l *logger) GetSamplingMetrics() core.SamplingMetrics {
 	}
 	
 	return metrics
+}
+
+// DeadlineStats returns deadline tracking statistics if deadline awareness is enabled.
+// Returns nil if deadline awareness is not configured.
+func (l *logger) DeadlineStats() interface{} {
+	if l.deadlineEnricher == nil {
+		return nil
+	}
+	return l.deadlineEnricher.Stats()
+}
+
+// WithDeadlineWarning creates a new logger with modified deadline warning threshold.
+// This allows creating derived loggers with different deadline configurations.
+func (l *logger) WithDeadlineWarning(threshold time.Duration, opts ...interface{}) core.Logger {
+	// Convert interface{} options to enricher options
+	var enricherOpts []enrichers.DeadlineOption
+	for _, opt := range opts {
+		if deadlineOpt, ok := opt.(enrichers.DeadlineOption); ok {
+			enricherOpts = append(enricherOpts, deadlineOpt)
+		}
+	}
+	
+	// Create new deadline enricher
+	newDeadlineEnricher := enrichers.NewDeadlineEnricher(threshold, enricherOpts...)
+	
+	// Create new list of enrichers, replacing any existing deadline enricher
+	var newEnrichers []core.LogEventEnricher
+	for _, e := range l.pipeline.enrichers {
+		// Skip old deadline enricher if present
+		if _, ok := e.(*enrichers.DeadlineEnricher); !ok {
+			newEnrichers = append(newEnrichers, e)
+		}
+	}
+	newEnrichers = append(newEnrichers, newDeadlineEnricher)
+	
+	// Create new logger with updated pipeline
+	return &logger{
+		minimumLevel:     l.minimumLevel,
+		levelSwitch:      l.levelSwitch,
+		pipeline:         newPipeline(newEnrichers, l.pipeline.filters, l.pipeline.capturer, l.pipeline.sinks),
+		fields:           l.fields,
+		properties:       l.properties,
+		deadlineEnricher: newDeadlineEnricher,
+		samplingFilter:   l.samplingFilter,
+	}
 }
 
 // emitSamplingSummariesWithContext periodically emits sampling summary events with context support

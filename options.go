@@ -1,7 +1,10 @@
 package mtlog
 
 import (
+	"time"
+
 	"github.com/willibrandon/mtlog/core"
+	"github.com/willibrandon/mtlog/internal/enrichers"
 	"github.com/willibrandon/mtlog/sinks"
 )
 
@@ -15,6 +18,9 @@ type config struct {
 	sinks        []core.LogEventSink
 	properties   map[string]any
 	err          error // First error encountered during configuration
+	
+	// Deadline awareness configuration
+	deadlineEnricher *enrichers.DeadlineEnricher
 }
 
 // Option is a functional option for configuring a logger.
@@ -111,4 +117,67 @@ func WithRouterDefault(mode sinks.RoutingMode, defaultSink core.LogEventSink, ro
 // Route creates a new route builder for fluent route configuration.
 func Route(name string) *sinks.RouteBuilder {
 	return sinks.NewRoute(name)
+}
+
+// WithContextDeadlineWarning enables automatic context deadline detection and warning.
+// When a context deadline is approaching (within the specified threshold), the logger
+// will automatically add deadline information to log events and optionally upgrade
+// their level to Warning.
+//
+// Example:
+//   logger := mtlog.New(
+//       mtlog.WithConsole(),
+//       mtlog.WithContextDeadlineWarning(100*time.Millisecond),
+//   )
+//
+// This will warn when operations are within 100ms of their deadline.
+func WithContextDeadlineWarning(threshold time.Duration, opts ...enrichers.DeadlineOption) Option {
+	return func(c *config) {
+		c.deadlineEnricher = enrichers.NewDeadlineEnricher(threshold, opts...)
+		// Add the deadline enricher to the pipeline
+		c.enrichers = append(c.enrichers, c.deadlineEnricher)
+	}
+}
+
+// WithDeadlinePercentageThreshold configures deadline warnings based on percentage of time remaining.
+// For example, 0.1 means warn when 10% of the total time remains.
+//
+// This can be used together with absolute threshold - warnings will trigger when either
+// condition is met.
+func WithDeadlinePercentageThreshold(threshold time.Duration, percent float64, opts ...enrichers.DeadlineOption) Option {
+	allOpts := append([]enrichers.DeadlineOption{
+		enrichers.WithDeadlinePercentageThreshold(percent),
+	}, opts...)
+	return WithContextDeadlineWarning(threshold, allOpts...)
+}
+
+// WithDeadlinePercentageOnly configures deadline warnings based only on percentage
+// of time remaining, without requiring an absolute threshold.
+// For example, 0.2 means warn when 20% of time remains.
+//
+// Example:
+//   logger := mtlog.New(
+//       mtlog.WithDeadlinePercentageOnly(0.2), // Warn at 20% remaining
+//   )
+func WithDeadlinePercentageOnly(percent float64, opts ...enrichers.DeadlineOption) Option {
+	// Use a very large duration to effectively disable absolute threshold
+	// while still allowing the percentage threshold to work
+	return WithDeadlinePercentageThreshold(time.Duration(1<<62), percent, opts...)
+}
+
+// WithDeadlineOptions applies additional deadline enricher options to an existing configuration.
+// This is useful for fine-tuning deadline behavior without recreating the entire enricher.
+func WithDeadlineOptions(opts ...enrichers.DeadlineOption) Option {
+	return func(c *config) {
+		if c.deadlineEnricher == nil {
+			// If no deadline enricher exists, create one with default 100ms threshold
+			c.deadlineEnricher = enrichers.NewDeadlineEnricher(100*time.Millisecond, opts...)
+			c.enrichers = append(c.enrichers, c.deadlineEnricher)
+		} else {
+			// Apply options to existing enricher
+			for _, opt := range opts {
+				opt(c.deadlineEnricher)
+			}
+		}
+	}
 }

@@ -105,6 +105,52 @@ func (m *mockLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, min
 	return m
 }
 
+// Context-aware methods
+func (m *mockLogger) VerboseContext(ctx context.Context, template string, args ...any) {
+	m.Verbose(template, args...)
+}
+
+func (m *mockLogger) DebugContext(ctx context.Context, template string, args ...any) {
+	m.Debug(template, args...)
+}
+
+func (m *mockLogger) InfoContext(ctx context.Context, template string, args ...any) {
+	m.Information(template, args...)
+}
+
+func (m *mockLogger) WarnContext(ctx context.Context, template string, args ...any) {
+	m.Warning(template, args...)
+}
+
+func (m *mockLogger) ErrorContext(ctx context.Context, template string, args ...any) {
+	m.Error(template, args...)
+}
+
+func (m *mockLogger) FatalContext(ctx context.Context, template string, args ...any) {
+	m.Fatal(template, args...)
+}
+
+func (m *mockLogger) WriteContext(ctx context.Context, level core.LogEventLevel, template string, args ...any) {
+	m.Write(level, template, args...)
+}
+
+func (m *mockLogger) EnableSamplingSummaryWithCleanup(period time.Duration) (core.Logger, func()) {
+	return m, func() {}
+}
+
+func (m *mockLogger) GetSamplingMetrics() core.SamplingMetrics {
+	return core.SamplingMetrics{}
+}
+
+// New methods for deadline awareness
+func (m *mockLogger) DeadlineStats() interface{} {
+	return nil
+}
+
+func (m *mockLogger) WithDeadlineWarning(threshold time.Duration, opts ...interface{}) core.Logger {
+	return m
+}
+
 func TestBridge(t *testing.T) {
 	// Create a mock logger
 	logger := &mockLogger{level: core.InformationLevel}

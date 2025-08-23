@@ -18,6 +18,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **ForType logging** with automatic SourceContext from Go types and intelligent caching
 - **LogContext scoped properties** that flow through operation contexts
 - **Source context enrichment** with intelligent caching for automatic logger categorization
+- **Context deadline awareness** with automatic timeout warnings and deadline tracking
 - **Pipeline architecture** for clean separation of concerns
 - **Type-safe generics** for better compile-time safety
 - **LogValue interface** for safe logging of sensitive data
@@ -560,6 +561,53 @@ This is particularly useful for:
 - Service-oriented architectures
 - Multi-tenant applications requiring cache isolation
 
+## Context Deadline Awareness
+
+mtlog can automatically detect and warn when operations are approaching their context deadlines, helping catch timeout-related issues before they fail:
+
+```go
+// Configure deadline awareness
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithContextDeadlineWarning(100*time.Millisecond), // Warn within 100ms
+)
+
+// Use context-aware logging methods
+ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+defer cancel()
+
+logger.InfoContext(ctx, "Starting operation")
+time.Sleep(350 * time.Millisecond)
+logger.InfoContext(ctx, "Still processing...") // Warning: approaching deadline!
+
+// Percentage-based thresholds
+logger := mtlog.New(
+    mtlog.WithDeadlinePercentageThreshold(
+        1*time.Millisecond,  // Minimum absolute threshold
+        0.2,                 // Warn when 20% of time remains
+    ),
+)
+
+// HTTP handler example
+func handler(w http.ResponseWriter, r *http.Request) {
+    ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
+    defer cancel()
+    
+    logger.InfoContext(ctx, "Processing request")
+    // ... perform operations ...
+    logger.InfoContext(ctx, "Response ready") // Warns if close to timeout
+}
+```
+
+Features:
+- **Zero overhead** when no deadline is present (2.7ns, 0 allocations)
+- **Automatic level upgrading** - Info logs become Warnings when deadline approaches
+- **OTEL-style properties** - `deadline.remaining_ms`, `deadline.at`, `deadline.approaching`
+- **First warning tracking** - Marks the first warning for each context
+- **Deadline exceeded detection** - Tracks operations that continue past deadline
+- **LRU cache with TTL** - Efficient tracking with automatic cleanup
+- **Custom handlers** - Add metrics, alerts, or custom logic when deadlines approach
+
 ## Filters
 
 Control which events are logged with powerful filtering:
@@ -922,6 +970,7 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Context logging](./examples/context/main.go)
 - [Type-based logging](./examples/fortype/main.go)
 - [LogContext scoped properties](./examples/logcontext/main.go)
+- [Deadline awareness](./examples/deadline-awareness/main.go)
 - [Advanced filtering](./examples/filtering/main.go)
 - [Conditional logging](./examples/conditional/main.go)
 - [Sampling basics](./examples/sampling/main.go)
@@ -1324,6 +1373,7 @@ For comprehensive guides and examples, see the [docs](./docs) directory:
 
 - **[Quick Reference](./docs/quick-reference.md)** - Quick reference for all features
 - **[Template Syntax](./docs/template-syntax.md)** - Guide to message template syntaxes
+- **[Context Guide](./docs/context-guide.md)** - Context logging, LogContext, and deadline awareness
 - **[Sampling Guide](./docs/sampling-guide.md)** - Comprehensive per-message sampling documentation
 - **[Sinks Guide](./docs/sinks.md)** - Complete guide to all output destinations
 - **[Routing Patterns](./docs/routing-patterns.md)** - Advanced event routing patterns and best practices

@@ -582,6 +582,68 @@ errorLogger := logger.
 
 ## Context Logging
 
+### Context-Aware Methods
+
+```go
+// All logging methods have context-aware variants
+logger.VerboseContext(ctx, "Verbose message")
+logger.DebugContext(ctx, "Debug: {Value}", value)
+logger.InfoContext(ctx, "Info: {User} {Action}", user, action)
+logger.WarnContext(ctx, "Warning: {Count} items", count)
+logger.ErrorContext(ctx, "Error: {Error}", err)
+logger.FatalContext(ctx, "Fatal: {Reason}", reason)
+```
+
+### Context Deadline Awareness
+
+```go
+// Basic configuration - warn when within 100ms of deadline
+logger := mtlog.New(
+    mtlog.WithConsole(),
+    mtlog.WithContextDeadlineWarning(100*time.Millisecond),
+)
+
+// Percentage-based threshold - warn when 20% of time remains
+logger := mtlog.New(
+    mtlog.WithDeadlinePercentageThreshold(
+        1*time.Millisecond,  // Min absolute threshold
+        0.2,                 // 20% threshold
+    ),
+)
+
+// Usage with timeout context
+ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+defer cancel()
+
+logger.InfoContext(ctx, "Starting operation")
+time.Sleep(350 * time.Millisecond)
+logger.InfoContext(ctx, "Still processing...") // WARNING: Deadline approaching!
+
+// Advanced options
+import "github.com/willibrandon/mtlog/internal/enrichers"
+
+logger := mtlog.New(
+    mtlog.WithContextDeadlineWarning(50*time.Millisecond,
+        enrichers.WithDeadlineCustomHandler(func(event *core.LogEvent, remaining time.Duration) {
+            // Custom logic when deadline approaches
+            metrics.RecordDeadlineApproaching(remaining)
+        }),
+        enrichers.WithDeadlineCacheSize(1000),
+        enrichers.WithDeadlineCacheTTL(5*time.Minute),
+    ),
+)
+
+// Properties added when approaching deadline:
+// - deadline.approaching: true
+// - deadline.remaining_ms: 95
+// - deadline.at: "2024-01-15T10:30:45Z"
+// - deadline.first_warning: true
+
+// Properties added when deadline exceeded:
+// - deadline.exceeded: true
+// - deadline.exceeded_by_ms: 150
+```
+
 ### With() Method (Structured Fields)
 
 ```go

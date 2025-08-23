@@ -362,3 +362,29 @@ func (n *noOpLogger) SampleAdaptive(targetEventsPerSecond uint64) core.Logger { 
 func (n *noOpLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) core.Logger {
 	return n
 }
+
+// Context-aware methods
+func (n *noOpLogger) VerboseContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) DebugContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) InfoContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) WarnContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) ErrorContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) FatalContext(ctx context.Context, template string, args ...any) {}
+func (n *noOpLogger) WriteContext(ctx context.Context, level core.LogEventLevel, template string, args ...any) {}
+
+func (n *noOpLogger) EnableSamplingSummaryWithCleanup(period time.Duration) (core.Logger, func()) {
+	return n, func() {}
+}
+
+func (n *noOpLogger) GetSamplingMetrics() core.SamplingMetrics {
+	return core.SamplingMetrics{}
+}
+
+// New methods for deadline awareness
+func (n *noOpLogger) DeadlineStats() interface{} {
+	return nil
+}
+
+func (n *noOpLogger) WithDeadlineWarning(threshold time.Duration, opts ...interface{}) core.Logger {
+	return n
+}
