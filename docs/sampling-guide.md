@@ -12,6 +12,10 @@ mtlog provides comprehensive per-message sampling capabilities to help manage lo
 - [Adaptive Sampling](#adaptive-sampling)
 - [Configuration API](#configuration-api)
 - [Best Practices](#best-practices)
+- [Performance Considerations](#performance-considerations)
+- [Monitoring & Observability](#monitoring--observability)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
 
 ## Basic Sampling Strategies
 
@@ -352,6 +356,161 @@ mtlog.WarmupBackoffKeys([]string{
     "rate-limit",
 })
 ```
+
+## Monitoring & Observability
+
+mtlog provides comprehensive metrics to monitor sampling behavior and cache performance, helping you understand and optimize your logging pipeline.
+
+### Sampling Metrics
+
+The `SamplingMetrics` struct provides detailed insights into sampling performance:
+
+```go
+// Get global sampling metrics from any logger
+logger := mtlog.New(mtlog.WithConsole())
+sampledLogger := logger.Sample(100)
+
+// Log some messages
+for i := 0; i < 1000; i++ {
+    sampledLogger.Info("Processing item {Index}", i)
+}
+
+// Get metrics
+sampled, skipped := sampledLogger.GetSamplingStats()
+fmt.Printf("Sampled: %d, Skipped: %d\n", sampled, skipped)
+```
+
+### Human-Readable Summaries
+
+Use the `String()` method for human-readable metric summaries:
+
+```go
+// Get detailed metrics (if using custom policies)
+metrics := core.SamplingMetrics{
+    TotalSampled: 1000,
+    TotalSkipped: 9000,
+    GroupCacheHits: 800,
+    GroupCacheMisses: 200,
+    GroupCacheSize: 50,
+    BackoffCacheHits: 450,
+    BackoffCacheMisses: 50,
+    BackoffCacheSize: 30,
+}
+
+// Print human-readable summary
+fmt.Println(metrics.String())
+// Output: Sampled=1000 Skipped=9000 (10.0% sampled) | GroupCache[hits=800 misses=200 size=50 evict=0 hitRate=80.0%] | BackoffCache[hits=450 misses=50 size=30 evict=0 hitRate=90.0%]
+
+// Use with different format verbs
+fmt.Printf("%s\n", metrics)    // Same as String()
+fmt.Printf("%+v\n", metrics)   // Verbose format with field names
+fmt.Printf("%#v\n", metrics)   // Go syntax representation
+```
+
+### Prometheus Integration
+
+Export metrics for monitoring systems like Prometheus:
+
+```go
+// Convert to Prometheus-compatible metrics
+promMetrics := metrics.PrometheusMetrics()
+
+// Available metrics:
+// - mtlog_sampling_total_sampled
+// - mtlog_sampling_total_skipped
+// - mtlog_sampling_rate
+// - mtlog_sampling_group_cache_hits
+// - mtlog_sampling_group_cache_misses
+// - mtlog_sampling_group_cache_size
+// - mtlog_sampling_group_cache_evictions
+// - mtlog_sampling_group_cache_hit_rate
+// - mtlog_sampling_backoff_cache_hits
+// - mtlog_sampling_backoff_cache_misses
+// - mtlog_sampling_backoff_cache_size
+// - mtlog_sampling_backoff_cache_evictions
+// - mtlog_sampling_backoff_cache_hit_rate
+// - mtlog_sampling_adaptive_cache_hits
+// - mtlog_sampling_adaptive_cache_misses
+// - mtlog_sampling_adaptive_cache_size
+// - mtlog_sampling_adaptive_cache_hit_rate
+
+// Example: Expose via HTTP endpoint
+http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+    metrics := getSamplingMetrics() // Your metrics collection
+    for name, value := range metrics.PrometheusMetrics() {
+        fmt.Fprintf(w, "%s %f\n", name, value)
+    }
+})
+```
+
+### Debugging Sampling Decisions
+
+Enable sampling debug to understand why events are sampled or skipped:
+
+```go
+// Enable debug logging (outputs to selflog)
+mtlog.EnableSamplingDebug()
+defer mtlog.DisableSamplingDebug()
+
+// Enable selflog to see debug output
+selflog.Enable(os.Stderr)
+defer selflog.Disable()
+
+// Now sampling decisions will be logged
+logger := mtlog.New(mtlog.WithConsole()).Sample(10)
+logger.Info("Test message") // Will log: [Sampling] Mode=Counter Decision=SAMPLE Template="Test message"
+```
+
+### Profile Discovery
+
+Discover available sampling profiles at runtime:
+
+```go
+// Get all available profiles with descriptions
+profiles := mtlog.GetAvailableProfileDescriptions()
+for name, description := range profiles {
+    fmt.Printf("%s: %s\n", name, description)
+}
+
+// Output:
+// HighTrafficAPI: Aggressive sampling for high-volume APIs (1% rate with rate limiting)
+// BackgroundWorker: Moderate sampling for background jobs (10% rate)
+// DebugVerbose: Minimal sampling for debug environments (first 100 + 50% rate)
+// ProductionErrors: Conservative error sampling with backoff
+// HealthChecks: Aggressive health check filtering (first 10 + 0.1% rate)
+// CriticalAlerts: No sampling for critical alerts
+```
+
+### Monitoring Best Practices
+
+1. **Regular Metric Collection**: Collect metrics periodically to track trends
+   ```go
+   ticker := time.NewTicker(1 * time.Minute)
+   go func() {
+       for range ticker.C {
+           metrics := collectSamplingMetrics()
+           log.Printf("Sampling metrics: %s", metrics)
+       }
+   }()
+   ```
+
+2. **Cache Hit Rate Monitoring**: Monitor cache hit rates to ensure efficiency
+   ```go
+   if metrics.GroupCacheHits+metrics.GroupCacheMisses > 0 {
+       hitRate := float64(metrics.GroupCacheHits) / float64(metrics.GroupCacheHits+metrics.GroupCacheMisses)
+       if hitRate < 0.8 {
+           log.Printf("Warning: Low cache hit rate: %.2f", hitRate)
+       }
+   }
+   ```
+
+3. **Alerting on Sampling Rate**: Alert if sampling becomes too aggressive
+   ```go
+   samplingRate := float64(metrics.TotalSampled) / float64(metrics.TotalSampled+metrics.TotalSkipped)
+   if samplingRate < 0.01 { // Less than 1% being sampled
+       alert("Sampling rate critically low", samplingRate)
+   }
+   ```
 
 ## Examples
 
