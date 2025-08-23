@@ -132,6 +132,7 @@
                         <li><a href="#sampling" class="nav-link text-gray-400 hover:text-white">Per-Message Sampling</a></li>
                         <li><a href="#context-logging" class="nav-link text-gray-400 hover:text-white">Context Logging</a></li>
                         <li><a href="#logcontext" class="nav-link text-gray-400 hover:text-white">LogContext</a></li>
+                        <li><a href="#deadline-awareness" class="nav-link text-gray-400 hover:text-white">Context Deadlines</a></li>
                         <li><a href="#dynamic-levels" class="nav-link text-gray-400 hover:text-white">Dynamic Levels</a></li>
                         <li><a href="#http-middleware" class="nav-link text-gray-400 hover:text-white">HTTP Middleware</a></li>
                         <li><a href="#ecosystem" class="nav-link text-gray-400 hover:text-white">Ecosystem</a></li>
@@ -889,6 +890,67 @@ ctx = mtlog.PushProperty(ctx, "UserId", 123)
 logger.WithContext(ctx).Information("Test")                          // UserId=123
 logger.WithContext(ctx).ForContext("UserId", 456).Information("Test") // UserId=456
 logger.WithContext(ctx).Information("User {UserId}", 789)            // UserId=789</code></pre>
+                        </div>
+                    </section>
+
+                    <!-- Context Deadline Awareness -->
+                    <section id="deadline-awareness" class="mb-12">
+                        <h2 class="text-2xl font-bold mb-4">Context Deadline Awareness</h2>
+                        
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Context-Aware Methods</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// All levels have context variants
+logger.InfoContext(ctx, "Processing request")
+logger.ErrorContext(ctx, "Operation failed: {Error}", err)
+logger.DebugContext(ctx, "Cache hit for key {Key}", key)
+
+// Context methods automatically:
+// - Extract LogContext properties
+// - Check for approaching deadlines
+// - Include deadline properties when warning</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Deadline Configuration</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">// Absolute threshold - warn when 100ms remains
+logger := mtlog.New(
+    mtlog.WithContextDeadlineWarning(100*time.Millisecond),
+)
+
+// Percentage threshold - warn when 20% remains
+logger := mtlog.New(
+    mtlog.WithDeadlinePercentageThreshold(
+        10*time.Millisecond, // Min absolute
+        0.2,                 // 20% threshold
+    ),
+)</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Properties Added</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-json">// When approaching deadline
+{
+    "deadline.approaching": true,
+    "deadline.remaining_ms": 95,
+    "deadline.at": "2024-01-15T10:30:45Z",
+    "deadline.first_warning": true
+}
+
+// When deadline exceeded
+{
+    "deadline.exceeded": true,
+    "deadline.exceeded_by_ms": 150
+}</code></pre>
+                        </div>
+
+                        <h3 class="text-xl font-semibold mb-3 text-purple-400">Example Usage</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+defer cancel()
+
+logger.InfoContext(ctx, "Starting operation")
+time.Sleep(350 * time.Millisecond)
+logger.InfoContext(ctx, "Still processing...") // WARNING: Deadline approaching!</code></pre>
                         </div>
                     </section>
 
