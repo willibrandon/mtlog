@@ -305,3 +305,29 @@ func (m *mockFuzzLogger) SampleAdaptive(targetEventsPerSecond uint64) core.Logge
 func (m *mockFuzzLogger) SampleAdaptiveWithOptions(targetEventsPerSecond uint64, minRate, maxRate float64, adjustmentInterval time.Duration) core.Logger {
 	return m
 }
+
+// Context-aware methods
+func (m *mockFuzzLogger) VerboseContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) DebugContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) InfoContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) WarnContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) ErrorContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) FatalContext(ctx context.Context, template string, args ...any) {}
+func (m *mockFuzzLogger) WriteContext(ctx context.Context, level core.LogEventLevel, template string, args ...any) {}
+
+func (m *mockFuzzLogger) EnableSamplingSummaryWithCleanup(period time.Duration) (core.Logger, func()) {
+	return m, func() {}
+}
+
+func (m *mockFuzzLogger) GetSamplingMetrics() core.SamplingMetrics {
+	return core.SamplingMetrics{}
+}
+
+// New methods for deadline awareness
+func (m *mockFuzzLogger) DeadlineStats() interface{} {
+	return nil
+}
+
+func (m *mockFuzzLogger) WithDeadlineWarning(threshold time.Duration, opts ...interface{}) core.Logger {
+	return m
+}
