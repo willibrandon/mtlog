@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Sampling Profiles Example ===\n")
+	fmt.Println("=== Sampling Profiles Example ===")
 	
 	// Example 1: Discover available profiles
 	discoverProfiles()

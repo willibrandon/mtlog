@@ -66,10 +66,10 @@ func detailedMetricsExample() {
 	fmt.Println("String() output:")
 	fmt.Println(metrics.String())
 	
-	fmt.Println("\nVerbose format (%+v):")
+	fmt.Println("\nVerbose format:")
 	fmt.Printf("%+v\n", metrics)
 	
-	fmt.Println("\nGo syntax (%#v):")
+	fmt.Println("\nGo syntax:")
 	fmt.Printf("%#v\n\n", metrics)
 }
 
@@ -104,7 +104,7 @@ func prometheusExample() {
 	
 	// Example HTTP endpoint for Prometheus scraping
 	fmt.Println("Example HTTP endpoint (not started):")
-	fmt.Println(`
+	fmt.Printf("%s\n", `
 http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
     for name, value := range metrics.PrometheusMetrics() {
         fmt.Fprintf(w, "%s %f\n", name, value)

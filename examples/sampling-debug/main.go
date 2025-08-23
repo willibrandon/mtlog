@@ -14,7 +14,7 @@ func main() {
 	selflog.Enable(os.Stdout)
 	defer selflog.Disable()
 	
-	fmt.Println("=== Sampling Debug Example ===\n")
+	fmt.Println("=== Sampling Debug Example ===")
 	
 	// Example 1: Debug counter-based sampling
 	debugCounterSampling()
