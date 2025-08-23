@@ -621,7 +621,7 @@ func IsProfileDeprecated(profileName string) (bool, string) {
 // AddCustomProfile allows users to add their own sampling profiles (before freezing)
 func AddCustomProfile(name, description string, factory func() core.LogEventFilter) error {
 	return globalProfileRegistry.addProfile(name, SamplingProfile{
-		name:        description,
+		name:        name,
 		description: description,
 		version:     "1.0", // Default version for backward compatibility
 		deprecated:  false,
@@ -632,7 +632,7 @@ func AddCustomProfile(name, description string, factory func() core.LogEventFilt
 // AddCustomProfileWithVersion allows users to add versioned sampling profiles (before freezing)
 func AddCustomProfileWithVersion(name, description, version string, deprecated bool, replacement string, factory func() core.LogEventFilter) error {
 	return globalProfileRegistry.addProfile(name, SamplingProfile{
-		name:        description,
+		name:        name,
 		description: description,
 		version:     version,
 		deprecated:  deprecated,

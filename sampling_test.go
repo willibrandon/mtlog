@@ -1944,8 +1944,8 @@ func TestAutoMigrationPrompt(t *testing.T) {
 		t.Errorf("Expected migration to version 2.0, got %s", actualVersion)
 	}
 	
-	if profile.name != "Test migration prompt v2" {
-		t.Errorf("Expected migrated profile name to be 'Test migration prompt v2', got %s", profile.name)
+	if profile.name != profileName {
+		t.Errorf("Expected migrated profile name to be '%s', got %s", profileName, profile.name)
 	}
 }
 
@@ -2001,8 +2001,8 @@ func TestAutoMigrationAuto(t *testing.T) {
 		t.Errorf("Expected auto-migration to version 1.5, got %s", actualVersion)
 	}
 	
-	if profile.name != "Test migration auto v1.5" {
-		t.Errorf("Expected migrated profile name to be 'Test migration auto v1.5', got %s", profile.name)
+	if profile.name != profileName {
+		t.Errorf("Expected migrated profile name to be '%s', got %s", profileName, profile.name)
 	}
 }
 
@@ -2058,8 +2058,8 @@ func TestMigrationWithDeprecatedProfiles(t *testing.T) {
 		t.Errorf("Expected migration to stable version 2.0, got %s", actualVersion)
 	}
 	
-	if profile.name != "Test stable v2.0" {
-		t.Errorf("Expected migrated profile name to be 'Test stable v2.0', got %s", profile.name)
+	if profile.name != profileName {
+		t.Errorf("Expected migrated profile name to be '%s', got %s", profileName, profile.name)
 	}
 	
 	if profile.deprecated {
