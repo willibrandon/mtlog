@@ -492,13 +492,23 @@ func (l *logger) SampleProfile(profileName string) core.Logger {
 		sinks:     l.pipeline.sinks,
 	}
 	
+	// If the filter is a PerMessageSamplingFilter, set it as the samplingFilter
+	// so that GetSamplingStats() works correctly
+	var newSamplingFilter *filters.PerMessageSamplingFilter
+	if sf, ok := filter.(*filters.PerMessageSamplingFilter); ok {
+		newSamplingFilter = sf
+	} else {
+		// Keep existing sampling filter if the new filter isn't a sampling filter
+		newSamplingFilter = l.samplingFilter
+	}
+	
 	return &logger{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
 		pipeline:     newPipeline,
 		fields:       l.fields, // Copy the fields for properties
 		properties:   l.properties, // Copy the properties map
-		samplingFilter: l.samplingFilter, // Copy existing sampling filter if any
+		samplingFilter: newSamplingFilter, // Use the new sampling filter
 	}
 }
 
@@ -534,13 +544,23 @@ func (l *logger) SampleProfileWithVersion(profileName, version string) core.Logg
 		sinks:     l.pipeline.sinks,
 	}
 	
+	// If the filter is a PerMessageSamplingFilter, set it as the samplingFilter
+	// so that GetSamplingStats() works correctly
+	var newSamplingFilter *filters.PerMessageSamplingFilter
+	if sf, ok := filter.(*filters.PerMessageSamplingFilter); ok {
+		newSamplingFilter = sf
+	} else {
+		// Keep existing sampling filter if the new filter isn't a sampling filter
+		newSamplingFilter = l.samplingFilter
+	}
+	
 	return &logger{
 		minimumLevel: l.minimumLevel,
 		levelSwitch:  l.levelSwitch,
 		pipeline:     newPipeline,
 		fields:       l.fields, // Copy the fields for properties
 		properties:   l.properties, // Copy the properties map
-		samplingFilter: l.samplingFilter, // Copy existing sampling filter if any
+		samplingFilter: newSamplingFilter, // Use the new sampling filter
 	}
 }
 

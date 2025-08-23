@@ -922,6 +922,13 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Type-based logging](./examples/fortype/main.go)
 - [LogContext scoped properties](./examples/logcontext/main.go)
 - [Advanced filtering](./examples/filtering/main.go)
+- [Conditional logging](./examples/conditional/main.go)
+- [Sampling basics](./examples/sampling/main.go)
+- [Advanced sampling](./examples/sampling-advanced/main.go)
+- [Sampling monitoring](./examples/sampling-monitoring/main.go)
+- [Sampling debug](./examples/sampling-debug/main.go)
+- [Sampling profiles](./examples/sampling-profiles/main.go)
+- [Router sinks](./examples/router/main.go)
 - [Capturing](./examples/capturing/main.go)
 - [LogValue interface](./examples/logvalue/main.go)
 - [Console themes](./examples/themes/main.go)
@@ -940,6 +947,8 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [Dynamic levels](./examples/dynamic-levels/main.go)
 - [Configuration](./examples/configuration/main.go)
 - [Generics usage](./examples/generics/main.go)
+- [With properties](./examples/with/main.go)
+- [Showcase](./examples/showcase/main.go)
 - [HTTP middleware](./adapters/middleware/examples/) - net/http, Gin, Echo, Fiber, Chi
 
 ## Ecosystem Compatibility
