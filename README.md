@@ -14,6 +14,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **OpenTelemetry compatibility** with support for dotted property names (`{http.method}`, `{service.name}`)
 - **Structured fields** via `With()` method for slog-style key-value pairs
 - **Output templates** for customizable log formatting
+- **Per-message sampling** with multiple strategies (counter, rate, time, adaptive) for intelligent log volume control
 - **ForType logging** with automatic SourceContext from Go types and intelligent caching
 - **LogContext scoped properties** that flow through operation contexts
 - **Source context enrichment** with intelligent caching for automatic logger categorization
