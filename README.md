@@ -995,7 +995,7 @@ Benchmark results on AMD Ryzen 9 9950X:
 
 ## Examples
 
-See the [examples](./examples) directory and [OTEL examples](./adapters/otel/examples) for complete examples:
+See the [examples](./examples) directory and adapter examples ([OTEL](./adapters/otel/examples), [Sentry](./adapters/sentry/examples), [middleware](./adapters/middleware/examples)) for complete examples:
 
 - [Basic logging](./examples/basic/main.go)
 - [Using enrichers](./examples/enrichers/main.go)
