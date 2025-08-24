@@ -140,6 +140,29 @@ mtlog.WithSplunkAdvanced("http://localhost:8088",
 )
 ```
 
+### Sentry
+```go
+import "github.com/willibrandon/mtlog/adapters/sentry"
+
+// Basic error tracking
+sink, _ := sentry.WithSentry("https://key@sentry.io/project")
+log := mtlog.New(mtlog.WithSink(sink))
+
+// With sampling
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithFixedSampling(0.1),  // 10% sampling
+)
+
+// Advanced configuration
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithEnvironment("production"),
+    sentry.WithRelease("v1.2.3"),
+    sentry.WithAdaptiveSampling(0.01, 0.5),  // 1% to 50%
+    sentry.WithRetryPolicy(3, time.Second),
+    sentry.WithStackTraceCache(1000),
+)
+```
+
 ### OpenTelemetry (OTEL)
 ```go
 import "github.com/willibrandon/mtlog/adapters/otel"

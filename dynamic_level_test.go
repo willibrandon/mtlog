@@ -1,6 +1,7 @@
 package mtlog
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -300,8 +301,12 @@ func TestDynamicLevelControl_Performance(t *testing.T) {
 
 	// Should be very fast (under 150ns per operation for filtered messages)
 	// Allow variance for different architectures, OS (Windows tends to be slower), and Go versions
-	if nsPerOp > 150 {
-		t.Errorf("Dynamic level filtering too slow: %d ns/op (expected < 150 ns/op)", nsPerOp)
+	expectedThreshold := int64(150)
+	if runtime.GOOS == "windows" {
+		expectedThreshold = 200 // Windows CI runners are typically slower
+	}
+	if nsPerOp > expectedThreshold {
+		t.Errorf("Dynamic level filtering too slow: %d ns/op (expected < %d ns/op)", nsPerOp, expectedThreshold)
 	}
 
 	t.Logf("Dynamic level filtering performance: %d ns/op", nsPerOp)
