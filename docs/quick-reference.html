@@ -391,6 +391,31 @@ mtlog.WithSplunkAdvanced("http://localhost:8088",
 )</code></pre>
                         </div>
 
+                        <h3 class="text-xl font-semibold mb-2">Sentry</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="language-go">import "github.com/willibrandon/mtlog/adapters/sentry"
+
+// Basic error tracking
+sink, _ := sentry.WithSentry("https://key@sentry.io/project")
+log := mtlog.New(mtlog.WithSink(sink))
+
+// With sampling for high-volume applications
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithFixedSampling(0.1),  // 10% sampling
+)
+
+// Advanced configuration with performance monitoring
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithEnvironment("production"),
+    sentry.WithRelease("v1.2.3"),
+    sentry.WithTracesSampleRate(0.2),
+    sentry.WithProfilesSampleRate(0.1),
+    sentry.WithAdaptiveSampling(0.01, 0.5),  // 1% to 50% adaptive
+    sentry.WithRetryPolicy(3, time.Second),
+    sentry.WithStackTraceCache(1000),
+)</code></pre>
+                        </div>
+
                         <h3 class="text-xl font-semibold mb-2">OpenTelemetry (OTLP)</h3>
                         <div class="bg-gray-800 rounded-lg p-4 mb-4">
                             <pre><code class="language-go">import "github.com/willibrandon/mtlog/adapters/otel"

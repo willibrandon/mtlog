@@ -43,6 +43,7 @@ mtlog is a high-performance structured logging library for Go, inspired by [Seri
 - **Elasticsearch sink** for centralized log storage and search
 - **Splunk sink** with HEC (HTTP Event Collector) support
 - **OpenTelemetry (OTLP) sink** with gRPC/HTTP transport, batching, and trace correlation
+- **Sentry integration** with error tracking, performance monitoring, and intelligent sampling
 - **Conditional sink** for predicate-based routing with zero overhead
 - **Router sink** for multi-destination routing with FirstMatch/AllMatch modes
 - **Async sink wrapper** for high-throughput scenarios
@@ -727,6 +728,37 @@ mtlog.WithSplunkAdvanced("http://localhost:8088",
 )
 ```
 
+### Sentry Integration
+
+```go
+import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/adapters/sentry"
+)
+
+// Basic Sentry error tracking
+sink, _ := sentry.WithSentry("https://key@sentry.io/project")
+log := mtlog.New(mtlog.WithSink(sink))
+
+// With sampling for high-volume applications
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithFixedSampling(0.1), // 10% sampling
+)
+log := mtlog.New(mtlog.WithSink(sink))
+
+// Advanced configuration with performance monitoring
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithEnvironment("production"),
+    sentry.WithRelease("v1.2.3"),
+    sentry.WithTracesSampleRate(0.2),
+    sentry.WithProfilesSampleRate(0.1),
+    sentry.WithAdaptiveSampling(0.01, 0.5), // 1% to 50% adaptive
+    sentry.WithRetryPolicy(3, time.Second),
+    sentry.WithStackTraceCache(1000),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
 ### Async and Durable Sinks
 
 ```go
@@ -992,6 +1024,13 @@ See the [examples](./examples) directory and [OTEL examples](./adapters/otel/exa
 - [OTEL with metrics](./adapters/otel/examples/metrics/main.go)
 - [OTEL with sampling](./adapters/otel/examples/sampling/main.go)
 - [OTEL with TLS](./adapters/otel/examples/tls/main.go)
+- [Sentry error tracking](./adapters/sentry/examples/basic/main.go)
+- [Sentry with context](./adapters/sentry/examples/context/main.go)
+- [Sentry breadcrumbs](./adapters/sentry/examples/breadcrumbs/main.go)
+- [Sentry with retry](./adapters/sentry/examples/retry/main.go)
+- [Sentry performance monitoring](./adapters/sentry/examples/performance/main.go)
+- [Sentry metrics dashboard](./adapters/sentry/examples/metrics/main.go)
+- [Sentry sampling strategies](./adapters/sentry/examples/sampling/main.go)
 - [Async logging](./examples/async/main.go)
 - [Durable buffering](./examples/durable/main.go)
 - [Dynamic levels](./examples/dynamic-levels/main.go)

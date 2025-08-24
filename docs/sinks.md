@@ -179,6 +179,239 @@ mtlog automatically creates appropriate mappings for log events:
 }
 ```
 
+## Sentry Integration
+
+Send error tracking and performance monitoring data to Sentry with intelligent sampling and retry logic.
+
+### Basic Configuration
+
+```go
+import (
+    "github.com/willibrandon/mtlog"
+    "github.com/willibrandon/mtlog/adapters/sentry"
+)
+
+// Basic error tracking
+sink, _ := sentry.WithSentry("https://key@sentry.io/project")
+log := mtlog.New(mtlog.WithSink(sink))
+
+// With environment variable (recommended for production)
+// export SENTRY_DSN="https://key@sentry.io/project"
+sink, _ := sentry.WithSentry("")
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+### Advanced Configuration
+
+```go
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithEnvironment("production"),
+    sentry.WithRelease("v1.2.3"),
+    sentry.WithServerName("api-server-01"),
+    sentry.WithDebug(true),
+    sentry.WithAttachStacktrace(true),
+    sentry.WithMaxBreadcrumbs(100),
+    sentry.WithTracesSampleRate(0.2),      // 20% of transactions
+    sentry.WithProfilesSampleRate(0.1),     // 10% profiling
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+### Sampling Strategies
+
+The Sentry adapter provides multiple sampling strategies to control data volume:
+
+#### Fixed Sampling
+```go
+// Sample 10% of all events
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project",
+    sentry.WithFixedSampling(0.1),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+#### Adaptive Sampling
+Automatically adjusts sampling rate based on error volume:
+
+```go
+// Adaptive sampling from 1% to 50% based on error rate
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project",
+    sentry.WithAdaptiveSampling(0.01, 0.5),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+#### Priority Sampling
+Different rates for different error levels:
+
+```go
+// High sampling for errors, low for warnings
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project",
+    sentry.WithPrioritySampling(map[core.LogEventLevel]float64{
+        core.FatalLevel:   1.0,   // 100% for fatal
+        core.ErrorLevel:   0.5,   // 50% for errors
+        core.WarningLevel: 0.1,   // 10% for warnings
+    }),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+#### Burst Sampling
+Handle traffic spikes gracefully:
+
+```go
+// Allow bursts of 100 events/sec, then sample at 10%
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project",
+    sentry.WithBurstSampling(100, 0.1),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+#### Group-Based Sampling
+Sample based on error patterns:
+
+```go
+// Different rates for different error groups
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project",
+    sentry.WithGroupSampling(func(event *core.LogEvent) string {
+        if strings.Contains(event.RenderMessage(), "database") {
+            return "database"
+        }
+        return "default"
+    }, map[string]float64{
+        "database": 0.5,  // 50% for database errors
+        "default":  0.1,  // 10% for everything else
+    }),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+#### Custom Sampling
+Implement your own logic:
+
+```go
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithCustomSampling(func(event *core.LogEvent) bool {
+        // Sample all errors from production
+        if event.Properties["Environment"] == "production" {
+            return true
+        }
+        // Sample 10% from other environments
+        return rand.Float64() < 0.1
+    }),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+### Performance Monitoring
+
+Track transactions and spans for distributed tracing:
+
+```go
+import "github.com/willibrandon/mtlog/adapters/sentry"
+
+// Start a transaction
+ctx := sentry.StartTransaction(context.Background(), "ProcessOrder", "order.process")
+defer func() {
+    if tx := sentry.GetTransaction(ctx); tx != nil {
+        tx.Finish()
+    }
+}()
+
+// Add spans for operations
+span := sentry.StartSpan(ctx, "db.query", "SELECT * FROM orders")
+// ... perform database query
+span.Finish()
+
+// Log within transaction context
+log.Information("Order processed successfully")
+```
+
+### Retry and Reliability
+
+Configure retry logic for network failures:
+
+```go
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithRetryPolicy(3, time.Second),           // 3 retries, 1s initial delay
+    sentry.WithRetryBackoff(2.0, 30*time.Second),     // 2x backoff, max 30s
+    sentry.WithRetryJitter(0.1),                      // 10% jitter
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+### Stack Trace Caching
+
+Optimize performance with stack trace caching:
+
+```go
+sink, _ := sentry.WithSentry("https://key@sentry.io/project",
+    sentry.WithStackTraceCache(1000),  // Cache up to 1000 stack traces
+    sentry.WithStackTraceTTL(5*time.Minute),
+)
+log := mtlog.New(mtlog.WithSink(sink))
+```
+
+### Metrics Collection
+
+Monitor Sentry sink performance:
+
+```go
+// Assuming you have a *SentrySink instance
+sink, _ := sentry.NewSentrySink("https://key@sentry.io/project")
+metrics := sink.Metrics()
+fmt.Printf("Events sent: %d\n", metrics.EventsSent)
+fmt.Printf("Events dropped: %d\n", metrics.EventsDropped)
+fmt.Printf("Retry attempts: %d\n", metrics.RetryAttempts)
+fmt.Printf("Average latency: %v\n", metrics.AverageLatency())
+```
+
+### Event Format
+
+Events are enriched with Sentry-specific fields:
+
+```json
+{
+  "event_id": "fc6d8c0c43fc4630ad850ee518f1b9d0",
+  "timestamp": "2025-01-22T10:30:45.123Z",
+  "level": "error",
+  "message": "User 123 failed to login from 192.168.1.100",
+  "logger": "auth",
+  "platform": "go",
+  "environment": "production",
+  "release": "v1.2.3",
+  "server_name": "api-server-01",
+  "tags": {
+    "user_id": "123",
+    "ip_address": "192.168.1.100"
+  },
+  "breadcrumbs": [
+    {
+      "timestamp": "2025-01-22T10:30:40.000Z",
+      "message": "User authentication started",
+      "category": "auth"
+    }
+  ],
+  "exception": {
+    "type": "AuthenticationError",
+    "value": "Invalid credentials",
+    "stacktrace": {
+      "frames": [...]
+    }
+  }
+}
+```
+
+### Best Practices
+
+1. **Use environment variables** for DSN in production
+2. **Configure sampling** appropriate to your error volume
+3. **Enable stack trace caching** for high-throughput applications
+4. **Use transactions** for tracing critical user journeys
+5. **Monitor metrics** to ensure events are being sent successfully
+6. **Configure retry policy** for network resilience
+7. **Use breadcrumbs** to provide context for errors
+
 ## Splunk Integration
 
 Send logs to Splunk using the HTTP Event Collector (HEC).
