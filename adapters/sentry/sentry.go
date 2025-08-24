@@ -5,6 +5,7 @@ package sentry
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -211,7 +212,7 @@ func (s *SentrySink) addBreadcrumb(event *core.LogEvent) {
 	breadcrumb := sentry.Breadcrumb{
 		Type:      "default",
 		Category:  levelToCategory(event.Level),
-		Message:   event.MessageTemplate,
+		Message:   s.renderMessage(event),
 		Level:     levelToSentryLevel(event.Level),
 		Timestamp: event.Timestamp,
 	}
@@ -230,7 +231,7 @@ func (s *SentrySink) addBreadcrumb(event *core.LogEvent) {
 // convertToSentryEvent converts a log event to a Sentry event.
 func (s *SentrySink) convertToSentryEvent(event *core.LogEvent) *sentry.Event {
 	sentryEvent := &sentry.Event{
-		Message:   event.MessageTemplate,
+		Message:   s.renderMessage(event),
 		Level:     levelToSentryLevel(event.Level),
 		Timestamp: event.Timestamp,
 		Extra:     make(map[string]interface{}),
@@ -274,6 +275,63 @@ func (s *SentrySink) extractException(err error) []sentry.Exception {
 			Stacktrace: sentry.ExtractStacktrace(err),
 		},
 	}
+}
+
+// renderMessage renders the message template with actual property values.
+func (s *SentrySink) renderMessage(event *core.LogEvent) string {
+	template := event.MessageTemplate
+	result := strings.Builder{}
+
+	// Replace {PropertyName} with actual values
+	i := 0
+	for i < len(template) {
+		if i < len(template)-1 && template[i] == '{' {
+			// Find closing brace
+			j := i + 1
+			for j < len(template) && template[j] != '}' {
+				j++
+			}
+
+			if j < len(template) {
+				// Extract property name (handle format specifiers)
+				propContent := template[i+1 : j]
+				propName := propContent
+				
+				// Remove format specifiers (e.g., {Price:F2} -> Price)
+				if colonIdx := strings.IndexByte(propName, ':'); colonIdx != -1 {
+					propName = propName[:colonIdx]
+				}
+				
+				// Remove capturing hints
+				propName = strings.TrimPrefix(propName, "@")
+				propName = strings.TrimPrefix(propName, "$")
+
+				// Look up property value
+				if val, ok := event.Properties[propName]; ok {
+					// Format the value
+					switch v := val.(type) {
+					case error:
+						result.WriteString(v.Error())
+					case fmt.Stringer:
+						result.WriteString(v.String())
+					default:
+						result.WriteString(fmt.Sprint(v))
+					}
+				} else {
+					// Keep the placeholder if no value found
+					result.WriteString(template[i : j+1])
+				}
+
+				i = j + 1
+				continue
+			}
+		}
+
+		result.WriteByte(template[i])
+		i++
+	}
+
+	return result.String()
 }
 
 // levelToSentryLevel converts mtlog level to Sentry level.

@@ -81,3 +81,12 @@ cmd/mtlog-lsp/mtlog-lsp
 zed-extension/mtlog/target/
 zed-extension/mtlog/extension.wasm
 zed-extension/mtlog/Cargo.lock
+
+# Sentry test infrastructure (generated files)
+docker/sentry-config/
+docker/relay/
+docker/nginx/
+docker/postgres/
+docker/.env
+docker/docker-compose.test.yml
+docker/docker-compose.test.yml.new

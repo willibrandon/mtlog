@@ -11,6 +11,81 @@ import (
 	"github.com/willibrandon/mtlog/core"
 )
 
+func TestBreadcrumbInterpolation(t *testing.T) {
+	sink := &SentrySink{
+		breadcrumbs: NewBreadcrumbBuffer(10),
+	}
+
+	t.Run("BreadcrumbMessageInterpolation", func(t *testing.T) {
+		event := &core.LogEvent{
+			Timestamp:       time.Now(),
+			Level:           core.InformationLevel,
+			MessageTemplate: "User {UserId} visited page {Page}",
+			Properties: map[string]interface{}{
+				"UserId": "user-789",
+				"Page":   "/dashboard",
+			},
+		}
+
+		// Add as breadcrumb
+		sink.addBreadcrumb(event)
+
+		// Get breadcrumbs
+		breadcrumbs := sink.breadcrumbs.GetAll()
+		if len(breadcrumbs) != 1 {
+			t.Fatalf("Expected 1 breadcrumb, got %d", len(breadcrumbs))
+		}
+
+		// Check that message is interpolated
+		expected := "User user-789 visited page /dashboard"
+		if breadcrumbs[0].Message != expected {
+			t.Errorf("Expected breadcrumb message '%s', got '%s'", expected, breadcrumbs[0].Message)
+		}
+
+		// Check that properties are preserved in data
+		if breadcrumbs[0].Data["UserId"] != "user-789" {
+			t.Errorf("Expected UserId in breadcrumb data")
+		}
+		if breadcrumbs[0].Data["Page"] != "/dashboard" {
+			t.Errorf("Expected Page in breadcrumb data")
+		}
+	})
+
+	t.Run("BreadcrumbWithError", func(t *testing.T) {
+		testErr := errors.New("network error")
+		event := &core.LogEvent{
+			Timestamp:       time.Now(),
+			Level:           core.WarningLevel,
+			MessageTemplate: "Connection failed: {Error}",
+			Properties: map[string]interface{}{
+				"Error": testErr,
+			},
+		}
+
+		sink.addBreadcrumb(event)
+
+		breadcrumbs := sink.breadcrumbs.GetAll()
+		if len(breadcrumbs) != 2 { // Including previous test's breadcrumb
+			t.Fatalf("Expected 2 breadcrumbs, got %d", len(breadcrumbs))
+		}
+
+		// Check the latest breadcrumb
+		latest := breadcrumbs[1]
+		expected := "Connection failed: network error"
+		if latest.Message != expected {
+			t.Errorf("Expected breadcrumb message '%s', got '%s'", expected, latest.Message)
+		}
+
+		// Check level and category
+		if latest.Level != sentry.LevelWarning {
+			t.Errorf("Expected warning level, got %v", latest.Level)
+		}
+		if latest.Category != "warning" {
+			t.Errorf("Expected warning category, got %s", latest.Category)
+		}
+	})
+}
+
 func TestBreadcrumbBuffer(t *testing.T) {
 	t.Run("AddAndRetrieve", func(t *testing.T) {
 		buffer := NewBreadcrumbBuffer(5)
@@ -290,6 +365,129 @@ func TestSentrySinkOptions(t *testing.T) {
 	})
 }
 
+func TestMessageInterpolation(t *testing.T) {
+	sink := &SentrySink{}
+
+	t.Run("SimpleInterpolation", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "User {UserId} logged in",
+			Properties: map[string]interface{}{
+				"UserId": "user-123",
+			},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "User user-123 logged in" {
+			t.Errorf("Expected 'User user-123 logged in', got '%s'", message)
+		}
+	})
+
+	t.Run("MultipleProperties", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "User {UserId} performed {Action} on {Resource}",
+			Properties: map[string]interface{}{
+				"UserId":   "user-456",
+				"Action":   "DELETE",
+				"Resource": "post-789",
+			},
+		}
+
+		message := sink.renderMessage(event)
+		expected := "User user-456 performed DELETE on post-789"
+		if message != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, message)
+		}
+	})
+
+	t.Run("ErrorInterpolation", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "Database query failed: {Error}",
+			Properties: map[string]interface{}{
+				"Error": errors.New("connection timeout"),
+			},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "Database query failed: connection timeout" {
+			t.Errorf("Expected 'Database query failed: connection timeout', got '%s'", message)
+		}
+	})
+
+	t.Run("MissingProperty", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "User {UserId} logged in from {Location}",
+			Properties: map[string]interface{}{
+				"UserId": "user-999",
+				// Location is missing
+			},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "User user-999 logged in from {Location}" {
+			t.Errorf("Expected placeholder to remain for missing property, got '%s'", message)
+		}
+	})
+
+	t.Run("FormatSpecifiers", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "Processing {Count:000} items at {Rate:F2} per second",
+			Properties: map[string]interface{}{
+				"Count": 42,
+				"Rate":  3.14159,
+			},
+		}
+
+		message := sink.renderMessage(event)
+		// Note: We don't apply format specifiers, just interpolate the values
+		if message != "Processing 42 items at 3.14159 per second" {
+			t.Errorf("Expected values without format specifiers applied, got '%s'", message)
+		}
+	})
+
+	t.Run("CapturingHints", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "Processing {@User} with {$Settings}",
+			Properties: map[string]interface{}{
+				"User":     "john.doe",
+				"Settings": "default",
+			},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "Processing john.doe with default" {
+			t.Errorf("Expected capturing hints to be stripped, got '%s'", message)
+		}
+	})
+
+	t.Run("NoProperties", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "Simple message without properties",
+			Properties:      map[string]interface{}{},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "Simple message without properties" {
+			t.Errorf("Expected message to remain unchanged, got '%s'", message)
+		}
+	})
+
+	t.Run("NumericTypes", func(t *testing.T) {
+		event := &core.LogEvent{
+			MessageTemplate: "Count: {Int}, Float: {Float}, Bool: {Bool}",
+			Properties: map[string]interface{}{
+				"Int":   42,
+				"Float": 3.14,
+				"Bool":  true,
+			},
+		}
+
+		message := sink.renderMessage(event)
+		if message != "Count: 42, Float: 3.14, Bool: true" {
+			t.Errorf("Expected numeric types to be formatted, got '%s'", message)
+		}
+	})
+}
+
 func TestEventConversion(t *testing.T) {
 	sink := &SentrySink{}
 
@@ -308,8 +506,8 @@ func TestEventConversion(t *testing.T) {
 		if sentryEvent.Level != sentry.LevelError {
 			t.Errorf("Expected error level, got %v", sentryEvent.Level)
 		}
-		if sentryEvent.Message != "Test message {Value}" {
-			t.Errorf("Expected template message, got %s", sentryEvent.Message)
+		if sentryEvent.Message != "Test message 42" {
+			t.Errorf("Expected interpolated message 'Test message 42', got %s", sentryEvent.Message)
 		}
 		if sentryEvent.Tags["message.template"] != "Test message {Value}" {
 			t.Errorf("Expected template tag, got %s", sentryEvent.Tags["message.template"])

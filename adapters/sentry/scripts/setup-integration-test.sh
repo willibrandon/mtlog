@@ -18,7 +18,7 @@ curl -L https://github.com/getsentry/self-hosted/archive/refs/tags/${SENTRY_VERS
 cd self-hosted-${SENTRY_VERSION}
 
 # Generate configs
-./install.sh --skip-user-prompt --skip-commit-check --no-report-self-hosted-issues
+./install.sh --skip-user-creation --skip-commit-check --no-report-self-hosted-issues
 
 # Create sentry config directory in docker
 mkdir -p "$DOCKER_DIR/sentry-config"
@@ -29,7 +29,14 @@ cp .env "$DOCKER_DIR/sentry-config/.env"
 
 # Merge services into docker-compose.test.yml
 # This requires yq to be installed
-yq eval-all 'select(fileIndex == 0) * {"services": select(fileIndex == 1).services}' \
+YQ_BIN="${HOME}/yq"
+if [ ! -f "$YQ_BIN" ]; then
+    echo "Installing yq..."
+    wget -qO "$YQ_BIN" https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+    chmod +x "$YQ_BIN"
+fi
+
+"$YQ_BIN" eval-all 'select(fileIndex == 0) * {"services": select(fileIndex == 1).services}' \
     "$DOCKER_DIR/docker-compose.test.yml" \
     docker-compose.yml > "$DOCKER_DIR/docker-compose.test.yml.new"
 
@@ -40,4 +47,10 @@ cd "$PROJECT_ROOT"
 rm -rf "$TEMP_DIR"
 
 echo "Sentry integration test setup complete"
-echo "Run: cd $DOCKER_DIR && docker-compose -f docker-compose.test.yml up sentry-web"
+echo ""
+echo "To start and initialize Sentry:"
+echo "  1. cd $DOCKER_DIR"
+echo "  2. $SCRIPT_DIR/initialize-sentry-pipeline.sh"
+echo "  3. $SCRIPT_DIR/verify-sentry-pipeline.sh"
+echo ""
+echo "The DSN will be displayed after initialization."

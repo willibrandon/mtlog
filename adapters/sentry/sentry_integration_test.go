@@ -170,7 +170,7 @@ func TestSentryIntegration(t *testing.T) {
 	t.Run("CustomFingerprinting", func(t *testing.T) {
 		fingerprinter := func(event *core.LogEvent) []string {
 			return []string{
-				event.MessageTemplate.Text,
+				event.MessageTemplate,
 				fmt.Sprintf("%v", event.Level),
 			}
 		}
