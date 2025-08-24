@@ -112,7 +112,6 @@ type SentrySink struct {
 	batchTimeout time.Duration
 	batch        []*sentry.Event
 	batchMu      sync.Mutex
-	timer        *time.Timer
 	stopCh       chan struct{}
 	flushCh      chan struct{}
 	wg           sync.WaitGroup
@@ -471,7 +470,7 @@ func (s *SentrySink) convertToSentryEvent(event *core.LogEvent) *sentry.Event {
 	} else {
 		// Default fingerprint based on template and error
 		sentryEvent.Fingerprint = []string{event.MessageTemplate}
-		if sentryEvent.Exception != nil && len(sentryEvent.Exception) > 0 {
+		if len(sentryEvent.Exception) > 0 {
 			sentryEvent.Fingerprint = append(sentryEvent.Fingerprint, 
 				sentryEvent.Exception[0].Type)
 		}
@@ -499,9 +498,7 @@ func (s *SentrySink) extractException(err error) []sentry.Exception {
 	// Check cache
 	if s.stackTraceCache != nil {
 		if cached, ok := s.stackTraceCache.get(cacheKey); ok {
-			if s.enableMetrics {
-				// Track cache hit (you could add this metric to metricsCollector)
-			}
+			// Cache hit - return cached stack trace
 			return []sentry.Exception{
 				{
 					Type:       fmt.Sprintf("%T", err),

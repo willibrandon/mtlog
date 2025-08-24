@@ -113,10 +113,8 @@ func WithIgnoreErrors(errors ...error) Option {
 			// Check if we should ignore this error
 			if hint != nil && hint.OriginalException != nil {
 				for _, ignoreErr := range errors {
-					if err, ok := hint.OriginalException.(error); ok {
-						if err == ignoreErr || err.Error() == ignoreErr.Error() {
-							return nil // Drop the event
-						}
+					if hint.OriginalException == ignoreErr || hint.OriginalException.Error() == ignoreErr.Error() {
+						return nil // Drop the event
 					}
 				}
 			}
