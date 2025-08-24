@@ -486,6 +486,33 @@ func TestMessageInterpolation(t *testing.T) {
 			t.Errorf("Expected numeric types to be formatted, got '%s'", message)
 		}
 	})
+
+	t.Run("TimeTypes", func(t *testing.T) {
+		now := time.Now()
+		nilTime := (*time.Time)(nil)
+		
+		event := &core.LogEvent{
+			MessageTemplate: "Event at {Timestamp} with nullable {OptionalTime}",
+			Properties: map[string]interface{}{
+				"Timestamp":    now,
+				"OptionalTime": nilTime,
+			},
+		}
+
+		result := sink.renderMessage(event)
+		expected := fmt.Sprintf("Event at %s with nullable <nil>", now.Format(time.RFC3339))
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+
+		// Test with non-nil pointer
+		event.Properties["OptionalTime"] = &now
+		result = sink.renderMessage(event)
+		expected = fmt.Sprintf("Event at %s with nullable %s", now.Format(time.RFC3339), now.Format(time.RFC3339))
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
 }
 
 func TestEventConversion(t *testing.T) {

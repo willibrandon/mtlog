@@ -1,6 +1,7 @@
 package sentry
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -134,5 +135,73 @@ func WithAttachStacktrace(attach bool) Option {
 	return func(s *SentrySink) {
 		// This is set in client options during initialization
 		// We'll need to track this for client creation
+	}
+}
+
+// Common Fingerprinting Helpers
+
+// ByTemplate groups errors by message template only.
+// This is useful when you want all instances of the same log message
+// to be grouped together regardless of the actual values.
+func ByTemplate() Fingerprinter {
+	return func(event *core.LogEvent) []string {
+		return []string{event.MessageTemplate}
+	}
+}
+
+// ByErrorType groups by template and error type.
+// This creates separate groups for different error types even if they
+// have the same message template.
+func ByErrorType() Fingerprinter {
+	return func(event *core.LogEvent) []string {
+		fp := []string{event.MessageTemplate}
+		
+		// Check common property names for errors
+		for _, key := range []string{"Error", "error", "err", "Exception"} {
+			if err, ok := event.Properties[key].(error); ok {
+				fp = append(fp, fmt.Sprintf("%T", err))
+				break
+			}
+		}
+		
+		return fp
+	}
+}
+
+// ByProperty groups by template and a specific property value.
+// This is useful for grouping by user ID, tenant ID, or other identifiers.
+func ByProperty(propertyName string) Fingerprinter {
+	return func(event *core.LogEvent) []string {
+		fp := []string{event.MessageTemplate}
+		
+		if val, ok := event.Properties[propertyName]; ok {
+			fp = append(fp, fmt.Sprint(val))
+		}
+		
+		return fp
+	}
+}
+
+// ByMultipleProperties groups by template and multiple property values.
+// This allows for fine-grained grouping based on multiple dimensions.
+func ByMultipleProperties(propertyNames ...string) Fingerprinter {
+	return func(event *core.LogEvent) []string {
+		fp := []string{event.MessageTemplate}
+		
+		for _, name := range propertyNames {
+			if val, ok := event.Properties[name]; ok {
+				fp = append(fp, fmt.Sprint(val))
+			}
+		}
+		
+		return fp
+	}
+}
+
+// Custom creates a fingerprinter that uses a custom function to generate fingerprints.
+// The function receives the event and should return a unique identifier string.
+func Custom(fn func(*core.LogEvent) string) Fingerprinter {
+	return func(event *core.LogEvent) []string {
+		return []string{fn(event)}
 	}
 }

@@ -312,6 +312,14 @@ func (s *SentrySink) renderMessage(event *core.LogEvent) string {
 					switch v := val.(type) {
 					case error:
 						result.WriteString(v.Error())
+					case time.Time:
+						result.WriteString(v.Format(time.RFC3339))
+					case *time.Time:
+						if v != nil {
+							result.WriteString(v.Format(time.RFC3339))
+						} else {
+							result.WriteString("<nil>")
+						}
 					case fmt.Stringer:
 						result.WriteString(v.String())
 					default:
