@@ -5,6 +5,9 @@ package sentry
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +16,75 @@ import (
 	"github.com/willibrandon/mtlog/core"
 	"github.com/willibrandon/mtlog/selflog"
 )
+
+var (
+	// builderPool is a pool of string builders for message rendering
+	builderPool = sync.Pool{
+		New: func() interface{} {
+			return &strings.Builder{}
+		},
+	}
+)
+
+// stackTraceCache implements an LRU cache for stack traces
+type stackTraceCache struct {
+	mu      sync.RWMutex
+	cache   map[string]*sentry.Stacktrace
+	order   []string // Track insertion order for LRU
+	maxSize int
+}
+
+func newStackTraceCache(maxSize int) *stackTraceCache {
+	return &stackTraceCache{
+		cache:   make(map[string]*sentry.Stacktrace),
+		order:   make([]string, 0, maxSize),
+		maxSize: maxSize,
+	}
+}
+
+func (c *stackTraceCache) get(key string) (*sentry.Stacktrace, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	st, ok := c.cache[key]
+	return st, ok
+}
+
+func (c *stackTraceCache) set(key string, st *sentry.Stacktrace) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// If key already exists, just update
+	if _, exists := c.cache[key]; exists {
+		c.cache[key] = st
+		return
+	}
+
+	// LRU eviction if at capacity
+	if len(c.cache) >= c.maxSize {
+		// Remove oldest entry (first in order)
+		if len(c.order) > 0 {
+			oldest := c.order[0]
+			delete(c.cache, oldest)
+			c.order = c.order[1:]
+		}
+	}
+
+	c.cache[key] = st
+	c.order = append(c.order, key)
+}
+
+func (c *stackTraceCache) size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.cache)
+}
+
+func (c *stackTraceCache) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cache = make(map[string]*sentry.Stacktrace)
+	c.order = make([]string, 0, c.maxSize)
+}
 
 // SentrySink sends log events to Sentry for error tracking and monitoring.
 // It supports batching, breadcrumb collection, and custom fingerprinting.
@@ -47,6 +119,23 @@ type SentrySink struct {
 
 	// BeforeSend hook
 	beforeSend sentry.EventProcessor
+
+	// Retry configuration
+	maxRetries   int
+	retryBackoff time.Duration
+	retryJitter  float64 // Jitter factor (0.0 to 1.0)
+
+	// Metrics
+	metrics       *metricsCollector
+	enableMetrics bool
+
+	// Stack trace caching
+	stackTraceCache     *stackTraceCache
+	stackTraceCacheSize int
+	
+	// Sampling
+	samplingConfig *SamplingConfig
+	sampler        *sampler
 }
 
 // Fingerprinter is a function that generates fingerprints for error grouping.
@@ -60,15 +149,26 @@ func WithSentry(dsn string, opts ...Option) (core.LogEventSink, error) {
 
 // NewSentrySink creates a new Sentry sink with the given DSN and options.
 func NewSentrySink(dsn string, opts ...Option) (*SentrySink, error) {
+	// Fall back to environment variable if DSN not provided
+	if dsn == "" {
+		dsn = os.Getenv("SENTRY_DSN")
+		if dsn == "" {
+			return nil, fmt.Errorf("Sentry DSN not provided and SENTRY_DSN environment variable not set")
+		}
+	}
+
 	s := &SentrySink{
-		minLevel:        core.ErrorLevel,
-		breadcrumbLevel: core.DebugLevel,
-		sampleRate:      1.0,
-		maxBreadcrumbs:  100,
-		batchSize:       100,
-		batchTimeout:    5 * time.Second,
-		stopCh:          make(chan struct{}),
-		flushCh:         make(chan struct{}),
+		minLevel:            core.ErrorLevel,
+		breadcrumbLevel:     core.DebugLevel,
+		sampleRate:          1.0,
+		maxBreadcrumbs:      100,
+		batchSize:           100,
+		batchTimeout:        5 * time.Second,
+		stopCh:              make(chan struct{}),
+		flushCh:             make(chan struct{}),
+		metrics:             newMetricsCollector(),
+		enableMetrics:       true, // Default to enabled
+		stackTraceCacheSize: 1000, // Default cache size
 	}
 
 	// Apply options
@@ -99,6 +199,7 @@ func NewSentrySink(dsn string, opts ...Option) (*SentrySink, error) {
 	s.hub = sentry.NewHub(client, sentry.NewScope())
 	s.breadcrumbs = NewBreadcrumbBuffer(s.maxBreadcrumbs)
 	s.batch = make([]*sentry.Event, 0, s.batchSize)
+	s.stackTraceCache = newStackTraceCache(s.stackTraceCacheSize)
 
 	// Start background worker
 	s.wg.Add(1)
@@ -123,6 +224,14 @@ func (s *SentrySink) Emit(event *core.LogEvent) {
 	if event.Level < s.minLevel {
 		return
 	}
+	
+	// Apply sampling decision
+	if s.sampler != nil && !s.sampler.shouldSample(event) {
+		if s.enableMetrics && s.metrics != nil {
+			s.metrics.eventsDropped.Add(1)
+		}
+		return
+	}
 
 	// Convert to Sentry event
 	sentryEvent := s.convertToSentryEvent(event)
@@ -142,6 +251,14 @@ func (s *SentrySink) Emit(event *core.LogEvent) {
 		default:
 		}
 	}
+}
+
+// Metrics returns a snapshot of the current metrics.
+func (s *SentrySink) Metrics() Metrics {
+	if s.metrics == nil {
+		return Metrics{}
+	}
+	return s.metrics.snapshot()
 }
 
 // Close flushes any pending events and closes the sink.
@@ -186,6 +303,8 @@ func (s *SentrySink) worker() {
 
 // flush sends all batched events to Sentry.
 func (s *SentrySink) flush() {
+	start := time.Now()
+	
 	s.batchMu.Lock()
 	if len(s.batch) == 0 {
 		s.batchMu.Unlock()
@@ -195,16 +314,100 @@ func (s *SentrySink) flush() {
 	s.batch = make([]*sentry.Event, 0, s.batchSize)
 	s.batchMu.Unlock()
 
+	// Track metrics
+	defer func() {
+		if s.enableMetrics {
+			duration := time.Since(start)
+			s.metrics.lastFlushDuration.Store(int64(duration))
+			s.metrics.totalFlushTime.Add(int64(duration))
+			s.metrics.batchesSent.Add(1)
+			s.metrics.totalBatchSize.Add(int64(len(events)))
+		}
+	}()
+
 	for _, event := range events {
 		// Attach current breadcrumbs
 		event.Breadcrumbs = s.breadcrumbs.GetAll()
 
-		// Send to Sentry
-		eventID := s.hub.CaptureEvent(event)
-		if eventID == nil && selflog.IsEnabled() {
-			selflog.Printf("[sentry] failed to capture event: %s", event.Message)
+		// Send with retry logic if configured
+		if s.maxRetries > 0 {
+			s.sendWithRetry(event)
+		} else {
+			// Original behavior without retry
+			eventID := s.hub.CaptureEvent(event)
+			if eventID == nil && selflog.IsEnabled() {
+				selflog.Printf("[sentry] failed to capture event: %s", event.Message)
+			}
 		}
 	}
+}
+
+// sendWithRetry sends an event to Sentry with retry logic
+func (s *SentrySink) sendWithRetry(event *sentry.Event) {
+	var lastErr error
+
+	for attempt := 0; attempt <= s.maxRetries; attempt++ {
+		eventID := s.hub.CaptureEvent(event)
+		if eventID != nil {
+			// Success
+			if s.enableMetrics {
+				s.metrics.eventsSent.Add(1)
+				if attempt > 0 {
+					s.metrics.eventsRetried.Add(1)
+				}
+			}
+			return
+		}
+
+		lastErr = fmt.Errorf("failed to capture event: %s", event.Message)
+
+		if attempt < s.maxRetries {
+			// Calculate exponential backoff with jitter
+			delay := s.calculateBackoff(attempt)
+
+			if s.enableMetrics {
+				s.metrics.retryCount.Add(1)
+			}
+
+			if selflog.IsEnabled() {
+				selflog.Printf("[sentry] retry attempt %d/%d for event, waiting %v",
+					attempt+1, s.maxRetries, delay)
+			}
+
+			time.Sleep(delay)
+		}
+	}
+
+	// All retries exhausted
+	if s.enableMetrics {
+		s.metrics.eventsFailed.Add(1)
+		s.metrics.networkErrors.Add(1)
+	}
+
+	if selflog.IsEnabled() {
+		selflog.Printf("[sentry] failed to send event after %d attempts: %v",
+			s.maxRetries+1, lastErr)
+	}
+}
+
+// calculateBackoff calculates exponential backoff with jitter
+func (s *SentrySink) calculateBackoff(attempt int) time.Duration {
+	// Exponential backoff: backoff * 2^attempt
+	backoff := float64(s.retryBackoff) * math.Pow(2, float64(attempt))
+
+	// Add jitter
+	if s.retryJitter > 0 {
+		jitter := (rand.Float64()*2 - 1) * s.retryJitter // -jitter to +jitter
+		backoff = backoff * (1 + jitter)
+	}
+
+	// Cap at 30 seconds
+	maxBackoff := 30 * time.Second
+	if time.Duration(backoff) > maxBackoff {
+		return maxBackoff
+	}
+
+	return time.Duration(backoff)
 }
 
 // addBreadcrumb adds a log event as a breadcrumb.
@@ -226,6 +429,10 @@ func (s *SentrySink) addBreadcrumb(event *core.LogEvent) {
 	}
 
 	s.breadcrumbs.Add(breadcrumb)
+
+	if s.enableMetrics {
+		s.metrics.breadcrumbsAdded.Add(1)
+	}
 }
 
 // convertToSentryEvent converts a log event to a Sentry event.
@@ -261,6 +468,24 @@ func (s *SentrySink) convertToSentryEvent(event *core.LogEvent) *sentry.Event {
 	// Apply custom fingerprinting
 	if s.fingerprinter != nil {
 		sentryEvent.Fingerprint = s.fingerprinter(event)
+	} else {
+		// Default fingerprint based on template and error
+		sentryEvent.Fingerprint = []string{event.MessageTemplate}
+		if sentryEvent.Exception != nil && len(sentryEvent.Exception) > 0 {
+			sentryEvent.Fingerprint = append(sentryEvent.Fingerprint, 
+				sentryEvent.Exception[0].Type)
+		}
+	}
+	
+	// Apply group-based sampling
+	if s.sampler != nil && s.samplingConfig != nil && s.samplingConfig.GroupSampling {
+		fingerprint := fmt.Sprintf("%v", sentryEvent.Fingerprint)
+		if !s.sampler.groupSample(fingerprint) {
+			if s.enableMetrics && s.metrics != nil {
+				s.metrics.eventsDropped.Add(1)
+			}
+			return nil
+		}
 	}
 
 	return sentryEvent
@@ -268,11 +493,38 @@ func (s *SentrySink) convertToSentryEvent(event *core.LogEvent) *sentry.Event {
 
 // extractException extracts exception information from an error.
 func (s *SentrySink) extractException(err error) []sentry.Exception {
+	// Create cache key from error type and message
+	cacheKey := fmt.Sprintf("%T:%s", err, err.Error())
+
+	// Check cache
+	if s.stackTraceCache != nil {
+		if cached, ok := s.stackTraceCache.get(cacheKey); ok {
+			if s.enableMetrics {
+				// Track cache hit (you could add this metric to metricsCollector)
+			}
+			return []sentry.Exception{
+				{
+					Type:       fmt.Sprintf("%T", err),
+					Value:      err.Error(),
+					Stacktrace: cached,
+				},
+			}
+		}
+	}
+
+	// Extract new stack trace
+	stacktrace := sentry.ExtractStacktrace(err)
+
+	// Cache it
+	if s.stackTraceCache != nil && stacktrace != nil {
+		s.stackTraceCache.set(cacheKey, stacktrace)
+	}
+
 	return []sentry.Exception{
 		{
 			Type:       fmt.Sprintf("%T", err),
 			Value:      err.Error(),
-			Stacktrace: sentry.ExtractStacktrace(err),
+			Stacktrace: stacktrace,
 		},
 	}
 }
@@ -280,7 +532,17 @@ func (s *SentrySink) extractException(err error) []sentry.Exception {
 // renderMessage renders the message template with actual property values.
 func (s *SentrySink) renderMessage(event *core.LogEvent) string {
 	template := event.MessageTemplate
-	result := strings.Builder{}
+	
+	// Get builder from pool
+	builder := builderPool.Get().(*strings.Builder)
+	defer func() {
+		builder.Reset()
+		builderPool.Put(builder)
+	}()
+	
+	// Preallocate capacity based on template length + estimated property expansion
+	estimatedSize := len(template) + len(event.Properties)*20
+	builder.Grow(estimatedSize)
 
 	// Replace {PropertyName} with actual values
 	i := 0
@@ -311,23 +573,23 @@ func (s *SentrySink) renderMessage(event *core.LogEvent) string {
 					// Format the value
 					switch v := val.(type) {
 					case error:
-						result.WriteString(v.Error())
+						builder.WriteString(v.Error())
 					case time.Time:
-						result.WriteString(v.Format(time.RFC3339))
+						builder.WriteString(v.Format(time.RFC3339))
 					case *time.Time:
 						if v != nil {
-							result.WriteString(v.Format(time.RFC3339))
+							builder.WriteString(v.Format(time.RFC3339))
 						} else {
-							result.WriteString("<nil>")
+							builder.WriteString("<nil>")
 						}
 					case fmt.Stringer:
-						result.WriteString(v.String())
+						builder.WriteString(v.String())
 					default:
-						result.WriteString(fmt.Sprint(v))
+						builder.WriteString(fmt.Sprint(v))
 					}
 				} else {
 					// Keep the placeholder if no value found
-					result.WriteString(template[i : j+1])
+					builder.WriteString(template[i : j+1])
 				}
 
 				i = j + 1
@@ -335,11 +597,11 @@ func (s *SentrySink) renderMessage(event *core.LogEvent) string {
 			}
 		}
 
-		result.WriteByte(template[i])
+		builder.WriteByte(template[i])
 		i++
 	}
 
-	return result.String()
+	return builder.String()
 }
 
 // levelToSentryLevel converts mtlog level to Sentry level.

@@ -205,3 +205,67 @@ func Custom(fn func(*core.LogEvent) string) Fingerprinter {
 		return []string{fn(event)}
 	}
 }
+
+// WithRetry configures retry behavior for failed event submissions.
+// maxRetries: maximum number of retry attempts (0 = no retries)
+// backoff: base delay between retries (will be exponentially increased)
+func WithRetry(maxRetries int, backoff time.Duration) Option {
+	return func(s *SentrySink) {
+		s.maxRetries = maxRetries
+		s.retryBackoff = backoff
+		s.retryJitter = 0.1 // Default 10% jitter
+	}
+}
+
+// WithRetryJitter sets the jitter factor for retry delays (0.0 to 1.0).
+// Jitter helps prevent thundering herd problems.
+func WithRetryJitter(jitter float64) Option {
+	return func(s *SentrySink) {
+		if jitter < 0 {
+			jitter = 0
+		} else if jitter > 1 {
+			jitter = 1
+		}
+		s.retryJitter = jitter
+	}
+}
+
+// WithMetrics enables or disables metrics collection.
+func WithMetrics(enabled bool) Option {
+	return func(s *SentrySink) {
+		s.enableMetrics = enabled
+	}
+}
+
+// WithMetricsCallback sets a callback that's called periodically with metrics.
+func WithMetricsCallback(interval time.Duration, callback func(Metrics)) Option {
+	return func(s *SentrySink) {
+		if callback != nil && interval > 0 {
+			go func() {
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-ticker.C:
+						callback(s.Metrics())
+					case <-s.stopCh:
+						return
+					}
+				}
+			}()
+		}
+	}
+}
+
+// WithStackTraceCacheSize sets the size of the stack trace cache.
+// A larger cache can improve performance when the same errors occur repeatedly.
+// Set to 0 to disable caching.
+func WithStackTraceCacheSize(size int) Option {
+	return func(s *SentrySink) {
+		s.stackTraceCacheSize = size
+		if size <= 0 {
+			s.stackTraceCache = nil
+		}
+	}
+}

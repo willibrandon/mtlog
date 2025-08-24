@@ -105,4 +105,7 @@ func enrichEventFromContext(ctx context.Context, event *sentry.Event) {
 			}
 		}
 	}
+
+	// Add transaction/span information
+	enrichEventFromTransaction(ctx, event)
 }
