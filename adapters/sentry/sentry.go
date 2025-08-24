@@ -17,6 +17,12 @@ import (
 	"github.com/willibrandon/mtlog/selflog"
 )
 
+func init() {
+	// Seed the random number generator for better jitter distribution in retry backoff
+	// This is not security-critical as it's only used for retry timing jitter
+	rand.Seed(time.Now().UnixNano())
+}
+
 var (
 	// builderPool is a pool of string builders for message rendering
 	builderPool = sync.Pool{
