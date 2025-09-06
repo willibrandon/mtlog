@@ -288,7 +288,7 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 			}
 
 			if err := json.NewDecoder(resp.Body).Decode(&result); err == nil {
-				// Log any individual errors (in production, you'd handle these appropriately)
+				// Log individual document errors using selflog
 				if result.Errors {
 					for _, item := range result.Items {
 						// Check both index and create responses
@@ -309,15 +309,12 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 						}
 
 						if errorInfo != nil {
-							// Individual document error - could log or handle
+							// Log individual document error
 							if selflog.IsEnabled() {
 								errType := errorInfo["type"]
 								errReason := errorInfo["reason"]
 								selflog.Printf("[elasticsearch] bulk item error: type=%v, reason=%v", errType, errReason)
 							}
-							// In production, you might want to retry failed documents
-							// For now, increment a counter or log the error
-							continue // Skip to next item
 						}
 					}
 				}
@@ -325,7 +322,10 @@ func (es *ElasticsearchSink) sendBulkRequest(body []byte) bool {
 			return true
 		}
 
-		// Read error response for debugging (in production, you might log this)
+		// Log HTTP error response for debugging
+		if selflog.IsEnabled() {
+			selflog.Printf("[elasticsearch] HTTP %d response from %s", resp.StatusCode, bulkURL)
+		}
 	}
 
 	return false
