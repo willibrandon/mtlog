@@ -28,7 +28,19 @@ func (s *CustomSink) Emit(event *core.LogEvent) {
 
 	// Optionally include extra properties not in the template
 	for key, value := range event.Properties {
-		if !strings.Contains(event.MessageTemplate, "{"+key) {
+		// Check for complete placeholder patterns to avoid false positives
+		// (e.g., "User" should not match "{UserId}")
+		placeholder1 := "{" + key + "}"        // Simple: {Key}
+		placeholder2 := "{" + key + ":"        // With format: {Key:format}
+		placeholder3 := "{@" + key + "}"       // Destructuring: {@Key}
+		placeholder4 := "{$" + key + "}"       // Scalar: {$Key}
+		placeholder5 := "{" + key + ","        // Alignment: {Key,10}
+
+		if !strings.Contains(event.MessageTemplate, placeholder1) &&
+			!strings.Contains(event.MessageTemplate, placeholder2) &&
+			!strings.Contains(event.MessageTemplate, placeholder3) &&
+			!strings.Contains(event.MessageTemplate, placeholder4) &&
+			!strings.Contains(event.MessageTemplate, placeholder5) {
 			fmt.Fprintf(s.output, "  → %s: %v\n", key, value)
 		}
 	}
