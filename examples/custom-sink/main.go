@@ -17,7 +17,7 @@ type CustomSink struct {
 
 func (s *CustomSink) Emit(event *core.LogEvent) {
 	// Use RenderMessage() to properly render the message template
-	// This handles format specifiers, destructuring operators, and scalar hints
+	// This handles format specifiers, capturing operators, and scalar hints
 	message := event.RenderMessage()
 
 	// Format and write the log entry
@@ -32,7 +32,7 @@ func (s *CustomSink) Emit(event *core.LogEvent) {
 		// (e.g., "User" should not match "{UserId}")
 		placeholder1 := "{" + key + "}"        // Simple: {Key}
 		placeholder2 := "{" + key + ":"        // With format: {Key:format}
-		placeholder3 := "{@" + key + "}"       // Destructuring: {@Key}
+		placeholder3 := "{@" + key + "}"       // Capturing: {@Key}
 		placeholder4 := "{$" + key + "}"       // Scalar: {$Key}
 		placeholder5 := "{" + key + ","        // Alignment: {Key,10}
 
@@ -79,7 +79,7 @@ func main() {
 	// Simple message with properties
 	log.Info("Application started on port {Port}", 8080)
 
-	// Destructuring operator - renders the entire struct
+	// Capturing operator - renders the entire struct
 	config := map[string]any{
 		"debug":   true,
 		"port":    8080,

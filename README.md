@@ -1373,7 +1373,7 @@ type CustomSink struct {
 
 func (s *CustomSink) Emit(event *core.LogEvent) {
     // Use RenderMessage() to properly render the message template
-    // This handles format specifiers, destructuring operators, and scalar hints
+    // This handles format specifiers, capturing operators, and scalar hints
     message := event.RenderMessage()
 
     // Format and write the log entry

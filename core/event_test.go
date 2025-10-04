@@ -7,7 +7,7 @@ import (
 // TestRenderMessage demonstrates that RenderMessage() fixes issue #64.
 // It shows that RenderMessage() correctly handles all template features.
 func TestRenderMessage(t *testing.T) {
-	t.Run("destructuring operator", func(t *testing.T) {
+	t.Run("capturing operator", func(t *testing.T) {
 		event := &LogEvent{
 			MessageTemplate: "Configuration: {@Config}",
 			Properties: map[string]any{

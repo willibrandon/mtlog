@@ -39,7 +39,7 @@ func (e *LogEvent) AddProperty(name string, value any) {
 
 // RenderMessage renders the message template with the event's properties.
 // This method parses the MessageTemplate and replaces all placeholders with their
-// corresponding property values, handling format specifiers, destructuring operators,
+// corresponding property values, handling format specifiers, capturing operators,
 // and scalar hints.
 //
 // If parsing fails, the original MessageTemplate is returned as a fallback.
