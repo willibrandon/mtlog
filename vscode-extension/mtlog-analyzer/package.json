@@ -3,7 +3,7 @@
   "displayName": "mtlog-analyzer",
   "description": "Real-time mtlog template validation for Go",
   "icon": "assets/icon.png",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "publisher": "mtlog",
   "repository": {
     "type": "git",

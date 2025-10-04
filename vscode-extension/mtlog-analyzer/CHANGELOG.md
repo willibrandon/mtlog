@@ -4,6 +4,12 @@ All notable changes to the "mtlog-analyzer" extension will be documented in this
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-10-04
+
+### Changed
+- Version bump for v0.10.0 release
+- No functional changes in VS Code extension
+
 ## [0.9.0] - 2025-08-19
 
 ### Added

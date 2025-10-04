@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.mtlog"
-version = "0.9.0"
+version = "0.10.0"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,11 @@ intellijPlatform {
         """.trimIndent()
         
         changeNotes = """
+            <h2>0.10.0</h2>
+            <ul>
+                <li>Version bump for v0.10.0 release</li>
+                <li>No functional changes in GoLand plugin</li>
+            </ul>
             <h2>0.9.0</h2>
             <ul>
                 <li>Added support for With() method diagnostics (MTLOG009-MTLOG013)</li>

@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-10-04
+
 ### Added
+- **Sentry Error Tracking Adapter** - Enterprise-grade error monitoring integration (#63)
+  - Automatic error capture with stack traces and breadcrumbs
+  - Transaction tracking for distributed tracing
+  - 7 sampling strategies: fixed, adaptive, priority, burst detection, group-based, profiles, and custom
+  - Retry logic with exponential backoff for network resilience
+  - Real-time metrics and observability with atomic counters
+  - Message template interpolation in Sentry UI
+  - Performance optimized: stack trace caching (60.74 ns/op), retry calculation (11.07 ns/op)
+  - Separate module at `github.com/willibrandon/mtlog/adapters/sentry`
+
+- **Context Deadline Awareness** - Automatic timeout warnings (#48)
+  - Automatically detects and warns when operations approach context deadlines
+  - Configurable warning threshold (e.g., warn when <100ms remaining)
+  - Adds properties: `DeadlineRemaining`, `DeadlineAt`, `DeadlineApproaching`
+  - Optionally upgrades log level (Info → Warning) when deadline is near
+  - Zero-cost when context has no deadline
+  - Perfect for HTTP handlers, database operations, and microservice calls
+
+- **Per-Message Sampling** - Adaptive log volume control (#61)
+  - Multiple sampling strategies: counter-based, rate-based, time-based, first-N, group-based, conditional, exponential backoff
+  - Adaptive sampling automatically adjusts rate to maintain target events/second
+  - Oscillation prevention with hysteresis threshold and dampening factor
+  - Profile versioning with semantic versioning and migration policies
+  - Thread-safe, immutable profile registry with freeze capability
+  - Performance: 17ns for simple sampling decisions, 209ns with properties
+  - Fluent configuration API with predefined dampening presets
+
+- **Conditional and Router Sinks** - Advanced event routing (#60)
+  - Zero-overhead conditional routing (3.7ns when predicate returns false)
+  - Flexible routing modes: FirstMatch (exclusive) and AllMatch (broadcast)
+  - Production resilience: circuit breakers, health checks, fallback sinks
+  - Enterprise monitoring: Prometheus metrics, Grafana dashboards
+  - Runtime management: add/remove routes and groups dynamically
+  - 11 documented routing patterns for real-world scenarios
+  - JSON configuration support via existing configuration builder
+
+- **HTTP Middleware** - Multi-framework request/response logging (#59)
+  - Support for net/http, Gin, Echo, Fiber, and Chi frameworks
+  - Request/response logging with configurable fields and timing
+  - Request ID generation and propagation with multiple header support
+  - Context injection for nested logging with helper methods
+  - Configurable log levels based on HTTP status codes
+  - Advanced sampling strategies: rate-based, adaptive, path-based, composite
+  - Object pooling for zero-allocation paths (~2.3μs per request overhead)
+  - Distributed tracing support (W3C Trace Context, B3, X-Ray)
+  - Panic recovery with detailed stack traces
+  - Separate module at `github.com/willibrandon/mtlog/adapters/middleware`
+
 - **RenderMessage() Method** - Public API for rendering message templates (#64)
   - New `RenderMessage()` method on `core.LogEvent` for custom sinks
   - Properly handles capturing operators (`{@Property}`), scalar hints (`{$Property}`), and format specifiers (`{Property:format}`)
@@ -557,6 +607,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed hardcoded test tokens from integration tests
 - Added proper environment variable requirements for sensitive data
 
+[0.10.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.10.0
+[0.9.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.9.0
 [0.8.1]: https://github.com/willibrandon/mtlog/releases/tag/v0.8.1
 [0.8.0]: https://github.com/willibrandon/mtlog/releases/tag/v0.8.0
 [0.7.7]: https://github.com/willibrandon/mtlog/releases/tag/v0.7.7
