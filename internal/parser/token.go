@@ -3,12 +3,11 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
-	
-	"github.com/willibrandon/mtlog/internal/capture"
 )
 
 // MessageTemplateToken represents a single token in a message template.
@@ -94,12 +93,13 @@ func (p *PropertyToken) formatValue(value any) string {
 
 	// Handle different value types with format strings
 	switch v := value.(type) {
-	case capture.Null:
-		// Null sentinel type renders as "nil" for strings
-		return v.String()
-	case *capture.CapturedStruct:
-		// Handle captured structs - render as struct notation
-		return formatStruct(v)
+	case time.Time:
+		// Handle time.Time explicitly to use custom formatting logic
+		// instead of its default String() method (time.Time implements fmt.Stringer)
+		if p.Format != "" {
+			return p.formatTime(v)
+		}
+		return formatValue(value)
 	case int, int8, int16, int32, int64:
 		if p.Format != "" {
 			return p.formatNumber(v)
@@ -115,11 +115,20 @@ func (p *PropertyToken) formatValue(value any) string {
 			return p.formatFloat(v)
 		}
 		return formatValue(value)
-	case time.Time:
-		if p.Format != "" {
-			return p.formatTime(v)
+	case fmt.Stringer:
+		// Handle types that implement Stringer (includes Null and CapturedStruct from capture package)
+		// This case is checked AFTER concrete types like time.Time to ensure proper formatting
+
+		// Use reflection to identify the capture.Null type without importing it
+		// This avoids import cycle issues while being more reliable than string comparison
+		typeName := reflect.TypeOf(v).String()
+		if typeName == "capture.Null" {
+			// This is the special Null sentinel type - preserve its "nil" representation
+			return v.String()
 		}
-		return formatValue(value)
+
+		// For other Stringers (like CapturedStruct), use their string representation
+		return v.String()
 	case string:
 		// Handle string formatting
 		if p.Format == "l" {
@@ -310,17 +319,11 @@ func (p *PropertyToken) applyAlignment(s string) string {
 	}
 }
 
-// formatStruct formats a CapturedStruct as Go struct notation.
-func formatStruct(cs *capture.CapturedStruct) string {
-	// Simply delegate to the CapturedStruct's String() method
-	return cs.String()
-}
-
 func formatValue(value any) string {
 	if value == nil {
-		return "nil"  // Go convention: nil without brackets
+		return "nil" // Go convention: nil without brackets
 	}
-	
+
 	switch v := value.(type) {
 	case []byte:
 		// Special handling for byte slices - render as string if valid UTF-8

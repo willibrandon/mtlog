@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **RenderMessage() Method** - Public API for rendering message templates (#64)
+  - New `RenderMessage()` method on `core.LogEvent` for custom sinks
+  - Properly handles capturing operators (`{@Property}`), scalar hints (`{$Property}`), and format specifiers (`{Property:format}`)
+  - Enables custom sinks to render message templates without accessing internal parser
+  - Returns the original template as fallback if parsing fails
+  - Example: `message := event.RenderMessage()` renders the template with all properties
+
 - **Zed Extension** - Full editor support via Language Server Protocol (#56)
   - New `mtlog-lsp` command providing LSP wrapper for mtlog-analyzer
   - Native Zed extension using Rust/WASM (wasm32-wasip2 target)
