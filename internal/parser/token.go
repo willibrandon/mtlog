@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-	
-	"github.com/willibrandon/mtlog/internal/capture"
 )
 
 // MessageTemplateToken represents a single token in a message template.
@@ -94,12 +92,12 @@ func (p *PropertyToken) formatValue(value any) string {
 
 	// Handle different value types with format strings
 	switch v := value.(type) {
-	case capture.Null:
-		// Null sentinel type renders as "nil" for strings
-		return v.String()
-	case *capture.CapturedStruct:
-		// Handle captured structs - render as struct notation
-		return formatStruct(v)
+	case time.Time:
+		// Handle time.Time first, before checking fmt.Stringer
+		if p.Format != "" {
+			return p.formatTime(v)
+		}
+		return formatValue(value)
 	case int, int8, int16, int32, int64:
 		if p.Format != "" {
 			return p.formatNumber(v)
@@ -115,11 +113,16 @@ func (p *PropertyToken) formatValue(value any) string {
 			return p.formatFloat(v)
 		}
 		return formatValue(value)
-	case time.Time:
-		if p.Format != "" {
-			return p.formatTime(v)
+	case fmt.Stringer:
+		// Handle types that implement Stringer (includes Null and CapturedStruct)
+		// But check this AFTER concrete types like time.Time
+		str := v.String()
+		// Check if it's the special "nil" case (Null type)
+		if str == "nil" {
+			return str
 		}
-		return formatValue(value)
+		// For other Stringers, use their string representation
+		return str
 	case string:
 		// Handle string formatting
 		if p.Format == "l" {
@@ -308,12 +311,6 @@ func (p *PropertyToken) applyAlignment(s string) string {
 		}
 		return strings.Repeat(" ", width-len(s)) + s
 	}
-}
-
-// formatStruct formats a CapturedStruct as Go struct notation.
-func formatStruct(cs *capture.CapturedStruct) string {
-	// Simply delegate to the CapturedStruct's String() method
-	return cs.String()
 }
 
 func formatValue(value any) string {

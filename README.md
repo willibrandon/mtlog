@@ -1367,16 +1367,39 @@ The extension provides:
 Implement the `core.LogEventSink` interface for custom outputs:
 
 ```go
-type CustomSink struct{}
+type CustomSink struct {
+    output io.Writer
+}
 
-func (s *CustomSink) Emit(event *core.LogEvent) error {
-    // Process the log event
+func (s *CustomSink) Emit(event *core.LogEvent) {
+    // Use RenderMessage() to properly render the message template
+    // This handles format specifiers, destructuring operators, and scalar hints
+    message := event.RenderMessage()
+
+    // Format and write the log entry
+    timestamp := event.Timestamp.Format("15:04:05")
+    fmt.Fprintf(s.output, "[%s] %s: %s\n", timestamp, event.Level, message)
+
+    // Optionally include extra properties not in the template
+    for key, value := range event.Properties {
+        if !strings.Contains(event.MessageTemplate, "{"+key) {
+            fmt.Fprintf(s.output, "  %s: %v\n", key, value)
+        }
+    }
+}
+
+func (s *CustomSink) Close() error {
+    // Cleanup if needed
     return nil
 }
 
+// Use your custom sink
 log := mtlog.New(
-    mtlog.WithSink(&CustomSink{}),
+    mtlog.WithSink(&CustomSink{output: os.Stdout}),
 )
+
+// This will properly render with RenderMessage():
+log.Info("User {@User} performed {Action} at {Time:HH:mm}", user, "login", time.Now())
 ```
 
 ### Custom Enrichers
